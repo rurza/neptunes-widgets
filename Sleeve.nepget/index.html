@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sleeve</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Sleeve: a floating album cover on the LEFT with the track set beside it
+         on the RIGHT, straight on the wallpaper. No background card, no controls. -->
+    <div class="widget" id="widget">
+        <!-- The cover is the ONLY shadowed element. -->
+        <div class="cover" id="cover">
+            <img class="art" id="art" src="" alt="Album artwork">
+            <div class="no-art" id="noArt" aria-hidden="true">
+                <img class="sf-icon" data-symbol="music.note" data-size="36" alt="">
+            </div>
+        </div>
+
+        <!-- Track text, left-aligned, vertically centered beside the cover. -->
+        <div class="info" id="info">
+            <div class="title" id="title">Not Playing</div>
+            <div class="album" id="album"></div>
+            <div class="artist" id="artist"></div>
+        </div>
+    </div>
+
+    <script src="neptunes-kit.js"></script>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimal</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="widget stopped" id="widget">
+        <div class="labels">
+            <div class="title" id="title">Not Playing</div>
+            <div class="artist" id="artist"></div>
+            <div class="album" id="album"></div>
+        </div>
+        <div class="controls" id="controls" hidden>
+            <button class="control-btn" id="prevBtn" title="Previous" aria-label="Previous">
+                <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="">
+            </button>
+            <button class="control-btn play-btn" id="playBtn" title="Play/Pause" aria-label="Play or pause">
+                <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="">
+                <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="">
+            </button>
+            <button class="control-btn" id="nextBtn" title="Next" aria-label="Next">
+                <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">
+            </button>
+        </div>
+    </div>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

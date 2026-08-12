@@ -1,0 +1,323 @@
+/* Stack — a centered album cover with transport controls, title and artist
+   stacked BELOW it, floating directly on the wallpaper (no background card).
+   Only the cover casts a shadow; all text sits on the raw wallpaper, so every
+   glyph and label carries a legibility text-/drop-shadow. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none; /* so dragging moves the window, not the cover image */
+}
+
+/* Shadow-safe layout: transparent window, nothing but the cover + text is drawn. */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+/* ---- Shadow-safe padding math ----------------------------------------------
+   The ONLY shadowed element is .cover (156x156). Its drop shadow is a SUBTLE
+   two-layer stack (low alpha so it fades to nothing well before its blur reach):
+       box-shadow: 0 2px 6px  rgba(0,0,0,0.14)   (tight contact)
+                 , 0 8px 18px rgba(0,0,0,0.12);  (soft ambient)
+   The governing extent per side is the max of the two layers:
+     · sides  extent = max(6, 18)      = 18px
+     · top    extent = max(6-2, 18-8)  = 10px
+     · bottom extent = max(6+2, 18+8)  = 26px  (falls over interior content)
+   Body padding = 22px top / 24px sides / 26px bottom.
+
+   The .stack column is centred in .widget. Its natural height is:
+     cover 156 + (mt12 + controls 40) + (mt10 + title 20.8) + (mt2 + artist 17.6)
+     ~= 258px.
+   defaultSize 224 x 310  -> content box 176 x 262.
+     LEFT/RIGHT (window-edge-facing): cover 156 centred in 176 leaves
+       (176-156)/2 = 10 slack, so the cover edge sits 24 + 10 = 34px from the
+       window edge. extent 18 + 8 = 26 <= 34  (16px clearance). OK.
+     TOP (window-edge-facing): stack 258 fits inside 262, cover sits at top of
+       the column, so cover-top = 22 + (262-258)/2 = 24px from the window top.
+       extent 10 + 8 = 18 <= 24  (14px clearance). OK.
+     BOTTOM (interior, NOT window-edge-facing): the cover's 26px under-shadow
+       falls over the controls/title/artist region, harmlessly inside the
+       window; the bottom-most drawn thing is the artist text (no shadow), and
+       pad 26 keeps it off the edge. No clip possible here.
+   minSize 220 x 306 -> content box 172 x 258. Side slack (172-156)/2 = 8 ->
+     32px cover-to-edge; extent 18 + 8 = 26 <= 32. Vertical: stack 258 == content
+     258, cover-top = 22; extent 10 + 8 = 18 <= 22. Both axes still clear.
+     resizable:false so the window only ever renders at defaultSize anyway. */
+body {
+    padding: 22px 24px 26px;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-app-region: drag;            /* whole surface drags the window */
+}
+
+:root {
+    /* Accent palette is overwritten at runtime by NTKit.applyAccent.
+       --accent = raw album colour (play-button fill); --on = legible glyph on it. */
+    --accent: rgb(124, 124, 132);
+    --on: rgb(255, 255, 255);
+    --muted: rgb(150, 150, 156);
+    --accent-ink: rgb(124, 124, 132);
+
+    /* Dark theme (default): white ink for dark wallpapers. */
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.72);
+    --ink-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --glyph-shadow: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Light theme: dark ink for light wallpapers. */
+html.theme-light {
+    --text: #14141a;
+    --text-dim: rgba(20, 20, 26, 0.66);
+}
+
+.widget {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stack {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+    text-align: center;
+}
+
+/* ---- Cover (the only shadowed element) ---- */
+.cover {
+    position: relative;
+    width: 156px;
+    height: 156px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(120, 120, 128, 0.28);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14), 0 8px 18px rgba(0, 0, 0, 0.12);
+    flex: none;
+}
+
+.cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.cover img.visible {
+    opacity: 1;
+}
+
+.no-artwork {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(70, 70, 76, 0.55), rgba(28, 28, 32, 0.55));
+}
+
+.no-artwork img.sf-icon {
+    width: 42%;
+    height: 42%;
+    color: rgba(255, 255, 255, 0.45);
+}
+
+.no-artwork.hidden {
+    display: none;
+}
+
+/* ---- Controls: prev / play-pause / next ---- */
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+    height: 40px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+/* Reveal on hover, OR when host marks always-active hover (nt-hover), OR when the
+   "Always" setting keeps them pinned (default). */
+.widget:hover .controls,
+html.nt-hover .controls,
+.controls.controls-always {
+    opacity: 1;
+}
+
+.control-btn {
+    -webkit-app-region: no-drag;         /* buttons click, they don't drag */
+    border: none;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: transform 0.1s ease, opacity 0.15s ease;
+}
+
+.control-btn:active {
+    transform: scale(0.9);
+}
+
+/* prev / next: plain white glyphs on the wallpaper. */
+.control-btn.glyph {
+    width: 30px;
+    height: 30px;
+    opacity: 0.9;
+}
+
+.control-btn.glyph:hover {
+    opacity: 1;
+}
+
+/* Greyed out during a Spotify ad (prev/next only — see script.js). Lower than the base
+   0.9 and pinned through hover, so it reads as inert rather than merely un-hovered. */
+.control-btn.glyph:disabled,
+.control-btn.glyph:disabled:hover {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.control-btn.glyph img.sf-icon {
+    width: 22px;
+    height: 22px;
+    filter: var(--glyph-shadow);
+}
+
+/* play-pause: neutral filled circle, NOT the album accent (that read as garish).
+   White circle / dark icon on the wallpaper; flips in light theme. */
+.play-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.95);
+    color: rgba(18, 18, 20, 0.96);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    transition: transform 0.1s ease;
+    /* The SF Symbol icon is a rendered PNG, not an SVG using currentColor, so it can't
+       pick up the `color:` override above — sfsymbols.js reads --icon-color instead. */
+    --icon-color: #121214;
+}
+
+html.theme-light .play-btn {
+    background: rgba(24, 24, 26, 0.9);
+    color: rgba(255, 255, 255, 0.96);
+    --icon-color: #ffffff;
+}
+
+.play-btn img.sf-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.play-btn .pause-icon {
+    display: none;
+}
+
+.widget.playing .play-btn .play-icon {
+    display: none;
+}
+
+.widget.playing .play-btn .pause-icon {
+    display: block;
+}
+
+/* ---- Title + artist (white ink on wallpaper) ---- */
+.title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    color: var(--text);
+    text-shadow: var(--ink-shadow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.artist {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--text-dim);
+    text-shadow: var(--ink-shadow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Room for the shadow inside the clip. `text-overflow: ellipsis` needs `overflow: hidden`, and
+   overflow clips at the padding box — so a descender sat flush against that edge and the ink
+   shadow it casts below was sliced off in a straight line. Pad the clip box out by the shadow's
+   reach and take the identical amount back with negative margins: the shadow gets room, nothing
+   moves. `max-width` carries the same total (it replaces the plain `100%` both rules used to
+   hold) because `box-sizing: border-box` would otherwise cap the new padding inside the old
+   width and ellipsise the text early. Safe here because `.stack` is a flex column, so these
+   margins never collapse into one another.
+   See `NepTunes Widget/README.md` → "A text shadow is clipped by its own label". */
+.title,
+.artist {
+    --shadow-gutter: 4px;               /* the shadow's reach: 1px offset + 3px blur */
+    padding: var(--shadow-gutter);
+    margin: calc(-1 * var(--shadow-gutter));
+    max-width: calc(100% + var(--shadow-gutter) * 2);
+}
+
+/* Both carried a plain margin-top before the gutter took 4px off every side; fold them in. */
+.title {
+    margin-top: calc(10px - var(--shadow-gutter));
+}
+
+.artist {
+    margin-top: calc(2px - var(--shadow-gutter));
+}
+
+/* ---- Stopped / no-track state ---- */
+.widget.stopped .title {
+    color: var(--text-dim);
+}
+
+.widget.stopped .controls {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* Keep dimmed controls dim even when "Always" is set. */
+.widget.stopped .controls.controls-always {
+    opacity: 0.5;
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+    .cover img,
+    .controls,
+    .control-btn,
+    .play-btn {
+        transition: none !important;
+    }
+}
+
+/* Optional text shadow (setting: textShadow) — off = none. */
+html.no-text-shadow .title,
+html.no-text-shadow .artist { text-shadow: none; }
+html.no-text-shadow .control-btn.glyph img.sf-icon { filter: none; }
+
+/* Shadow only makes sense on WHITE text (dark theme). Light theme = dark text => none. */
+html.theme-light .title,
+html.theme-light .artist { text-shadow: none; }
+html.theme-light .control-btn.glyph img.sf-icon { filter: none; }

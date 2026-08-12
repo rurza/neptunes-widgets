@@ -1,0 +1,226 @@
+[
+ {
+  "widget": "Charts",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Glass",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Headline",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Scrobbles",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Sleeve",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Stack",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Strip",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Minimal",
+  "settings": {
+   "textColor": "system"
+  },
+  "expect": "react",
+  "why": "textColor=system must follow the desktop"
+ },
+ {
+  "widget": "Minimal",
+  "settings": {
+   "textColor": "system",
+   "showControls": true
+  },
+  "expect": "react",
+  "why": "textColor=system with controls shown \u2014 icons must re-tint too"
+ },
+ {
+  "widget": "Vinyl",
+  "settings": {
+   "textColor": "system",
+   "labelPosition": "bottom",
+   "controlsPosition": "bottom"
+  },
+  "expect": "react",
+  "why": "textColor=system must follow the desktop"
+ },
+ {
+  "widget": "FullPlayer",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "NowPlaying",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "Charts",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
+ },
+ {
+  "widget": "Glass",
+  "settings": {
+   "theme": "light"
+  },
+  "expect": "stable",
+  "why": "explicit light must survive a flip untouched"
+ },
+ {
+  "widget": "Headline",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
+ },
+ {
+  "widget": "Scrobbles",
+  "settings": {
+   "theme": "light"
+  },
+  "expect": "stable",
+  "why": "explicit light must survive a flip untouched"
+ },
+ {
+  "widget": "Sleeve",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
+ },
+ {
+  "widget": "Stack",
+  "settings": {
+   "theme": "light"
+  },
+  "expect": "stable",
+  "why": "explicit light must survive a flip untouched"
+ },
+ {
+  "widget": "Strip",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
+ },
+ {
+  "widget": "Minimal",
+  "settings": {
+   "textColor": "white"
+  },
+  "expect": "stable",
+  "why": "explicit white text must survive a flip untouched"
+ },
+ {
+  "widget": "Minimal",
+  "settings": {
+   "textColor": "black"
+  },
+  "expect": "stable",
+  "why": "explicit black text must survive a flip untouched"
+ },
+ {
+  "widget": "Vinyl",
+  "settings": {
+   "textColor": "white",
+   "labelPosition": "bottom",
+   "controlsPosition": "bottom"
+  },
+  "expect": "stable",
+  "why": "explicit white text must survive a flip untouched"
+ },
+ {
+  "widget": "FullPlayer",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
+ },
+ {
+  "widget": "NowPlaying",
+  "settings": {
+   "theme": "light"
+  },
+  "expect": "stable",
+  "why": "explicit light must survive a flip untouched"
+ },
+ {
+  "widget": "Artwork",
+  "settings": {},
+  "expect": "stable",
+  "why": "no theme setting \u2014 nothing should move"
+ },
+ {
+  "widget": "V3",
+  "settings": {},
+  "expect": "stable",
+  "why": "dark-only by design \u2014 V1 forced .colorScheme = .dark, so a flip must move nothing"
+ },
+ {
+  "widget": "KitchenSink",
+  "settings": {},
+  "expect": "stable",
+  "why": "no theme setting \u2014 nothing should move"
+ },
+ {
+  "widget": "Minimal",
+  "settings": {
+   "textColor": "black",
+   "showControls": true
+  },
+  "expect": "stable",
+  "why": "explicit black + controls \u2014 icons must not move"
+ }
+]

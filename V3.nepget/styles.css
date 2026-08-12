@@ -1,0 +1,474 @@
+/* V3 — a 1:1 web port of the NepTunes 3 "V1" theme (../NepTunes 3/Themes/V1/).
+   A square album cover with a 12px radius, a frosted info strip pinned to its bottom
+   edge, and a frosted hover panel carrying two rows of controls over the whole thing.
+
+   DARK ONLY, on purpose. V1 forced `.environment(\.colorScheme, .dark)` because the
+   widget always sits over artwork, so there is deliberately no `prefers-color-scheme`
+   block and no light palette here. V3 must not react to a system light/dark flip
+   (SampleWidgets/_dev/theme-check/spec.json pins it as `stable`).
+
+   Every number below is traced to a V1 source line — see the table in
+   docs/superpowers/specs/2026-08-11-v3-widget-design.md before changing one. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    /* Without this, mousedown on the cover drags the album image instead of the window. */
+    -webkit-user-drag: none;
+}
+
+/* Transparent window: only .widget is visible, and body padding is the only room the
+   card's drop shadow has to render into. */
+html,
+body {
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    overflow: visible;
+}
+
+body {
+    /* SHADOW MATH — card shadow is `0 1px 3px + 0 2px 4px`, so it reaches 6px below,
+       4px to the sides and 2px above. 20px on all four sides clears it with headroom,
+       and is the exact padding/shadow pair proven clip-free in Artwork.nepget.
+       Do NOT enlarge either: the padding is also how far outside the visible cover the
+       host's `nt-hover` class fires (the window frame is cover + padding), so more
+       padding means the controls fade in even earlier. Manifest sizes include it:
+       visible cover is 220 / 160 / 460 for default / min / max. */
+    padding: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+:root {
+    /* macOS dark label colours, which is what V1's .primary/.secondary resolved to. */
+    --ink-primary: rgba(255, 255, 255, 0.92);
+    --ink-secondary: rgba(255, 255, 255, 0.55);
+
+    /* The frosted material, sampled from Themes/V1/icon.png: the bar reads (90, 52, 10)
+       under artwork at (236, 133, 53) — a flat ~0.38 multiplier, no saturation boost.
+       One declaration, one place: tune here after the first look in the real app. */
+    --material: rgba(0, 0, 0, 0.58);
+    --material-blur: blur(22px);
+
+    /* sfsymbols.js bakes the tint into the PNG at load time, so a class flip cannot
+       recolour an icon. Every glyph is therefore rasterised at pure white and the two
+       V1 ink values are reproduced with element opacity instead:
+         off  = .55 secondary ink x 0.7 opacity = white @ .385
+         on   = .92 primary   ink x 1.0 opacity = white @ .92
+       Keep --icon-color constant across states — the script re-bakes #repeatIcon /
+       #loveIcon / #volumeIcon on state changes, and a varying value would make the
+       same button render differently depending on whether it happened to re-bake. */
+    --icon-color: #ffffff;
+    --ctrl-off: 0.385;
+    --ctrl-on: 0.92;
+    --ctrl-disabled: 0.18;
+
+    /* V1: `.spring(dampingFraction: 0.75).delay(0.1)`. The bezier keeps the overshoot in
+       BOTH directions — a 0.75-damped spring dips under 28px on the way down too, and
+       that dip is what V1 looked like. Overshoot past 100% is clipped by .widget's
+       overflow, exactly as SwiftUI clipped it. */
+    --bar-spring: 0.55s cubic-bezier(0.32, 1.28, 0.5, 1) 0.1s;
+}
+
+/* ---- The card ------------------------------------------------------------------- */
+
+.widget {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    /* Config.cornerRadius = 12. */
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0a0a0a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 2px 4px rgba(0, 0, 0, 0.12);
+    -webkit-app-region: drag;
+}
+
+/* ---- Artwork -------------------------------------------------------------------- */
+
+.cover {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    /* V1: `.aspectRatio(1, contentMode: .fill).clipped()`. */
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Reproduces `nocover dark.png` from NepTunes 3 rather than Artwork.nepget's gradient:
+   a near-black field with a debossed music note. Sits above .cover in the stack, so it
+   simply covers whatever (possibly stale) artwork the <img> is still holding until the
+   script marks it .hidden. */
+.nocover {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Sampled from the original asset, not estimated: the field is pure black and the
+       note is rgb(64,64,64), spanning ~49.7% x 60.3% of the canvas. */
+    background: #000000;
+    /* Overrides the root white for this subtree only — sfsymbols.js resolves the tint
+       from the requesting <img>'s OWN computed style, so the note bakes dark while every
+       control glyph stays white. Kept as a baked colour rather than element opacity so
+       the emboss drop-shadow below renders at full strength (a filter chain fades the
+       shadow along with the glyph).
+
+       0.25, not a lower alpha: renderSFSymbol tints with `sourceAtop` over a black
+       template draw, so the alpha does not composite against the background — it lands
+       as an OPAQUE grey of roughly alpha x 255. 0.25 gives rgb(64,64,64), the asset's
+       measured value; 0.13 would bake it to ~#212121, visibly darker than the original. */
+    --icon-color: rgba(255, 255, 255, 0.25);
+}
+
+.nocover img.sf-icon {
+    /* 60%, matching the asset's 60.3% glyph HEIGHT. The rasteriser aspect-fits the glyph
+       inside a square canvas, so a square box of side N renders music.note at N tall and
+       proportionally narrower — the width follows on its own. */
+    width: 60%;
+    height: 60%;
+    /* The asset's note is debossed. A black drop shadow would be invisible against a
+       black field, so the cue is a faint light edge below the glyph instead. */
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.05));
+}
+
+/* ---- Info bar ------------------------------------------------------------------- */
+
+/* V1's `.ultraThinMaterial` strip. A centring flex container, which is what makes the
+   track-change reveal re-centre the title for free: growing the bar from 28px to the
+   full cover moves its content from bar-centre to cover-centre, exactly as V1's centred
+   VStack behaved. */
+.info-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    /* ArtworkView: `.frame(maxHeight: showFullInfo ? .infinity : (simpleMode ? 0 : 28))` */
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Clips the spring's overshoot, and the stack's overflow while the bar is short. */
+    overflow: hidden;
+    background: var(--material);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+    transition: height var(--bar-spring);
+}
+
+/* `hideLabel` on and not revealing. */
+.info-bar.collapsed {
+    height: 0;
+}
+
+/* Track-change reveal in progress. Declared after .collapsed so that, should both land
+   at once, the reveal wins — V1's `showFullInfo ? .infinity : (simpleMode ? 0 : 28)`
+   checked the reveal first too. */
+.info-bar.full {
+    height: 100%;
+}
+
+.info-stack {
+    /* Never squashed by the 0/28px bar — it overflows and is clipped instead. */
+    flex: 0 0 auto;
+    width: 100%;
+    /* `.padding([.leading, .trailing], 6)` */
+    padding: 0 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: var(--ink-secondary);
+}
+
+/* `.body` + `.fontWeight(.medium)`. No text shadow: the material carries the contrast
+   and V1 had none. */
+.title {
+    max-width: 100%;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    /* `lineLimit(showFullInfo ? nil : 1)` */
+    -webkit-line-clamp: 1;
+    overflow: hidden;
+}
+
+.info-bar.full .title {
+    -webkit-line-clamp: none;
+}
+
+/* `.lineLimit(3)`, and present only while revealing. max-height animates alongside
+   opacity so the artist's LAYOUT contribution comes and goes with it and the title
+   re-centres as it leaves; margin-top carries the VStack's 6px spacing, which must not
+   exist while the artist is collapsed or the lone title sits 3px off-centre in the bar.
+   Out: `.easeOut(duration: 0.3)`. */
+.artist {
+    max-width: 100%;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.3;
+    overflow-wrap: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    transition:
+        opacity 0.3s ease-out,
+        max-height 0.3s ease-out,
+        margin-top 0.3s ease-out;
+}
+
+/* In: `.easeOut(duration: 0.6).delay(0.6)` — the delay is relative to the whole reveal,
+   so the bar has finished growing before the artist starts appearing. 4.5em caps the
+   three clamped lines (3 x 1.3em) with a little slack. */
+.info-bar.full .artist {
+    opacity: 1;
+    max-height: 4.5em;
+    margin-top: 6px;
+    transition:
+        opacity 0.6s ease-out 0.6s,
+        max-height 0.6s ease-out 0.6s,
+        margin-top 0.6s ease-out 0.6s;
+}
+
+/* ---- Hover panel ---------------------------------------------------------------- */
+
+/* Gated on `html.nt-hover`, set by WidgetWindowController.startHoverMonitoring from
+   system-wide mouse monitors — NEVER on bare `:hover`. The widget panel is
+   `becomesKeyOnlyIfNeeded` and never becomes key, so AppKit delivers no mouseMoved
+   events to the web view and WebKit's hover chain is never re-evaluated: a click leaves
+   `document.querySelectorAll(':hover')` ending at that control indefinitely, and no
+   later mouse event dislodges it. Any `:hover` rule here would latch onto whatever was
+   pressed last, forever. (`:active` is safe — mouse-down/up both do arrive.)
+
+   `pointer-events: none` while hidden so the window still drags from the cover and the
+   invisible buttons cannot be clicked. The panel covers the info bar rather than
+   replacing it: V1 layered HoverView over ArtworkView.
+
+   Out: `.linear(duration: 0.1)`, no delay. */
+.hover {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--material);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s linear;
+}
+
+/* In: 0.13s gate (HoverController(delay: 0.13)) as the transition delay, then
+   `.linear(duration: 0.15)`. The `:has()` arm pins the panel open while the volume
+   popover is showing, exactly as V1 OR-ed `showingVolumePopover` into its hover state. */
+html.nt-hover .hover,
+.widget:has(#volumePopover.open) .hover {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.15s linear 0.13s;
+}
+
+/* The rows' hide rule is a ZERO-DURATION transition DELAYED by the panel's own 100ms
+   fade, not an instant snap. That is what V1's `removal: .identity` meant — the inner
+   VStack does not animate separately, it rides the parent's fade out. Snapping the rows
+   to 0 immediately would leave 100ms of empty frosted panel. */
+.hover-rows {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* `VStack(spacing: 17)` */
+    gap: 17px;
+    opacity: 0;
+    transition: opacity 0s linear 0.1s;
+}
+
+/* In: `.easeOut(duration: 0.2).delay(0.1)` on top of the 0.13s hover gate = 0.23s. */
+html.nt-hover .hover-rows,
+.widget:has(#volumePopover.open) .hover-rows {
+    opacity: 1;
+    transition: opacity 0.2s ease-out 0.23s;
+}
+
+/* `HStack(spacing: 11)`. Both rows are fixed-size at every cover size — V1 did not
+   scale them and neither does V3. */
+.row {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+/* ---- Controls ------------------------------------------------------------------- */
+
+.control-btn {
+    /* `.frame(width: 34, height: 34)` */
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    background: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: var(--ctrl-off);
+    transition: opacity 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+/* Active shuffle / repeat / love: `.primary` at `.opacity(1.0)`. */
+.control-btn.on {
+    opacity: var(--ctrl-on);
+}
+
+/* Press feedback, standing in for SwiftUI's plain button style. Instant on the way
+   down, eased on the way back up via the transition above, which is how an AppKit
+   control reads under the pointer. */
+.control-btn:not(:disabled):active {
+    opacity: var(--ctrl-on);
+    transition: none;
+}
+
+/* Spotify ad: prev/next are inert. Declared after .on so it always wins, and dimmer
+   than the base off state so it reads inert rather than merely "not active". Nothing
+   here is hover-driven, so it stays pinned for as long as the attribute is set. */
+.control-btn:disabled {
+    opacity: var(--ctrl-disabled);
+    cursor: default;
+}
+
+/* `.font(.system(size: 26))`. Sized explicitly — the rasterised PNG is retina, so an
+   unsized <img> renders at double size. */
+.control-btn img.sf-icon {
+    width: 26px;
+    height: 26px;
+    display: block;
+}
+
+/* IDs, not just the class, so these outrank `.control-btn img.sf-icon` above — that
+   rule also sets `display: block` and would otherwise leave the pause glyph stuck
+   visible while paused. */
+#playBtn .pause-icon {
+    display: none;
+}
+
+.widget.playing #playBtn .play-icon {
+    display: none;
+}
+
+.widget.playing #playBtn .pause-icon {
+    display: block;
+}
+
+/* ---- Volume popover ------------------------------------------------------------- */
+
+/* V1's `Slider` in a 140x36 `.popover`. An AppKit popover floats outside the window;
+   this one has to live inside the clipped card, so it is parked just above the first
+   control row and clamped to the top edge on small covers (where it overlaps the row
+   it belongs to — there is simply no room at a 160px cover).
+
+     row block height  = 34 + 17 + 34 = 85, centred, so row 1's top is 50% - 42.5px
+     popover top       = row 1 top - 8px gap - 36px height = 50% - 86.5px
+     bottom            = 100% - 36px - top                 = 50% + 50.5px
+     clamp             = at most 100% - 36px - 8px         = 100% - 44px */
+.volume-popover {
+    position: absolute;
+    z-index: 4;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: min(calc(50% + 50.5px), calc(100% - 44px));
+    width: 140px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    /* `.padding(.horizontal, 6)` on the slider. */
+    padding: 0 6px;
+    border-radius: 8px;
+    background: var(--material);
+    -webkit-backdrop-filter: var(--material-blur);
+    backdrop-filter: var(--material-blur);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    /* visibility flips only after the fade finishes, so the panel is not clickable
+       on its way out. */
+    transition: opacity 0.12s linear, visibility 0s linear 0.12s;
+}
+
+.volume-popover.open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity 0.12s linear, visibility 0s linear 0s;
+}
+
+/* The `slider` class is one of the tags/classes the host treats as interactive, so
+   dragging the thumb does not drag the window. */
+.slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.22);
+    outline: none;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--ink-primary);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.slider::-webkit-slider-thumb:active {
+    transform: scale(1.08);
+}
+
+/* ---- Resize handle -------------------------------------------------------------- */
+
+/* Square-locked resize, driven by the script's `resizeMove` messages. */
+.resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    z-index: 5;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
+    -webkit-app-region: no-drag;
+}
+
+/* ---- Shared ---------------------------------------------------------------------- */
+
+/* Used by #nocover (artwork present) and by whichever of #loveBtn / #volumeBtn the
+   current player does not get. `!important` because both hosts set `display: flex`
+   at the same specificity. */
+.hidden {
+    display: none !important;
+}

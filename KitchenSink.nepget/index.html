@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Sink</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="widget" id="widget">
+        <!-- Header with player info -->
+        <div class="header">
+            <div class="player-badge" id="playerBadge">
+                <span class="player-name" id="playerName">No Player</span>
+            </div>
+            <div class="header-actions">
+                <div class="header-btn-wrapper">
+                    <button class="header-btn" id="switchPlayerBtn" title="Switch Player">
+                        <img class="sf-icon" data-symbol="arrow.2.squarepath" data-size="18" alt="">
+                    </button>
+                    <span class="header-btn-label">Switch</span>
+                </div>
+                <div class="header-btn-wrapper">
+                    <button class="header-btn" id="activatePlayerBtn" title="Activate Player">
+                        <img class="sf-icon" data-symbol="arrow.up.right.square" data-size="18" alt="">
+                    </button>
+                    <span class="header-btn-label">Open</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Track info with artwork -->
+        <div class="track-section">
+            <div class="artwork-container">
+                <img id="artwork" src="" alt="">
+                <div class="no-artwork" id="noArtwork">
+                    <img class="sf-icon" data-symbol="music.note" data-size="36" alt="">
+                </div>
+            </div>
+            <div class="track-info">
+                <div class="title" id="title">Not Playing</div>
+                <div class="artist" id="artist"></div>
+                <div class="album" id="album"></div>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-section">
+            <span class="time" id="currentTime">0:00</span>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="time" id="duration">0:00</span>
+        </div>
+
+        <!-- Playback controls -->
+        <div class="controls-section">
+            <button class="control-btn small" id="shuffleBtn" title="Toggle Shuffle">
+                <img class="sf-icon" data-symbol="shuffle" data-size="18" alt="">
+            </button>
+            <button class="control-btn" id="prevBtn" title="Previous Track">
+                <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="">
+            </button>
+            <button class="control-btn play-btn" id="playBtn" title="Play/Pause">
+                <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="">
+                <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="">
+            </button>
+            <button class="control-btn" id="nextBtn" title="Next Track">
+                <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">
+            </button>
+            <button class="control-btn small" id="repeatBtn" title="Toggle Repeat">
+                <img class="sf-icon repeat-all" data-symbol="repeat" data-size="18" alt="">
+                <img class="sf-icon repeat-one" data-symbol="repeat.1" data-size="18" alt="">
+            </button>
+        </div>
+
+        <!-- Volume -->
+        <div class="volume-section">
+            <button class="icon-btn" id="volDownBtn" title="Decrease Volume">
+                <img class="sf-icon" data-symbol="speaker.wave.2.fill" data-size="18" alt="">
+            </button>
+            <button class="icon-btn" id="muteBtn" title="Toggle Mute">
+                <img class="sf-icon vol-icon" data-symbol="speaker.wave.2.fill" data-size="18" alt="">
+                <img class="sf-icon mute-icon" data-symbol="speaker.slash.fill" data-size="18" alt="">
+            </button>
+            <input type="range" class="slider" id="volumeSlider" min="0" max="100" value="50">
+            <span class="volume-value" id="volumeValue">50%</span>
+            <button class="icon-btn" id="volUpBtn" title="Increase Volume">
+                <img class="sf-icon" data-symbol="speaker.wave.2.fill" data-size="18" alt="">
+            </button>
+        </div>
+
+        <!-- Rating section -->
+        <div class="rating-section">
+            <div class="rating-group">
+                <button class="rating-btn" id="loveBtn" title="Love">
+                    <img class="sf-icon outline" data-symbol="heart" data-size="20" alt="">
+                    <img class="sf-icon filled" data-symbol="heart.fill" data-size="20" alt="">
+                </button>
+                <button class="rating-btn" id="dislikeBtn" title="Dislike">
+                    <img class="sf-icon outline" data-symbol="hand.thumbsdown" data-size="18" alt="">
+                    <img class="sf-icon filled" data-symbol="hand.thumbsdown.fill" data-size="18" alt="">
+                </button>
+            </div>
+            <div class="star-rating" id="starRating">
+                <button class="rating-btn" id="ratingDownBtn" title="Decrease Rating">-</button>
+                <div class="stars" id="stars"></div>
+                <button class="rating-btn" id="ratingUpBtn" title="Increase Rating">+</button>
+                <button class="rating-btn" id="ratingClearBtn" title="Clear Rating">x</button>
+            </div>
+        </div>
+
+        <!-- Debug panel -->
+        <div class="debug-panel" id="debugPanel">
+            <pre id="debugOutput"></pre>
+        </div>
+    </div>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

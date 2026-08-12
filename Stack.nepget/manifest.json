@@ -1,0 +1,71 @@
+{
+    "manifestVersion": 1,
+    "id": "pl.micropixels.neptunes.widget.stack",
+    "name": "Stack",
+    "version": "1.0.8",
+    "author": "Adam Różyński",
+    "description": "A centered album cover with transport controls, title, and artist stacked below it — floating right on your wallpaper.",
+    "license": "MIT",
+    "entry": "index.html",
+    "defaultSize": {
+        "width": 224,
+        "height": 310
+    },
+    "minSize": {
+        "width": 220,
+        "height": 306
+    },
+    "resizable": false,
+    "preview": "preview.jpg",
+    "permissions": [
+        "artwork",
+        "playbackControl"
+    ],
+    "settings": {
+        "schema": [
+            {
+                "id": "theme",
+                "type": "radio",
+                "label": "Theme",
+                "options": [
+                    {
+                        "value": "auto",
+                        "label": "Auto"
+                    },
+                    {
+                        "value": "dark",
+                        "label": "Dark"
+                    },
+                    {
+                        "value": "light",
+                        "label": "Light"
+                    }
+                ],
+                "default": "auto"
+            },
+            {
+                "id": "controls",
+                "type": "radio",
+                "label": "Controls",
+                "options": [
+                    {
+                        "value": "always",
+                        "label": "Always"
+                    },
+                    {
+                        "value": "hover",
+                        "label": "On hover"
+                    }
+                ],
+                "default": "always"
+            },
+            {
+                "id": "textShadow",
+                "type": "checkbox",
+                "label": "Text shadow (white text only)",
+                "default": true
+            }
+        ]
+    },
+    "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

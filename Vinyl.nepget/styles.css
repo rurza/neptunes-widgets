@@ -1,0 +1,427 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+html, body {
+    background: transparent;
+}
+
+body {
+    /* San Francisco, like every other bundle — without this Vinyl inherited WebKit's
+       default serif. */
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    -webkit-app-region: drag;
+}
+
+.widget {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 48px;
+    gap: 12px;
+}
+
+.vinyl-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+}
+
+.side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.side:empty {
+    display: none;
+}
+
+.side.left {
+    align-items: flex-end;
+}
+
+.side.right {
+    align-items: flex-start;
+}
+
+.bottom-row {
+    display: flex;
+    flex-direction: row;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    width: 136px;
+}
+
+.bottom-row:empty {
+    display: none;
+}
+
+.vinyl-shadow {
+    width: 136px;
+    height: 136px;
+    border-radius: 50%;
+    position: relative;
+    box-shadow:
+        0 2px 6px rgba(0, 0, 0, 0.14),
+        0 10px 22px rgba(0, 0, 0, 0.12);
+    flex-shrink: 0;
+}
+
+/* --- Lighting ------------------------------------------------------------
+   Every directional highlight lives on .vinyl-shadow, which never rotates.
+   That is physics, not a shortcut: the grooves are concentric, so the sheen a
+   fixed lamp throws back off them is itself fixed — only the label and the
+   record's blemishes turn. Hang the highlight on the spinning .vinyl instead
+   and the light source visibly orbits the disc.
+   Anything ON .vinyl must therefore be rotation-invariant: centred radials
+   only, never a `135deg` linear.                                            */
+
+/* Specular sheen: the two opposed lobes concentric grooves throw back at a
+   single light — bright one near the lamp, weaker bounce opposite. Masked
+   hollow in the middle so it grazes the artwork label instead of washing it. */
+.vinyl-shadow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    /* `closest-side` on every radial here and below is load-bearing: the default
+       ending shape is farthest-CORNER, so in a square box 100% lands at the
+       half-diagonal (1.41r) and every stop below would sit ~40% too far out. */
+    /* `from 277deg` puts the strong lobe (peak +38°) at 315° — upper left, where the
+       drop shadow and the ::after rim glint already say the lamp is — and the weak
+       bounce (peak +219°) opposite at 136°. Move one, move all three. */
+    background: conic-gradient(
+        from 277deg,
+        rgba(255, 255, 255, 0) 0deg,
+        rgba(255, 255, 255, 0.06) 12deg,
+        rgba(255, 255, 255, 0.62) 38deg,
+        rgba(255, 255, 255, 0.06) 64deg,
+        rgba(255, 255, 255, 0) 78deg,
+        rgba(255, 255, 255, 0) 176deg,
+        rgba(255, 255, 255, 0.04) 196deg,
+        rgba(255, 255, 255, 0.26) 219deg,
+        rgba(255, 255, 255, 0.04) 242deg,
+        rgba(255, 255, 255, 0) 262deg,
+        rgba(255, 255, 255, 0) 360deg
+    );
+    -webkit-mask-image: radial-gradient(
+        circle closest-side at center,
+        rgba(0, 0, 0, 0.1) 34%,
+        rgba(0, 0, 0, 0.45) 42%,
+        #000 66%,
+        #000 93%,
+        rgba(0, 0, 0, 0.45) 100%
+    );
+    mask-image: radial-gradient(
+        circle closest-side at center,
+        rgba(0, 0, 0, 0.1) 34%,
+        rgba(0, 0, 0, 0.45) 42%,
+        #000 66%,
+        #000 93%,
+        rgba(0, 0, 0, 0.45) 100%
+    );
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* The edge: a hard glint where the light clips the near rim, the far rim
+   dropping into shadow. This is what gives the disc thickness. */
+.vinyl-shadow::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: linear-gradient(
+        126deg,
+        rgba(255, 255, 255, 0.34) 0%,
+        rgba(255, 255, 255, 0.08) 7%,
+        transparent 20%,
+        transparent 72%,
+        rgba(0, 0, 0, 0.26) 94%,
+        rgba(0, 0, 0, 0.42) 100%
+    );
+    box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.22),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.55);
+    pointer-events: none;
+    z-index: 11;
+}
+
+.vinyl {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    /* Centred, so it survives the rotation — see the lighting note above.
+       Kept near-black: the sheen only reads as specular if there is nothing
+       else lifting the disc off black. */
+    background: radial-gradient(
+        circle closest-side at center,
+        #16161a 0%,
+        #121216 46%,
+        #0b0b0e 80%,
+        #050507 100%
+    );
+    position: relative;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.07),
+        inset 0 0 26px rgba(0, 0, 0, 0.6);
+    will-change: transform;
+}
+
+/* Grooves cut deeper than before — they are what the sheen above actually
+   catches, and at 0.03 white on flat black there was nothing there to catch it. */
+.grooves {
+    position: absolute;
+    inset: 5%;
+    border-radius: 50%;
+    background: repeating-radial-gradient(
+        circle at center,
+        rgba(255, 255, 255, 0.085) 0px,
+        rgba(255, 255, 255, 0.085) 1px,
+        rgba(0, 0, 0, 0.22) 1px,
+        rgba(0, 0, 0, 0.22) 3px
+    );
+    /* Real records are smooth for a few mm at the rim and again before the
+       label; without those two lands the grooves read as a printed texture. */
+    -webkit-mask-image: radial-gradient(
+        circle closest-side at center,
+        transparent 40%,
+        #000 46%,
+        #000 95%,
+        transparent 100%
+    );
+    mask-image: radial-gradient(
+        circle closest-side at center,
+        transparent 40%,
+        #000 46%,
+        #000 95%,
+        transparent 100%
+    );
+}
+
+.label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 38%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.label img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+.label img.visible {
+    opacity: 1;
+}
+
+.label-center {
+    width: 12%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #222;
+    position: absolute;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+.label img.visible + .label-center {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+/* Track info */
+.track-info {
+    display: flex;
+    flex-direction: column;
+    max-width: 160px;
+}
+
+.side.left .track-info {
+    text-align: right;
+    align-items: flex-end;
+}
+
+.side.right .track-info {
+    text-align: left;
+    align-items: flex-start;
+}
+
+.side.bottom .track-info {
+    text-align: center;
+    align-items: center;
+}
+
+.title {
+    font: -apple-system-headline;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.artist {
+    font: -apple-system-subheadline;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Room for the shadow inside the clip. `text-overflow: ellipsis` needs `overflow: hidden`, and
+   overflow clips at the padding box — so a descender sat flush against that edge and the shadow
+   it casts below was sliced off in a straight line, taking the ogonek of a Polish `ę` with it.
+   Pad the clip box out by the shadow's reach and take the identical amount back with negative
+   margins: the shadow gets room, nothing moves. `max-width` grows by the same total because
+   `box-sizing: border-box` would otherwise cap the new padding inside the old 160px and
+   ellipsise the text early.
+   Same fix as Glass/Sleeve/Stack; pinned by _dev/shadow-check. */
+.title,
+.artist {
+    --shadow-gutter: 4px;               /* the shadow's reach: 1px offset + 3px blur */
+    padding: var(--shadow-gutter);
+    margin: calc(-1 * var(--shadow-gutter));
+    max-width: calc(160px + var(--shadow-gutter) * 2);
+}
+
+.artist {
+    /* Was a plain `margin-top: 2px`; the gutter above now takes 4px off every side, so the 2px
+       the artist sits below the title has to be folded into it. */
+    margin-top: calc(2px - var(--shadow-gutter));
+}
+
+/* Text color variants */
+.track-info.text-white .title {
+    color: #fff;
+}
+
+.track-info.text-white .artist {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.track-info.text-black .title {
+    color: #000;
+}
+
+.track-info.text-black .artist {
+    color: rgba(0, 0, 0, 0.6);
+}
+
+/* Text shadow */
+.track-info.shadow .title,
+.track-info.shadow .artist {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Controls - horizontal layout */
+.controls {
+    display: flex;
+    flex-direction: row;
+    gap: 2px;
+    align-items: center;
+}
+
+/* All buttons transparent - NO backgrounds ever */
+.control-btn {
+    width: 24px;
+    height: 24px;
+    border: none !important;
+    border-radius: 50%;
+    background: none !important;
+    background-color: transparent !important;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-app-region: no-drag;
+}
+
+.control-btn.play-btn {
+    width: 32px;
+    height: 32px;
+    background: none !important;
+    background-color: transparent !important;
+}
+
+.control-btn:hover,
+.control-btn:active,
+.control-btn:focus {
+    background: none !important;
+    background-color: transparent !important;
+}
+
+/* Greyed out during a Spotify ad (prev/next only — see script.js). Opacity, not
+   --icon-color: the icon is a natively rasterized PNG (see sfsymbols.js), so dimming the
+   whole button is what actually reaches it. */
+.control-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* Color variants - just set the color */
+.controls.color-white .control-btn {
+    color: #fff;
+    background: none !important;
+    /* The SF Symbol icon is a rendered PNG, not an SVG using currentColor, so it can't
+       pick up the `color:` above — sfsymbols.js reads --icon-color instead. */
+    --icon-color: #fff;
+}
+
+.controls.color-black .control-btn {
+    color: #000;
+    background: none !important;
+    --icon-color: #000;
+}
+
+/* Icons. Each box must equal that icon's `data-size` in index.html: the native side rasterises
+   the PNG at exactly `data-size` CSS px (times the display scale), so any other box resamples
+   it and the glyph goes soft. The play/pause pair was 22pt in a 24px box and read blurred
+   beside the crisp prev/next. */
+.control-btn img.sf-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.control-btn.play-btn img.sf-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.play-btn .pause-icon {
+    display: none;
+}
+
+.play-btn.playing .play-icon {
+    display: none;
+}
+
+.play-btn.playing .pause-icon {
+    display: block;
+}

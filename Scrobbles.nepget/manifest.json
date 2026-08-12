@@ -1,0 +1,101 @@
+{
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.scrobbles",
+  "name": "Scrobbles",
+  "version": "1.0.6",
+  "author": "Adam Różyński",
+  "description": "Your lifetime scrobble count and a live feed of what you've been listening to.",
+  "license": "MIT",
+  "entry": "index.html",
+  "defaultSize": {
+    "width": 300,
+    "height": 340
+  },
+  "minSize": {
+    "width": 260,
+    "height": 220
+  },
+  "maxSize": {
+    "width": 460,
+    "height": 600
+  },
+  "resizable": true,
+  "preview": "preview.jpg",
+  "permissions": [
+    "artwork",
+    "lastFm"
+  ],
+  "settings": {
+    "schema": [
+      {
+        "id": "showCounter",
+        "type": "checkbox",
+        "label": "Show lifetime counter",
+        "default": true
+      },
+      {
+        "id": "count",
+        "type": "select",
+        "label": "Feed rows",
+        "options": [
+          {
+            "value": "5",
+            "label": "5"
+          },
+          {
+            "value": "8",
+            "label": "8"
+          },
+          {
+            "value": "12",
+            "label": "12"
+          }
+        ],
+        "default": "8"
+      },
+      {
+        "id": "theme",
+        "type": "radio",
+        "label": "Theme",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          }
+        ],
+        "default": "auto"
+      },
+      {
+        "id": "accentSource",
+        "type": "radio",
+        "label": "Accent",
+        "options": [
+          {
+            "value": "album",
+            "label": "From album art"
+          },
+          {
+            "value": "fixed",
+            "label": "Fixed color"
+          }
+        ],
+        "default": "album"
+      },
+      {
+        "id": "fixedColor",
+        "type": "color",
+        "label": "Fixed accent color",
+        "default": "#FF375F"
+      }
+    ]
+  },
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

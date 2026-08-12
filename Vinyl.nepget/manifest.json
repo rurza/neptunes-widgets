@@ -1,0 +1,134 @@
+{
+    "manifestVersion": 1,
+    "id": "pl.micropixels.neptunes.widget.vinyl",
+    "name": "Vinyl",
+    "version": "1.29.1",
+    "author": "Adam Różyński",
+    "description": "Spinning vinyl record with album artwork",
+    "license": "MIT",
+    "homepage": "https://neptunesmac.app",
+    "entry": "index.html",
+    "defaultSize": {
+        "width": 232,
+        "height": 232
+    },
+    "minSize": {
+        "width": 232,
+        "height": 232
+    },
+    "resizable": true,
+    "preview": "preview.jpg",
+    "permissions": [
+        "artwork",
+        "playbackControl"
+    ],
+    "settings": {
+        "schema": [
+            {
+                "id": "spinRpm",
+                "type": "select",
+                "label": "Spin Speed",
+                "options": [
+                    {
+                        "value": "16",
+                        "label": "16 RPM"
+                    },
+                    {
+                        "value": "33",
+                        "label": "33⅓ RPM"
+                    },
+                    {
+                        "value": "45",
+                        "label": "45 RPM"
+                    },
+                    {
+                        "value": "78",
+                        "label": "78 RPM"
+                    }
+                ],
+                "default": "33"
+            },
+            {
+                "id": "labelPosition",
+                "type": "select",
+                "label": "Track Info Position",
+                "options": [
+                    {
+                        "value": "off",
+                        "label": "Hidden"
+                    },
+                    {
+                        "value": "left",
+                        "label": "Left"
+                    },
+                    {
+                        "value": "right",
+                        "label": "Right"
+                    },
+                    {
+                        "value": "bottom",
+                        "label": "Bottom"
+                    }
+                ],
+                "default": "off"
+            },
+            {
+                "id": "controlsPosition",
+                "type": "select",
+                "label": "Controls Position",
+                "options": [
+                    {
+                        "value": "off",
+                        "label": "Hidden"
+                    },
+                    {
+                        "value": "left",
+                        "label": "Left"
+                    },
+                    {
+                        "value": "right",
+                        "label": "Right"
+                    },
+                    {
+                        "value": "bottom",
+                        "label": "Bottom"
+                    }
+                ],
+                "default": "off"
+            },
+            {
+                "id": "textColor",
+                "type": "select",
+                "label": "Text Color",
+                "options": [
+                    {
+                        "value": "white",
+                        "label": "White"
+                    },
+                    {
+                        "value": "black",
+                        "label": "Black"
+                    },
+                    {
+                        "value": "system",
+                        "label": "System"
+                    }
+                ],
+                "default": "white"
+            },
+            {
+                "id": "textShadow",
+                "type": "checkbox",
+                "label": "Text Shadow",
+                "default": true
+            },
+            {
+                "id": "controlsBackground",
+                "type": "checkbox",
+                "label": "Controls Background",
+                "default": true
+            }
+        ]
+    },
+    "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

@@ -1,0 +1,308 @@
+/* Headline — flagship big-type now-playing player.
+   Minimal / typographic: heavy display type, generous whitespace,
+   monochrome panel with a single album-art accent. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Shadow-safe layout: transparent window, visible .widget panel. */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+body {
+    /* Shadow margin must exceed the panel's shadow extent (blur + offset). The subtle
+       two-layer shadow (see `.panel-shadow`) reaches ~14px below and ~8px to the sides; padding
+       32/32/40 keeps every edge-facing side clear by >=8px. defaultSize/minSize in the manifest
+       match this padding. */
+    padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    font-family: -apple-system, system-ui, sans-serif;
+}
+
+:root {
+    /* Transparent gutter holding the drop shadow; also `body`'s padding. */
+    --gutter-top: 32px;
+    --gutter-x: 32px;
+    --gutter-bottom: 40px;
+    --panel-radius: 16px;
+
+    /* Accent palette is overwritten by JS via NTKit.applyAccent.
+       --accent-ink = the album colour pushed to stay legible (WCAG 4.5:1 vs the panel, and
+       re-picked on theme change) — used for the elapsed numeral AND the progress fill/thumb so
+       the bar is readable on a light or dark card. --accent is the raw album colour. */
+    --accent: rgb(124, 124, 132);
+    --accent-ink: rgb(124, 124, 132);
+    --on: rgb(255, 255, 255);
+    --muted: rgb(150, 150, 156);
+
+    /* Dark panel = near-black. */
+    --panel: #0b0b0d;
+    --text: #f5f5f7;
+    --text-dim: rgba(245, 245, 247, 0.62);
+    --hairline: rgba(255, 255, 255, 0.14);
+}
+
+/* Light panel = near-white. */
+.light {
+    --panel: #fafafa;
+    --text: #0a0a0b;
+    --text-dim: rgba(10, 10, 11, 0.6);
+    --hairline: rgba(0, 0, 0, 0.12);
+}
+
+/* Auto theme follows the system. */
+@media (prefers-color-scheme: light) {
+    .auto {
+        --panel: #fafafa;
+        --text: #0a0a0b;
+        --text-dim: rgba(10, 10, 11, 0.6);
+        --hairline: rgba(0, 0, 0, 0.12);
+    }
+}
+
+/* ---- Drop shadow ----
+   An empty box sitting exactly under the panel, carrying the shadow so that .widget has none
+   of its own.
+
+   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
+   WebKit intermittently paints that shadow as a *square, unblurred rectangle* — the bottom
+   corner notches, which a rounded silhouette leaves clear, fill in solid and the falloff stops
+   dead. It is a paint defect, not a CSS error, it is not reproducible on demand, and it shipped
+   visibly in Scrobbles. `filter: drop-shadow()` builds the shadow from this box's own alpha
+   channel rather than from a rounded-rect path, so a square-cornered result is not a shape it
+   can produce; the worst it degrades to is no shadow at all.
+
+   Its own box rather than a filter on .widget, because a filter there would push the whole
+   panel through the filter pipeline on every frame. Nothing here ever changes, so it is
+   rasterised once. `position: fixed` resolves against the viewport, so the inset values are
+   exactly `body`'s padding and the box lands on .widget at any window size.
+
+   Note drop-shadow()'s blur argument is half box-shadow's — WebKit reads it as a standard
+   deviation — so these are the same weights the box-shadow above carried. */
+.panel-shadow {
+    position: fixed;
+    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    border-radius: var(--panel-radius);
+    background: var(--panel);
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14)) drop-shadow(0 6px 8px rgba(0, 0, 0, 0.12));
+    pointer-events: none;
+}
+
+.widget {
+    /* z-index only so the panel paints above .panel-shadow, which is out of flow. */
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--panel-radius);
+    overflow: hidden;
+
+    background: var(--panel);
+    color: var(--text);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+
+    /* Ease accent recolors smoothly. */
+    transition: background 0.6s ease;
+}
+
+/* ---- Title (oversized, auto-fit) ---- */
+.title-box {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: flex-start;
+}
+
+.title {
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    /* Generous line-height so the heavy 800-weight glyphs' descenders (g, y, p…) sit
+       INSIDE the line box — `overflow: hidden` clips at that box, and the old 1.02 cut
+       them off at the bottom. */
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    /* When even the min font size can't fit a very long title on one line, truncate with an
+       ellipsis instead of hard-cutting mid-glyph. */
+    text-overflow: ellipsis;
+    color: var(--text);
+    transition: opacity 0.28s ease;
+}
+
+/* ---- Subtitle: artist · album ---- */
+.subtitle {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.28s ease;
+}
+
+/* ---- Hairline progress ---- */
+.bar {
+    position: relative;
+    margin-top: 14px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--hairline);
+}
+
+.bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    border-radius: 2px;
+    background: var(--accent-ink);
+    transition: background 0.6s ease;
+}
+
+.bar-thumb {
+    position: absolute;
+    right: -3px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-ink);
+    transform: translateY(-50%);
+    transition: background 0.6s ease;
+}
+
+/* ---- Footer: times + controls ---- */
+.footer {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.times {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+}
+
+.times #elapsed {
+    /* lone tinted numeral as the accent highlight (contrast-safe ink) */
+    color: var(--accent-ink);
+    transition: color 0.6s ease;
+}
+
+/* ---- Controls: borderless glyph buttons ---- */
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+/* Reveal on hover by default; .controls-always keeps them visible. `nt-hover` (set by the host's
+   always-active tracking) makes hover work without clicking first; `:hover` is the fallback. */
+.widget:hover .controls,
+html.nt-hover .controls,
+.controls.controls-always {
+    opacity: 1;
+}
+
+.controls button {
+    -webkit-app-region: no-drag;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 2px;
+    opacity: 0.85;
+    transition: opacity 0.15s ease, color 0.6s ease, transform 0.1s ease;
+}
+
+.controls button:hover {
+    opacity: 1;
+}
+
+.controls button:active {
+    transform: scale(0.9);
+}
+
+#playBtn {
+    font-size: 18px;
+}
+
+/* SF Symbol control icons: constrain the 2x retina PNG to its point size. */
+.controls .sf-icon {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+#playBtn .sf-icon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Play/pause: show one glyph at a time based on playback state. */
+#playBtn .pause-icon { display: none; }
+#playBtn.playing .play-icon { display: none; }
+#playBtn.playing .pause-icon { display: block; }
+
+/* Love uses the accent when active. */
+#loveBtn {
+    color: var(--text-dim);
+}
+
+#loveBtn.loved {
+    color: var(--accent-ink);
+    opacity: 1;
+}
+
+/* Love: outline heart normally, filled heart when loved. */
+#loveBtn .love-on { display: none; }
+#loveBtn.loved .love-off { display: none; }
+#loveBtn.loved .love-on { display: block; }
+
+#loveBtn.hidden {
+    display: none;
+}
+
+/* ---- Empty state ---- */
+.widget.stopped .title {
+    color: var(--text-dim);
+}
+
+/* ---- Reduced motion: disable crossfades / transitions ---- */
+@media (prefers-reduced-motion: reduce) {
+    .title,
+    .subtitle,
+    .bar-fill,
+    .bar-thumb,
+    .times #elapsed,
+    .controls,
+    .controls button,
+    .widget {
+        transition: none !important;
+    }
+}

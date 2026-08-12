@@ -1,0 +1,228 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+html {
+    background: transparent;
+}
+
+/* Default: white text on the desktop.
+   The shadow is the same black in every text colour, and only the Shadow Opacity setting
+   turns it off (at 0). It used to be forced to `none` for black text, which left that
+   setting doing nothing at all for anyone who picked black — the slider moved and the
+   widget never changed. Note these two must stay declared on the same element as
+   `--shadow-opacity`, which script.js sets on `:root`: the `var()` inside a custom
+   property is resolved on the element that *declares* it, so overriding `--shadow-opacity`
+   further down the tree would never reach them. */
+:root {
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-tertiary: rgba(255, 255, 255, 0.45);
+    --shadow-opacity: 0.1;
+    --text-shadow: 0 1px 3px rgba(0, 0, 0, var(--shadow-opacity));
+    --icon-shadow: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.22));
+}
+
+/* Black text. */
+body.light {
+    --text-primary: #1a1a1a;
+    --text-secondary: rgba(0, 0, 0, 0.6);
+    --text-tertiary: rgba(0, 0, 0, 0.4);
+}
+
+/* System — follow the desktop appearance. Light appearance = black text. */
+@media (prefers-color-scheme: light) {
+    body.system {
+        --text-primary: #1a1a1a;
+        --text-secondary: rgba(0, 0, 0, 0.6);
+        --text-tertiary: rgba(0, 0, 0, 0.4);
+    }
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    background: transparent;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    -webkit-app-region: drag;
+}
+
+.widget {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px;
+    height: 100%;
+    width: 100%;
+    gap: 15px;
+}
+
+.widget.align-center {
+    align-items: center;
+    text-align: center;
+}
+
+.widget.align-right {
+    align-items: flex-end;
+    text-align: right;
+}
+
+.labels {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* v3 parity: title, artist and album all share one 14px system size —
+   only weight (and album's opacity) separate them, matching MinimalTheme's
+   `.font(.system(size: 14))` with a semibold title. */
+.title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    text-shadow: var(--text-shadow);
+}
+
+.artist {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    text-shadow: var(--text-shadow);
+}
+
+.album {
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    text-shadow: var(--text-shadow);
+}
+
+/* Room for the shadow inside the clip.
+   `text-overflow: ellipsis` needs `overflow: hidden`, and overflow clips at the *padding* box —
+   but the shadow paints outside the glyphs, 1px down plus a 3px blur. At `line-height: 1.2`
+   there is barely a quarter-point of half-leading, so a descender sat flush against that edge
+   and its shadow was sliced off in a straight line, worst under the semibold title where the
+   shadow is densest. So pad the clip box out by the shadow's reach and take the identical
+   amount straight back with negative margins: the shadow gets its room, the layout does not
+   move a pixel, and the heights script.js computes still hold. `overflow: clip` with
+   `overflow-clip-margin` would say this directly, but WebKit ignores the margin here —
+   measured, the render is byte-identical to plain `hidden`.
+   `max-width` has to grow by the same total and replaces the plain `100%` these three used to
+   carry: `box-sizing: border-box` makes `100%` cap the new padding *inside* the old width,
+   which would narrow the text and ellipsise it early. */
+.title,
+.artist,
+.album {
+    --shadow-gutter: 4px;
+    padding: var(--shadow-gutter);
+    margin: calc(-1 * var(--shadow-gutter));
+    max-width: calc(100% + var(--shadow-gutter) * 2);
+}
+
+.album:empty {
+    display: none;
+}
+
+/* Optional playback controls — chromeless, tinted to the text color. */
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+/* Author `display: flex` above would otherwise defeat the `hidden` attribute. */
+.controls[hidden] {
+    display: none;
+}
+
+.control-btn {
+    /* v3 draws each control in a 20×20 frame at 0.7 opacity */
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--text-primary);
+    opacity: 0.7;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s ease;
+    -webkit-app-region: no-drag;
+    filter: var(--icon-shadow);
+}
+
+/* Highlight on press, like an AppKit button — NOT on hover.
+   `:hover` cannot be used here at all. The widget panel is `becomesKeyOnlyIfNeeded` and never
+   becomes the key window, so AppKit delivers no mouseMoved events to the web view and WebKit's
+   hover chain is never re-evaluated: measured, a click leaves
+   `document.querySelectorAll(':hover')` ending at that control indefinitely, and no later
+   mouse event of any kind dislodges it. Any hover styling therefore latches onto whatever was
+   pressed last. `:active` has no such problem — it is raised by the mouse-down and dropped by
+   the mouse-up, and both of those the web view does receive. */
+.control-btn:not(:disabled):active {
+    opacity: 1;
+    /* Instant on the way down, eased on the way back up (via the transition above), which is
+       how an AppKit control reads under the pointer. */
+    transition: none;
+}
+
+/* Greyed out during a Spotify ad (prev/next only — see script.js transportDisabled).
+   Lower than the base 0.7, so it reads as inert rather than merely "not currently pressed".
+   A disabled button never receives the events that raise `:active`, and the rule above
+   excludes it regardless. */
+.control-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
+/* v3 renders the symbol at a uniform 16pt — play is not enlarged. */
+.control-btn img.sf-icon {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+/* IDs, not just .play-btn, so these outrank the generic `.control-btn img.sf-icon`
+   sizing rule above (which also sets `display: block` and would otherwise win on
+   specificity, leaving .pause-icon stuck visible even while not playing). */
+#playBtn .pause-icon {
+    display: none;
+}
+
+#playBtn.playing .play-icon {
+    display: none;
+}
+
+#playBtn.playing .pause-icon {
+    display: block;
+}
+
+.widget.stopped .title {
+    color: var(--text-secondary);
+}
+
+.widget.stopped .controls {
+    opacity: 0.4;
+    pointer-events: none;
+}

@@ -1,0 +1,90 @@
+{
+    "manifestVersion": 1,
+    "id": "pl.micropixels.neptunes.widget.minimal",
+    "name": "Minimal",
+    "version": "1.4.11",
+    "author": "Adam Różyński",
+    "description": "Ultra-minimal text display — title, artist and album in elegant type, with optional playback controls",
+    "license": "MIT",
+    "homepage": "https://neptunesmac.app",
+    "entry": "index.html",
+    "defaultSize": {
+        "width": 280,
+        "height": 100
+    },
+    "minSize": {
+        "width": 200,
+        "height": 80
+    },
+    "resizable": false,
+    "preview": "preview.jpg",
+    "permissions": [
+        "playbackControl"
+    ],
+    "settings": {
+        "schema": [
+            {
+                "id": "alignment",
+                "type": "radio",
+                "label": "Text Alignment",
+                "options": [
+                    {
+                        "value": "left",
+                        "label": "Left"
+                    },
+                    {
+                        "value": "center",
+                        "label": "Center"
+                    },
+                    {
+                        "value": "right",
+                        "label": "Right"
+                    }
+                ],
+                "default": "left"
+            },
+            {
+                "id": "textColor",
+                "type": "radio",
+                "label": "Text Color",
+                "options": [
+                    {
+                        "value": "white",
+                        "label": "White"
+                    },
+                    {
+                        "value": "black",
+                        "label": "Black"
+                    },
+                    {
+                        "value": "system",
+                        "label": "System"
+                    }
+                ],
+                "default": "white"
+            },
+            {
+                "id": "showAlbum",
+                "type": "checkbox",
+                "label": "Show Album",
+                "default": true
+            },
+            {
+                "id": "showControls",
+                "type": "checkbox",
+                "label": "Show Playback Controls",
+                "default": false
+            },
+            {
+                "id": "shadowOpacity",
+                "type": "slider",
+                "label": "Shadow Opacity",
+                "min": 0,
+                "max": 100,
+                "step": 5,
+                "default": 10
+            }
+        ]
+    },
+    "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

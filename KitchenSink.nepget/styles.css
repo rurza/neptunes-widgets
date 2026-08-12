@@ -1,0 +1,467 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+html {
+    background: transparent;
+}
+
+:root {
+    --bg-color: rgba(28, 28, 32, 0.95);
+    --surface: rgba(255, 255, 255, 0.06);
+    --surface-hover: rgba(255, 255, 255, 0.1);
+    --border: rgba(255, 255, 255, 0.1);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.6);
+    --text-tertiary: rgba(255, 255, 255, 0.4);
+    --accent: #ff2d55;
+    --accent-secondary: #5856d6;
+    --success: #30d158;
+    --warning: #ff9f0a;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    background: transparent;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    -webkit-app-region: drag;
+}
+
+.widget {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+    background: var(--bg-color);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-radius: 14px;
+    height: 100%;
+    width: 100%;
+}
+
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.player-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 6px;
+    background: rgba(88, 86, 214, 0.15);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-secondary);
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.header-btn-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.header-btn-label {
+    font-size: 9px;
+    color: var(--text-tertiary);
+}
+
+.header-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-app-region: no-drag;
+}
+
+.header-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.header-btn img.sf-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Track section */
+.track-section {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.artwork-container {
+    width: 72px;
+    height: 72px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.artwork-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+.artwork-container img.visible {
+    opacity: 1;
+}
+
+.artwork-container img.visible + .no-artwork {
+    display: none;
+}
+
+.no-artwork {
+    width: 32px;
+    height: 32px;
+    color: var(--text-tertiary);
+}
+
+.track-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.artist {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.album {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+/* Progress */
+.progress-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.time {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+    min-width: 32px;
+}
+
+.time:last-child {
+    text-align: right;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 4px;
+    background: var(--surface);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--text-secondary);
+    border-radius: 2px;
+    width: 0%;
+}
+
+/* Controls */
+.controls-section {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+.control-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    -webkit-app-region: no-drag;
+}
+
+.control-btn:hover {
+    background: var(--surface-hover);
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+}
+
+/* Greyed out during a Spotify ad (prev/next only — see script.js). */
+.control-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.control-btn:disabled:hover,
+.control-btn:disabled:active {
+    background: var(--surface);
+    transform: none;
+}
+
+.control-btn.small {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.control-btn.small:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
+.control-btn.small.active {
+    color: var(--accent);
+}
+
+.control-btn img.sf-icon {
+    width: 20px;
+    height: 20px;
+}
+
+.control-btn.small img.sf-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.play-btn {
+    width: 48px;
+    height: 48px;
+    background: var(--text-primary);
+    color: var(--bg-color);
+    /* The SF Symbol icon is a rendered PNG, not an SVG using currentColor, so it can't
+       pick up the `color:` override above — sfsymbols.js reads --icon-color instead. */
+    --icon-color: #1a1a1a;
+}
+
+.play-btn:hover {
+    transform: scale(1.05);
+    background: var(--text-primary);
+}
+
+.play-btn img.sf-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.play-btn .pause-icon { display: none; }
+.play-btn.playing .play-icon { display: none; }
+.play-btn.playing .pause-icon { display: block; }
+
+#repeatBtn .repeat-one { display: none; }
+#repeatBtn.repeat-one .repeat-all { display: none; }
+#repeatBtn.repeat-one .repeat-one { display: block; }
+
+/* Volume */
+.volume-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 4px;
+}
+
+.icon-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-app-region: no-drag;
+}
+
+.icon-btn:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
+.icon-btn img.sf-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.mute-icon { display: none; }
+.icon-btn.muted .vol-icon { display: none; }
+.icon-btn.muted .mute-icon { display: block; }
+
+.slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--surface);
+    border-radius: 2px;
+    outline: none;
+    -webkit-app-region: no-drag;
+}
+
+.slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    cursor: pointer;
+}
+
+.volume-value {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    min-width: 32px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Rating */
+.rating-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 4px;
+    border-top: 1px solid var(--border);
+}
+
+.rating-group {
+    display: flex;
+    gap: 8px;
+}
+
+.rating-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    -webkit-app-region: no-drag;
+}
+
+.rating-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.rating-btn:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.rating-btn img.sf-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.rating-btn .filled { display: none; }
+.rating-btn.active { color: var(--accent); }
+.rating-btn.active .outline { display: none; }
+.rating-btn.active .filled { display: block; }
+
+#dislikeBtn.active { color: var(--text-tertiary); }
+
+.star-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.stars {
+    display: flex;
+    gap: 2px;
+    color: var(--warning);
+    font-size: 14px;
+}
+
+/* Debug */
+.debug-panel {
+    display: none;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 9px;
+    font-family: 'SF Mono', Menlo, monospace;
+    color: var(--success);
+    max-height: 160px;
+    overflow: auto;
+}
+
+.debug-panel.visible {
+    display: block;
+}
+
+.debug-panel pre {
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* States */
+.widget.stopped .title { color: var(--text-secondary); }
+.widget.stopped .controls-section { opacity: 0.6; }
+.widget.stopped .play-btn { opacity: 1; }

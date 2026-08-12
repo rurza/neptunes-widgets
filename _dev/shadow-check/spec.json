@@ -1,0 +1,380 @@
+{
+  "_": "Cases are {widget, label, appearance, settings, track, probe, pin}. `probe` is the label whose shadow is measured — pick one with clear air beneath it, or send a track that empties the rows below, so the band under it can only hold that label's own shadow. `pin` is every label's text rect, captured BEFORE the shadow gutter went in: the gutter is padding cancelled by negative margins, and this is what proves the two still cancel. Drop `pin` (or swap in `pinSelectors`) and the run prints the block to paste back.",
+  "cases": [
+    {
+      "widget": "Minimal",
+      "label": "Minimal · white text, title alone",
+      "appearance": "dark",
+      "settings": {
+        "alignment": "left",
+        "textColor": "white",
+        "showAlbum": false,
+        "showControls": false,
+        "shadowOpacity": 100
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "",
+        "album": "",
+        "duration": 230
+      },
+      "probe": "#title",
+      "height": 81,
+      "pin": {
+        "#title": [
+          16.0,
+          30.748,
+          192.6402,
+          47.2363
+        ]
+      }
+    },
+    {
+      "widget": "Minimal",
+      "label": "Minimal · black text, title alone",
+      "appearance": "dark",
+      "settings": {
+        "alignment": "left",
+        "textColor": "black",
+        "showAlbum": false,
+        "showControls": false,
+        "shadowOpacity": 100
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "",
+        "album": "",
+        "duration": 230
+      },
+      "probe": "#title",
+      "height": 81,
+      "pin": {
+        "#title": [
+          16.0,
+          30.748,
+          192.6402,
+          47.2363
+        ]
+      }
+    },
+    {
+      "widget": "Minimal",
+      "label": "Minimal · system text on a light desktop, title alone",
+      "appearance": "light",
+      "settings": {
+        "alignment": "left",
+        "textColor": "system",
+        "showAlbum": false,
+        "showControls": false,
+        "shadowOpacity": 100
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "",
+        "album": "",
+        "duration": 230
+      },
+      "probe": "#title",
+      "height": 81,
+      "pin": {
+        "#title": [
+          16.0,
+          30.748,
+          192.6402,
+          47.2363
+        ]
+      }
+    },
+    {
+      "widget": "Minimal",
+      "label": "Minimal · white text, album is the bottom-most label",
+      "appearance": "dark",
+      "settings": {
+        "alignment": "left",
+        "textColor": "white",
+        "showAlbum": true,
+        "showControls": false,
+        "shadowOpacity": 100
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230
+      },
+      "probe": "#album",
+      "height": 100,
+      "pin": {
+        "#title": [
+          16.0,
+          21.9512,
+          192.6402,
+          38.4395
+        ],
+        "#artist": [
+          16.0,
+          41.748,
+          56.5576,
+          58.2363
+        ],
+        "#album": [
+          16.0,
+          61.5449,
+          57.542,
+          78.0332
+        ]
+      }
+    },
+    {
+      "widget": "Minimal",
+      "label": "Minimal · black text, album is the bottom-most label",
+      "appearance": "dark",
+      "settings": {
+        "alignment": "left",
+        "textColor": "black",
+        "showAlbum": true,
+        "showControls": false,
+        "shadowOpacity": 100
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230
+      },
+      "probe": "#album",
+      "height": 100,
+      "pin": {
+        "#title": [
+          16.0,
+          21.9512,
+          192.6402,
+          38.4395
+        ],
+        "#artist": [
+          16.0,
+          41.748,
+          56.5576,
+          58.2363
+        ],
+        "#album": [
+          16.0,
+          61.5449,
+          57.542,
+          78.0332
+        ]
+      }
+    },
+    {
+      "widget": "Artwork",
+      "label": "Artwork · artist over the cover",
+      "appearance": "dark",
+      "settings": {},
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230,
+        "artworkData": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCABAAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD12iiirEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/2Q=="
+      },
+      "probe": ".artist",
+      "width": 300,
+      "height": 300,
+      "pin": {
+        ".title": [
+          50.7502,
+          195.5781,
+          249.2498,
+          214.4219
+        ],
+        ".artist": [
+          131.011,
+          216.3447,
+          168.989,
+          231.6553
+        ]
+      }
+    },
+    {
+      "widget": "Glass",
+      "label": "Glass · artist on the glass panel",
+      "appearance": "dark",
+      "settings": {
+        "theme": "dark",
+        "controls": "always",
+        "textShadow": true
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230,
+        "artworkData": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCABAAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD12iiirEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/2Q=="
+      },
+      "probe": ".artist",
+      "width": 308,
+      "height": 320,
+      "pin": {
+        ".title": [
+          60.3343,
+          160.167,
+          247.6657,
+          177.833
+        ],
+        ".artist": [
+          135.896,
+          180.4336,
+          172.1041,
+          194.5664
+        ]
+      }
+    },
+    {
+      "widget": "Sleeve",
+      "label": "Sleeve · artist, the bottom-most label",
+      "appearance": "dark",
+      "settings": {
+        "theme": "dark",
+        "textShadow": true
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230,
+        "artworkData": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCABAAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD12iiirEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/2Q=="
+      },
+      "probe": ".artist",
+      "width": 380,
+      "height": 180,
+      "pin": {
+        ".title": [
+          166.0,
+          48.9004,
+          385.9887,
+          70.0996
+        ],
+        ".album": [
+          166.0,
+          73.8027,
+          208.4399,
+          90.291
+        ],
+        ".artist": [
+          166.0,
+          94.3027,
+          207.4908,
+          110.791
+        ]
+      }
+    },
+    {
+      "widget": "Stack",
+      "label": "Stack · artist, ink on the wallpaper",
+      "appearance": "dark",
+      "settings": {
+        "theme": "dark",
+        "controls": "always",
+        "textShadow": true
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230,
+        "artworkData": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCABAAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD12iiirEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/2Q=="
+      },
+      "probe": ".artist",
+      "width": 224,
+      "height": 310,
+      "pin": {
+        ".title": [
+          24.0,
+          242.8047,
+          222.3201,
+          261.6484
+        ],
+        ".artist": [
+          92.5699,
+          265.7432,
+          131.4145,
+          281.0537
+        ]
+      }
+    },
+    {
+      "widget": "Vinyl",
+      "label": "Vinyl · white text, artist beside the record",
+      "appearance": "dark",
+      "settings": {
+        "spinRpm": "33",
+        "labelPosition": "right",
+        "controlsPosition": "off",
+        "textColor": "white",
+        "textShadow": true,
+        "controlsBackground": true
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230
+      },
+      "probe": ".artist",
+      "pinSelectors": [".title", ".artist"],
+      "width": 404,
+      "height": 232,
+      "pin": {
+        ".artist": [
+          196.0,
+          118.3447,
+          234.8446,
+          133.6553
+        ],
+        ".title": [
+          196.0,
+          98.167,
+          383.4996,
+          115.833
+        ]
+      }
+    },
+    {
+      "widget": "Vinyl",
+      "label": "Vinyl · black text, artist beside the record",
+      "appearance": "light",
+      "settings": {
+        "spinRpm": "33",
+        "labelPosition": "left",
+        "controlsPosition": "off",
+        "textColor": "black",
+        "textShadow": true,
+        "controlsBackground": true
+      },
+      "track": {
+        "title": "Wszystko czego dziś chcę",
+        "artist": "Robyn",
+        "album": "Honey",
+        "duration": 230
+      },
+      "probe": ".artist",
+      "pinSelectors": [".title", ".artist"],
+      "width": 404,
+      "height": 232,
+      "pin": {
+        ".artist": [
+          169.1554,
+          118.3447,
+          208.0,
+          133.6553
+        ],
+        ".title": [
+          48.0,
+          98.167,
+          235.4996,
+          115.833
+        ]
+      }
+    }
+  ]
+}

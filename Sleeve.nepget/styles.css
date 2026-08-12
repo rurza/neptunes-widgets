@@ -1,0 +1,213 @@
+/* Sleeve — a floating album cover on the left, track text set beside it on the
+   right, straight on the wallpaper. Editorial: NO background card, NO controls.
+   The cover is the ONLY surface with a shadow; every text line carries its own
+   halo so it stays legible over any wallpaper. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none; /* so dragging moves the window, not the cover image */
+}
+
+/* Shadow-safe base: transparent window, nothing scrolls, shadow may overflow
+   the content box out into the body padding. */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   SHADOW-SAFE PADDING MATH
+   The cover's box-shadow is the only shadow in the widget. It's a subtle, low-
+   alpha two-layer shadow (a tight contact + a soft ambient) so it never shows a
+   clip line on a light cover over a light wallpaper:
+       .cover  box-shadow: 0 2px 6px  rgba(0,0,0,.14)   (contact)
+                           0 8px 18px rgba(0,0,0,.12)    (ambient)
+   Shadow reach from the cover's edges (max over both layers):
+       left / right = blur                = 18
+       top          = blur - offsetY      = 18 - 8 = 10
+       bottom       = blur + offsetY      = 18 + 8 = 26
+   The cover sits at the LEFT edge of the content, so its left/top/bottom shadow
+   must clear inside the body padding (its right shadow falls harmlessly under
+   the text, well inside the window). Body padding EXCEEDS each reach by >=8px:
+       left   30  > 18 (+12)   top 20  > 10 (+10)   bottom 40  > 26 (+14)
+   The right padding (24) is only breathing room for the text — no shadow there.
+
+   Window size (must match manifest defaultSize):
+       width  = padL(30) + cover(120) + gap(16) + text(190) + padR(24) = 380
+       height = padT(20)  + cover(120) + padB(40)                      = 180
+   Content height (180 - 20 - 40 = 120) exactly equals the cover, so the cover
+   fills it and the text column centers against it. --------------------------- */
+body {
+    padding: 20px 24px 40px 30px;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    /* Whole widget drags on mousedown (there are no interactive controls). */
+    -webkit-app-region: drag;
+}
+
+/* ---- Theme tokens. Default = dark (white ink); light class flips them. ---- */
+:root {
+    --ink: #ffffff;
+    --sub: rgba(255, 255, 255, 0.78);
+    /* Legibility halo carried by every text line (text sits on raw wallpaper). */
+    --halo: 0 1px 3px rgba(0, 0, 0, 0.5);
+
+    /* Empty / no-art sleeve fill + placeholder glyph. */
+    --cover-bg: #26262b;
+    --cover-glyph: rgba(255, 255, 255, 0.4);
+
+    /* Accent (overwritten at runtime by NTKit.applyAccent).
+       --accent-ink is the contrast-safe, hue-preserving tint used on the title
+       when the artwork is vivid enough (see .info.tinted). */
+    --accent: rgb(124, 124, 132);
+    --accent-ink: rgb(124, 124, 132);
+    --on: rgb(255, 255, 255);
+    --muted: rgb(150, 150, 156);
+}
+
+html.theme-light {
+    --ink: #101014;
+    --sub: rgba(16, 16, 20, 0.78);
+    /* Dark text needs a light halo to survive dark patches of wallpaper. */
+    --cover-bg: #e9e9ee;
+    --cover-glyph: rgba(16, 16, 20, 0.32);
+}
+
+/* ---- Layout: cover left, text right, vertically centered. ---- */
+.widget {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* ---- Cover (the only shadowed element). ---- */
+.cover {
+    flex: none;
+    width: 120px;
+    height: 120px;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: var(--cover-bg);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14), 0 8px 12px rgba(0, 0, 0, 0.12);
+}
+
+.art {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+
+.art.visible {
+    opacity: 1;
+}
+
+/* No-art placeholder — a centered music note on the empty sleeve. */
+.no-art {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cover-glyph);
+}
+
+.no-art.hidden {
+    display: none;
+}
+
+.no-art img.sf-icon {
+    width: 40px;
+    height: 40px;
+}
+
+/* ---- Info column: title / album / artist, left-aligned, centered. ---- */
+.info {
+    flex: 1;
+    min-width: 0;              /* allow the text lines to ellipsis-truncate */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+}
+
+/* Room for the shadow inside the clip. `text-overflow: ellipsis` needs `overflow: hidden`, and
+   overflow clips at the padding box — so a descender sat flush against that edge and the halo it
+   casts below was sliced off in a straight line. Pad the clip box out by the halo's reach and
+   take the identical amount back with negative margins: the halo gets room, nothing moves.
+   `max-width` carries the same total because `box-sizing: border-box` would otherwise cap the
+   new padding inside the old width and ellipsise the text early.
+   See `NepTunes Widget/README.md` → "A text shadow is clipped by its own label". */
+.title,
+.album,
+.artist {
+    --shadow-gutter: 4px;               /* the halo's reach: 1px offset + 3px blur */
+    padding: var(--shadow-gutter);
+    margin: calc(-1 * var(--shadow-gutter));
+    max-width: calc(100% + var(--shadow-gutter) * 2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: var(--halo);
+}
+
+.title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    color: var(--ink);
+    transition: color 0.5s ease;
+}
+
+/* Title stays the neutral theme colour — the album-accent tint read as garish
+   coloured text on a wallpaper, so it's dropped. The JS .tinted class is a no-op now. */
+
+.album,
+.artist {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--sub);
+}
+
+.album:empty,
+.artist:empty {
+    display: none;
+}
+
+/* ---- Empty / stopped state: dim the title, hide the accent tint. ---- */
+.widget.stopped .title {
+    color: var(--sub);
+}
+
+/* ---- Reduced motion: no crossfades / recolors. ---- */
+@media (prefers-reduced-motion: reduce) {
+    .art,
+    .title {
+        transition: none;
+    }
+}
+
+/* Optional text shadow (setting: textShadow) — off = none. */
+html.no-text-shadow .title,
+html.no-text-shadow .album,
+html.no-text-shadow .artist { text-shadow: none; }
+
+/* Shadow only makes sense on WHITE text (dark theme). Light theme = dark text => none. */
+html.theme-light .title,
+html.theme-light .album,
+html.theme-light .artist { text-shadow: none; }

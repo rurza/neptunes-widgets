@@ -1,0 +1,384 @@
+/* Glass — full-bleed album cover with a frosted-glass now-playing panel
+   over its lower portion (Apple Music compact-player feel). The cover is a
+   rounded square that floats on the wallpaper and carries the drop shadow. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none; /* so dragging moves the window, not the cover image */
+}
+
+/* Shadow-safe layout: transparent window, the .widget cover is the only
+   visible surface, body padding leaves room for its drop shadow. */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+body {
+    /* SHADOW MATH — cover shadow is `0 12px 34px rgba(0,0,0,.4)`.
+       Extent it reaches past the cover edge:
+         bottom = |offsetY| + blur = 12 + 34 = 46px   -> bottom pad 46 (clears exactly)
+         top    = blur - offsetY   = 34 - 12 = 22px   -> top  pad 34 (>= 22, headroom)
+         sides  = blur             =        34px      -> side pad 34 (clears exactly)
+       Window = cover + padding, so the manifest sizes include this padding:
+         defaultSize width  = 240 + 34 + 34 = 308
+         defaultSize height = 240 + 34 + 46 = 320
+         minSize     width  = 204 + 34 + 34 = 272
+         minSize     height = 204 + 34 + 46 = 284  (cover stays square). */
+    padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    /* Host starts a window drag on mousedown of any non-interactive element. */
+    -webkit-app-region: drag;
+}
+
+/* ---- Theme tokens. Default = dark; resolved theme set as a root class. ---- */
+:root {
+    /* Transparent gutter holding the drop shadow; also `body`'s padding. */
+    --gutter-top: 34px;
+    --gutter-x: 34px;
+    --gutter-bottom: 46px;
+    --panel-radius: 20px;
+
+    /* Frosted panel material (dark). */
+    --panel-bg: rgba(20, 20, 22, 0.34);
+    --panel-border: rgba(255, 255, 255, 0.16);
+    --title: #ffffff;
+    --artist: rgba(255, 255, 255, 0.8);
+    --ctrl: rgba(255, 255, 255, 0.95);
+    --ctrl-hover: rgba(255, 255, 255, 0.14);
+    /* Subtle inner text-shadow so title/artist read on the blurred art. */
+    --text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --placeholder-a: #3a3a3c;
+    --placeholder-b: #191a1c;
+    --placeholder-glyph: rgba(255, 255, 255, 0.16);
+
+    /* Accent palette — overwritten at runtime by NTKit.applyAccent.
+       --accent = raw album colour (play-button fill); --on = contrast icon. */
+    --accent: rgb(124, 124, 132);
+    --on: rgb(255, 255, 255);
+    --muted: rgb(150, 150, 156);
+    --accent-ink: rgb(124, 124, 132);
+}
+
+html.theme-light {
+    --panel-bg: rgba(255, 255, 255, 0.5);
+    --panel-border: rgba(255, 255, 255, 0.6);
+    --title: #141416;
+    --artist: rgba(20, 20, 22, 0.72);
+    --ctrl: rgba(20, 20, 22, 0.92);
+    --ctrl-hover: rgba(0, 0, 0, 0.08);
+    --placeholder-a: #eaeaec;
+    --placeholder-b: #c9c9cd;
+    --placeholder-glyph: rgba(0, 0, 0, 0.16);
+}
+
+/* ---- Cover (rounded square, holds the shadow, clips the art) ---- */
+/* ---- Drop shadow ----
+   An empty box sitting exactly under the panel, carrying the shadow so that .widget has none
+   of its own.
+
+   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
+   WebKit intermittently paints that shadow as a *square, unblurred rectangle* — the bottom
+   corner notches, which a rounded silhouette leaves clear, fill in solid and the falloff stops
+   dead. It is a paint defect, not a CSS error, it is not reproducible on demand, and it shipped
+   visibly in Scrobbles. `filter: drop-shadow()` builds the shadow from this box's own alpha
+   channel rather than from a rounded-rect path, so a square-cornered result is not a shape it
+   can produce; the worst it degrades to is no shadow at all.
+
+   Its own box rather than a filter on .widget, because a filter there would push the whole
+   panel through the filter pipeline on every frame. Nothing here ever changes, so it is
+   rasterised once. `position: fixed` resolves against the viewport, so the inset values are
+   exactly `body`'s padding and the box lands on .widget at any window size.
+
+   Note drop-shadow()'s blur argument is half box-shadow's — WebKit reads it as a standard
+   deviation — so these are the same weights the box-shadow above carried. */
+.panel-shadow {
+    position: fixed;
+    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    border-radius: var(--panel-radius);
+    background: var(--placeholder-a);
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14)) drop-shadow(0 8px 9px rgba(0, 0, 0, 0.12));
+    pointer-events: none;
+}
+
+.widget {
+    position: relative;
+    /* z-index only so the panel paints above .panel-shadow, which is out of flow. */
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--panel-radius);
+    overflow: hidden;
+    background: var(--placeholder-a);
+}
+
+/* ---- Album artwork (full bleed) ---- */
+.artwork {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.4s ease-in-out;
+}
+
+.artwork.visible {
+    opacity: 1;
+}
+
+/* ---- No-artwork placeholder ---- */
+.no-artwork {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--placeholder-a), var(--placeholder-b));
+}
+
+.no-artwork.hidden {
+    display: none;
+}
+
+/* 80px flat, not 34%: the icon is a PNG the native side rasterises at exactly `data-size`
+   CSS px (times the display scale), so a percentage box resampled an 36pt glyph up to ~82px
+   and the note came out a blur. The cover is a fixed 240px square — the window is
+   `resizable: false` and `defaultSize` minus the shadow gutter — so a flat 80px is the same
+   framing, drawn 1:1. Keep it equal to the `data-size` in index.html.
+   `--icon-color`, not `color`: the glyph is a rendered PNG with its tint baked in, and
+   sfsymbols.js reads the variable. Through `color` this asked for a 16% watermark and got a
+   solid white note, because the resolver fell through to `--title`. */
+.no-artwork img.sf-icon {
+    width: 80px;
+    height: 80px;
+    --icon-color: var(--placeholder-glyph);
+}
+
+/* ---- Frosted-glass control panel ---- */
+.panel {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    padding: 12px 14px 14px;
+    border-radius: 16px;
+    background: var(--panel-bg);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
+    text-align: center;
+    transition: background-color 0.5s ease, border-color 0.5s ease;
+}
+
+.info {
+    min-width: 0;
+    /* A column rather than plain block flow, only so the labels' shadow gutter below behaves:
+       flex items never collapse their margins, and the gutter is padding cancelled by an equal
+       negative margin. In block flow the title's negative bottom margin and the artist's would
+       collapse into one, and the pair would close up. Renders identically otherwise. */
+    display: flex;
+    flex-direction: column;
+}
+
+.title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--title);
+    text-shadow: var(--text-shadow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.5s ease;
+}
+
+.artist {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--artist);
+    text-shadow: var(--text-shadow);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.5s ease;
+}
+
+/* Room for the shadow inside the clip. `text-overflow: ellipsis` needs `overflow: hidden`, and
+   overflow clips at the padding box — so a descender sat flush against that edge and the shadow
+   it casts below was sliced off in a straight line. Pad the clip box out by the shadow's reach
+   and take the identical amount back with negative margins: the shadow gets room, nothing moves.
+   `max-width` grows by the same total because `box-sizing: border-box` would otherwise cap the
+   new padding inside the old width and ellipsise the text early.
+   See `NepTunes Widget/README.md` → "A text shadow is clipped by its own label". */
+.title,
+.artist {
+    --shadow-gutter: 4px;               /* the shadow's reach: 1px offset + 3px blur */
+    padding: var(--shadow-gutter);
+    margin: calc(-1 * var(--shadow-gutter));
+    max-width: calc(100% + var(--shadow-gutter) * 2);
+}
+
+.artist {
+    /* Was a plain `margin-top: 2px`; the gutter above now takes 4px off every side, so the 2px
+       the artist sits below the title has to be folded into it. */
+    margin-top: calc(2px - var(--shadow-gutter));
+}
+
+.artist:empty {
+    /* border-box, so this has to cover the gutter's padding as well as the 15px reserved line. */
+    min-height: calc(15px + var(--shadow-gutter) * 2);
+}
+
+/* ---- Controls row (default always visible; hover mode via .controls-always toggle) ---- */
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 10px;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+/* Floating widgets rarely fire :hover, so reveal via all three selectors. */
+.widget:hover .controls,
+html.nt-hover .controls,
+.controls.controls-always {
+    opacity: 1;
+}
+
+.control-btn {
+    -webkit-app-region: no-drag;
+    border: none;
+    background: transparent;
+    color: var(--ctrl);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.control-btn:hover {
+    background: var(--ctrl-hover);
+}
+
+.control-btn:active {
+    transform: scale(0.92);
+}
+
+/* Greyed out during a Spotify ad (prev/next only — see script.js). Multiplies with the
+   `.controls` container's own hover-reveal opacity rather than competing with it. */
+.control-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.control-btn:disabled:hover {
+    background: transparent;
+}
+
+/* Must equal the `data-size` in index.html — see .no-artwork above. No `filter` here either:
+   a drop-shadow on a glyph this small is not depth, it is a smear, and paired with the
+   resample it made every transport icon look soft and haloed next to the crisp play button.
+   The panel's own material is what these read against. */
+.control-btn img.sf-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Play/pause — neutral filled circle, NOT the album accent (that read as a garish
+   coloured button). White circle / dark icon on dark; flips for the light panel. */
+.play-btn {
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.95);
+    color: rgba(18, 18, 20, 0.96);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: transform 0.1s ease, filter 0.15s ease;
+    /* The SF Symbol icon is a rendered PNG, not an SVG using currentColor, so it can't
+       pick up the `color:` override above — sfsymbols.js reads --icon-color instead. */
+    --icon-color: #121214;
+}
+
+.play-btn:hover {
+    filter: brightness(1.06);
+}
+
+html.theme-light .play-btn {
+    background: rgba(24, 24, 26, 0.9);
+    color: rgba(255, 255, 255, 0.96);
+    --icon-color: #ffffff;
+}
+
+.play-btn img.sf-icon {
+    width: 22px;
+    height: 22px;
+}
+
+/* Icon swap: play glyph when paused/stopped, pause glyph while playing. */
+.play-btn .pause-icon {
+    display: none;
+}
+
+.widget.playing .play-btn .play-icon {
+    display: none;
+}
+
+.widget.playing .play-btn .pause-icon {
+    display: block;
+}
+
+/* ---- Stopped / no-track: dim the controls a touch. ----
+   On the BUTTONS, not on `.controls`. The row's own opacity is the one thing the Controls
+   setting drives, and `.widget.stopped .controls` is three classes — it outranked every reveal
+   selector above it (`.controls.controls-always` and `html.nt-hover .controls` are two), so
+   whenever nothing was playing the transport sat at 0.55 no matter which mode was picked, and
+   "On hover" looked like a dead setting. Nothing playing is exactly the state you are in while
+   changing the setting, so that is what you saw.
+   A child's opacity multiplies with its parent's rather than competing with it: hidden × dimmed
+   is still hidden, revealed × dimmed is dimmed. Both selectors below are gated on `.stopped`,
+   where `:disabled` never applies (script.js re-enables prev/next with no track), so they
+   cannot brighten a button greyed out for a Spotify ad. */
+.widget.stopped .control-btn {
+    opacity: 0.6;
+}
+
+.widget.stopped:hover .control-btn,
+html.nt-hover .widget.stopped .control-btn {
+    opacity: 0.9;
+}
+
+/* ---- Reduced motion. ---- */
+@media (prefers-reduced-motion: reduce) {
+    .artwork,
+    .panel,
+    .title,
+    .artist,
+    .controls,
+    .control-btn,
+    .play-btn {
+        transition: none;
+    }
+}
+
+/* Optional text shadow (setting: textShadow) — off = none. */
+html.no-text-shadow .title,
+html.no-text-shadow .artist { text-shadow: none; }
+
+/* Shadow only makes sense on WHITE text (dark theme). Light theme = dark text => none. */
+html.theme-light .title,
+html.theme-light .artist { text-shadow: none; }

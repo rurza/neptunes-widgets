@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artwork</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Carries the panel's drop shadow. Empty and inert on purpose — see styles.css. -->
+    <div class="panel-shadow" aria-hidden="true"></div>
+
+    <div class="widget" id="widget">
+        <div class="artwork-bg" id="artworkBg"></div>
+        <div class="no-artwork" id="noArtwork">
+            <img class="sf-icon" data-symbol="music.note" data-size="36" alt="">
+        </div>
+        <div class="controls-area">
+            <div class="info">
+                <div class="title" id="title">Not Playing</div>
+                <div class="artist" id="artist"></div>
+            </div>
+            <div class="controls">
+                <button class="control-btn" id="prevBtn">
+                    <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="">
+                </button>
+                <button class="control-btn play-pause" id="playPauseBtn">
+                    <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="">
+                    <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="">
+                </button>
+                <button class="control-btn" id="nextBtn">
+                    <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">
+                </button>
+            </div>
+        </div>
+        <div class="resize-handle" id="resizeHandle"></div>
+    </div>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

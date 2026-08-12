@@ -1,0 +1,222 @@
+/* Strip — ultra-thin now-playing ticker.
+   Minimal / typographic: SF stack, tabular numerals, mostly monochrome,
+   a single album-derived accent (--accent) as the lone highlight. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Shadow-safe shell — window is transparent, .widget is the surface.
+   Thin bar: trim body padding so the 44px window isn't eaten by shadow. */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+body {
+    /* Shadow margin must exceed the panel's box-shadow extent (blur + offset). The subtle
+       two-layer shadow on .widget reaches at most 12px below, 9px to the sides and 6px above,
+       so this padding (14 top / 18 sides / 22 bottom) leaves >=8px of clearance on every edge —
+       no hard clip on a light cover over a light wallpaper. */
+    padding: 14px 18px 22px;
+    font-family: -apple-system, system-ui, 'SF Pro Text', sans-serif;
+}
+
+:root {
+    /* Accent (album-derived or fixed); eased so swaps feel calm.
+       --accent = raw colour (underline); --accent-ink = contrast-safe for the glyph. */
+    --accent: rgb(255, 55, 95);
+    --accent-ink: rgb(255, 55, 95);
+    --on: rgb(255, 255, 255);
+    --muted: rgb(150, 150, 156);
+
+    /* Dark panel = near-black. */
+    --panel: rgba(20, 20, 22, 0.92);
+    --fg: rgba(255, 255, 255, 0.96);
+    --fg-dim: rgba(255, 255, 255, 0.62);
+    --hit: rgba(255, 255, 255, 0.08);
+}
+
+/* Light panel = near-white. */
+.theme-light {
+    --panel: rgba(250, 250, 250, 0.94);
+    --fg: rgba(20, 20, 22, 0.96);
+    --fg-dim: rgba(0, 0, 0, 0.6);
+    --hit: rgba(0, 0, 0, 0.06);
+}
+
+/* Auto follows the system; default (no class) is dark. */
+@media (prefers-color-scheme: light) {
+    .theme-auto {
+        --panel: rgba(250, 250, 250, 0.94);
+        --fg: rgba(20, 20, 22, 0.96);
+        --fg-dim: rgba(0, 0, 0, 0.6);
+        --hit: rgba(0, 0, 0, 0.06);
+    }
+}
+
+.widget {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    /* Subtle, layered: tight contact + soft ambient, low alpha — renders fully within the
+       body padding on any background (thin-widget-scaled from the standard template). */
+    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.14);
+    overflow: hidden;
+    background: var(--panel);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    /* Ease accent var changes ~600ms (custom props animate via the line/glyph). */
+    transition: background 600ms ease;
+}
+
+/* One tight, vertically centered row. */
+.strip {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    gap: 8px;
+    padding: 0 12px;
+    cursor: default;
+}
+
+/* ---- Glyph (play/pause) ---- */
+.glyph {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--accent-ink);
+    cursor: pointer;
+    padding: 0;
+    transition: color 600ms ease, transform 120ms ease;
+}
+.glyph:active { transform: scale(0.88); }
+.glyph img.sf-icon { width: 18px; height: 18px; display: block; }
+
+/* Show pause when playing, play otherwise. IDs, not .glyph, so these outrank the
+   `.glyph img.sf-icon` sizing rule above (which also sets `display: block` and would
+   otherwise win on specificity, leaving .ic-pause stuck visible even while paused). */
+#glyph .ic-pause { display: none; }
+.widget.playing #glyph .ic-play { display: none; }
+.widget.playing #glyph .ic-pause { display: block; }
+
+/* ---- Nav buttons (hover-only) ---- */
+.nav {
+    flex: 0 0 auto;
+    width: 0;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--fg-dim);
+    cursor: pointer;
+    padding: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: opacity 160ms ease, width 160ms ease, color 120ms ease;
+}
+.nav img.sf-icon { width: 16px; height: 16px; display: block; }
+.nav:hover { color: var(--fg); }
+
+/* Reveal prev/next when the strip is hovered (and a track exists). `nt-hover` is set by the
+   host's always-active tracking, so this works without clicking the widget first; `:hover` is
+   kept as a fallback for when the app is active. */
+.widget:not(.empty) .strip:hover .nav,
+html.nt-hover .widget:not(.empty) .nav {
+    width: 22px;
+    opacity: 1;
+}
+
+/* Greyed out during a Spotify ad (see script.js). Higher specificity than the hover-reveal
+   rule above, so a disabled nav button stays dimmed even while revealed. */
+.widget:not(.empty) .strip:hover .nav:disabled,
+html.nt-hover .widget:not(.empty) .nav:disabled {
+    color: var(--fg-dim);
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* ---- Label (single line; scrolls when overflowing) ----
+   The edge fade is ALWAYS present (so scrolling text fades in/out), but the label is inset by the
+   fade width so a static title starts in the opaque band instead of under the left fade. The inset
+   lives on the wrap (not the label) so it doesn't enter the seamless-marquee width math. */
+.label-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    position: relative;
+    padding: 0 12px;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+}
+
+.label {
+    display: inline-block;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--fg);
+    line-height: 44px;
+    will-change: transform;
+}
+
+/* Marquee: duplicate the text via ::after so the loop is seamless.
+   The gap between copies is baked into the ::after padding. */
+.label.marquee {
+    animation: strip-scroll 12s linear infinite;
+}
+.label.marquee::after {
+    content: attr(data-text);
+    padding-left: 48px;
+}
+
+@keyframes strip-scroll {
+    from { transform: translateX(0); }
+    to   { transform: translateX(calc(-1 * var(--scroll-w, 50%))); }
+}
+
+.widget.empty .label { color: var(--fg-dim); font-weight: 500; }
+
+/* ---- Time ---- */
+.time {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--fg-dim);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+}
+
+/* ---- Progress underline ---- */
+.underline {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 2px;
+    width: 0;
+    background: var(--accent);
+    transition: background 600ms ease;
+}
+
+/* Respect reduced motion: no marquee, no transitions on color swaps. */
+@media (prefers-reduced-motion: reduce) {
+    .label.marquee { animation: none; }
+    .label.marquee::after { content: none; }
+    .widget, .glyph, .underline { transition: none; }
+}

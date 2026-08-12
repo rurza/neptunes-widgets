@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vinyl</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="widget" id="widget">
+        <div class="vinyl-row">
+            <div class="side left" id="leftSide"></div>
+            <div class="vinyl-shadow">
+                <div class="vinyl" id="vinyl">
+                    <div class="grooves"></div>
+                    <div class="label" id="label">
+                        <img id="artwork" src="" alt="">
+                        <div class="label-center"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="side right" id="rightSide"></div>
+        </div>
+        <div class="bottom-row" id="bottomSide"></div>
+    </div>
+
+    <template id="trackInfoTemplate">
+        <div class="track-info" id="trackInfo">
+            <div class="title" id="title"></div>
+            <div class="artist" id="artist"></div>
+        </div>
+    </template>
+
+    <template id="controlsTemplate">
+        <div class="controls" id="controls">
+            <button class="control-btn" id="prevBtn">
+                <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="">
+            </button>
+            <button class="control-btn play-btn" id="playBtn">
+                <img class="sf-icon play-icon" data-symbol="play.fill" data-size="24" alt="">
+                <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="24" alt="">
+            </button>
+            <button class="control-btn" id="nextBtn">
+                <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">
+            </button>
+        </div>
+    </template>
+
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

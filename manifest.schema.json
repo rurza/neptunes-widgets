@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://neptunesmac.app/schemas/nepget-manifest.schema.json",
+  "title": "NepTunes .nepget widget manifest",
+  "description": "Schema for manifest.json inside a .nepget bundle. Validate with: node widget-tools.mjs validate MyWidget.nepget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifestVersion",
+    "id",
+    "name",
+    "version",
+    "entry",
+    "defaultSize"
+  ],
+  "properties": {
+    "manifestVersion": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9]+(\\.[A-Za-z0-9-]+)+$",
+      "description": "Reverse-domain identifier. Stable forever: it is the update-feed key and the TOFU pinning key."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "major.minor.patch, numeric only. Must increase for the app to offer an update."
+    },
+    "author": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "license": {
+      "type": "string"
+    },
+    "homepage": {
+      "type": "string",
+      "pattern": "^https?://"
+    },
+    "minNepTunesVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "If set and newer than the running app, the update is shown as blocked."
+    },
+    "authorPublicKey": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]{43}=$",
+      "description": "Base64 of the 32 raw bytes of the author's Ed25519 public key (from widget-tools.mjs keygen). No ed25519: prefix. Required when the bundle ships a bundle.sig, and must equal bundle.sig.authorPublicKey; declaring it without a bundle.sig makes the bundle refuse to install. Pinned on first install; a change forces re-consent."
+    },
+    "releaseNotes": {
+      "type": "string",
+      "description": "What changed in this version. Copied into the update feed and shown in the update consent sheet."
+    },
+    "entry": {
+      "type": "string",
+      "pattern": "\\.html$"
+    },
+    "preview": {
+      "type": "string"
+    },
+    "icon": {
+      "type": "string"
+    },
+    "resizable": {
+      "type": "boolean",
+      "description": "Whether the user may resize the window, by dragging its edges or a resize handle the widget draws itself. Defaults to true when omitted. Does not affect NepTunes.setSize, which a fixed widget may still call to size itself to its own content."
+    },
+    "defaultSize": {
+      "$ref": "#/$defs/size"
+    },
+    "minSize": {
+      "$ref": "#/$defs/size"
+    },
+    "maxSize": {
+      "$ref": "#/$defs/size"
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "artwork",
+          "playbackControl",
+          "volumeControl",
+          "love",
+          "ratingControl",
+          "shuffleRepeatControl",
+          "playerActivation",
+          "lastFm"
+        ]
+      }
+    },
+    "settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema"
+      ],
+      "properties": {
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/setting"
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width",
+        "height"
+      ],
+      "properties": {
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "enum": [
+            "checkbox",
+            "slider",
+            "color",
+            "radio",
+            "select",
+            "text"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "default": {
+          "type": [
+            "boolean",
+            "number",
+            "string"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "step": {
+          "type": "number"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/option"
+          }
+        }
+      }
+    },
+    "option": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value",
+        "label"
+      ],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

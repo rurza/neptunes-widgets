@@ -1,0 +1,127 @@
+{
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.charts",
+  "name": "Charts",
+  "version": "1.0.7",
+  "author": "Adam Różyński",
+  "description": "Your Last.fm top albums, artists, or tracks as a clean numbered chart. Tinted by what's playing now.",
+  "license": "MIT",
+  "entry": "index.html",
+  "defaultSize": {
+    "width": 332,
+    "height": 360
+  },
+  "minSize": {
+    "width": 292,
+    "height": 260
+  },
+  "maxSize": {
+    "width": 492,
+    "height": 600
+  },
+  "resizable": true,
+  "preview": "preview.jpg",
+  "permissions": [
+    "artwork",
+    "lastFm"
+  ],
+  "settings": {
+    "schema": [
+      {
+        "id": "chart",
+        "type": "select",
+        "label": "Show",
+        "options": [
+          {
+            "value": "albums",
+            "label": "Top Albums"
+          },
+          {
+            "value": "artists",
+            "label": "Top Artists"
+          },
+          {
+            "value": "tracks",
+            "label": "Top Tracks"
+          }
+        ],
+        "default": "albums"
+      },
+      {
+        "id": "period",
+        "type": "select",
+        "label": "Period",
+        "options": [
+          {
+            "value": "7day",
+            "label": "7 days"
+          },
+          {
+            "value": "1month",
+            "label": "1 month"
+          },
+          {
+            "value": "3month",
+            "label": "3 months"
+          },
+          {
+            "value": "12month",
+            "label": "12 months"
+          },
+          {
+            "value": "overall",
+            "label": "All time"
+          }
+        ],
+        "default": "7day"
+      },
+      {
+        "id": "limit",
+        "type": "select",
+        "label": "Rows",
+        "options": [
+          {
+            "value": "5",
+            "label": "5"
+          },
+          {
+            "value": "8",
+            "label": "8"
+          },
+          {
+            "value": "10",
+            "label": "10"
+          }
+        ],
+        "default": "8"
+      },
+      {
+        "id": "showThumbnails",
+        "type": "checkbox",
+        "label": "Show thumbnails",
+        "default": false
+      },
+      {
+        "id": "theme",
+        "type": "radio",
+        "label": "Theme",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          }
+        ],
+        "default": "auto"
+      }
+    ]
+  },
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

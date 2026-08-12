@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strip</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Ultra-thin now-playing ticker. The whole .strip is a play/pause hit area;
+         real <button>s stay interactive while the native layer drags the window. -->
+    <div class="widget" id="widget">
+        <div class="strip" id="strip">
+            <!-- Play/pause state glyph (also a control) -->
+            <button class="glyph" id="glyph" type="button" aria-label="Play or pause">
+                <img class="sf-icon ic-play" data-symbol="play.fill" data-size="22" alt="">
+                <img class="sf-icon ic-pause" data-symbol="pause.fill" data-size="22" alt="">
+            </button>
+
+            <!-- Previous (reveals on hover) -->
+            <button class="nav prev" id="prevBtn" type="button" aria-label="Previous">
+                <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="">
+            </button>
+
+            <!-- Scrolling label region -->
+            <div class="label-wrap" id="labelWrap">
+                <div class="label" id="label">Nothing playing</div>
+            </div>
+
+            <!-- Next (reveals on hover) -->
+            <button class="nav next" id="nextBtn" type="button" aria-label="Next">
+                <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">
+            </button>
+
+            <!-- Interpolated current time -->
+            <div class="time" id="time">0:00</div>
+        </div>
+
+        <!-- Accent progress line pinned to the bottom edge -->
+        <div class="underline" id="underline"></div>
+    </div>
+
+    <script src="neptunes-kit.js"></script>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

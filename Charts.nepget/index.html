@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Charts</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Carries the panel's drop shadow. Empty and inert on purpose — see styles.css. -->
+    <div class="panel-shadow" aria-hidden="true"></div>
+
+    <div class="widget" id="widget">
+        <div class="header">
+            <span class="title" id="chartTitle">TOP ALBUMS</span>
+            <span class="period" id="periodLabel">7 DAYS</span>
+        </div>
+        <div class="list" id="list"></div>
+        <div class="status" id="status" hidden></div>
+    </div>
+    <script src="neptunes-kit.js"></script>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

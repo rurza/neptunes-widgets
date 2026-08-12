@@ -1,0 +1,484 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+html {
+    background: transparent;
+}
+
+:root {
+    --bg-color: rgba(25, 25, 30, 0.92);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.6);
+    --control-bg: rgba(255, 255, 255, 0.1);
+    --control-hover: rgba(255, 255, 255, 0.18);
+    --control-active: rgba(255, 255, 255, 0.25);
+    --accent-color: #ff2d55;
+    --progress-bg: rgba(255, 255, 255, 0.15);
+    --progress-fill: rgba(255, 255, 255, 0.7);
+}
+
+body.light {
+    --bg-color: rgba(250, 250, 252, 0.92);
+    --text-primary: #1a1a1a;
+    --text-secondary: rgba(0, 0, 0, 0.55);
+    --control-bg: rgba(0, 0, 0, 0.06);
+    --control-hover: rgba(0, 0, 0, 0.1);
+    --control-active: rgba(0, 0, 0, 0.15);
+    --progress-bg: rgba(0, 0, 0, 0.1);
+    --progress-fill: rgba(0, 0, 0, 0.5);
+}
+
+/* Auto — follow the desktop appearance. A light desktop gets the light palette; a dark
+   one falls through to the dark defaults above. Kept in CSS (rather than resolved in JS)
+   so an automatic system switch re-themes the panel with no script involvement. */
+@media (prefers-color-scheme: light) {
+    body.auto {
+        --bg-color: rgba(250, 250, 252, 0.92);
+        --text-primary: #1a1a1a;
+        --text-secondary: rgba(0, 0, 0, 0.55);
+        --control-bg: rgba(0, 0, 0, 0.06);
+        --control-hover: rgba(0, 0, 0, 0.1);
+        --control-active: rgba(0, 0, 0, 0.15);
+        --progress-bg: rgba(0, 0, 0, 0.1);
+        --progress-fill: rgba(0, 0, 0, 0.5);
+    }
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: transparent;
+    /* The window (defaultSize) is larger than the visible card; this transparent padding is
+       the room the card's drop shadow fades into. Sized to the shadow reach + macOS-26
+       headroom (>= reach + 14px per window-facing side): shadow reaches ~22px below / 16px
+       sides / 10px top, so 38/30/26 padding keeps every edge clear. overflow:visible so it
+       isn't clipped. */
+    overflow: visible;
+    padding: 26px 30px 38px;
+    height: 100vh;
+    width: 100vw;
+    -webkit-app-region: drag;
+}
+
+.widget {
+    position: relative;
+    /* Card fills the padded content box (the visible 360x200 card). The dark background paints
+       the rounded edge cleanly; the soft drop shadow gives depth and fully fades inside the body
+       padding so it never clips at the window edge. The frosted blur is on an INSET ::before
+       (below) rather than on this card directly — a backdrop-filter clipped to the card's own
+       rounded edge leaves a light antialiased seam where it meets the transparent window. */
+    height: 100%;
+    width: 100%;
+    background: var(--bg-color);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14), 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* Frosted blur, inset 1px so its clip edge sits under the card's own opaque dark rim instead of
+   meeting the transparent window — that's what removes the light corner seam. (The bg is 0.92
+   opaque so moving the blur inward doesn't visibly change the frost.) */
+.widget::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border-radius: 13px;
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    z-index: 0;
+}
+
+.bg-artwork {
+    position: absolute;
+    inset: -30%;
+    background-size: cover;
+    background-position: center;
+    filter: blur(50px) saturate(1.3);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    z-index: 0;
+}
+
+.bg-artwork.visible {
+    opacity: 0.35;
+}
+
+.content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 14px;
+    padding: 14px;
+    height: 100%;
+}
+
+.artwork-container {
+    flex-shrink: 0;
+    width: 120px;
+    height: 120px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--control-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 3px 5px rgba(0, 0, 0, 0.12);
+    align-self: center;
+}
+
+.artwork-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.artwork-container img.visible {
+    opacity: 1;
+}
+
+.artwork-container img.visible + .no-artwork {
+    display: none;
+}
+
+.no-artwork {
+    width: 48px;
+    height: 48px;
+    color: var(--text-secondary);
+}
+
+.main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+}
+
+.track-info {
+    min-width: 0;
+}
+
+.title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.artist {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+    margin-top: 2px;
+}
+
+/* Progress */
+.progress-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.progress-container.hidden {
+    display: none;
+}
+
+.progress-bar {
+    height: 4px;
+    background: var(--progress-bg);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--progress-fill);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 1s linear;
+}
+
+.time-display {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Controls */
+.controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.control-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: var(--control-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.control-btn:hover {
+    background: var(--control-hover);
+}
+
+.control-btn:active {
+    background: var(--control-active);
+    transform: scale(0.95);
+}
+
+/* Greyed out during a Spotify ad (prev/next only — see script.js). */
+.control-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.control-btn:disabled:hover,
+.control-btn:disabled:active {
+    background: var(--control-bg);
+    transform: none;
+}
+
+.control-btn img.sf-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.control-btn.secondary {
+    width: 30px;
+    height: 30px;
+    background: transparent;
+    color: var(--text-secondary);
+}
+
+.control-btn.secondary:hover {
+    color: var(--text-primary);
+    background: var(--control-bg);
+}
+
+.control-btn.secondary.active {
+    color: var(--accent-color);
+}
+
+.control-btn.secondary img.sf-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.play-btn {
+    width: 44px;
+    height: 44px;
+    background: var(--text-primary);
+    color: var(--bg-color);
+    /* The SF Symbol icon is a rendered PNG, not an SVG using currentColor, so it can't
+       pick up the `color:` override above — sfsymbols.js reads --icon-color instead. */
+    --icon-color: #1a1a1a;
+}
+
+body.light .play-btn {
+    background: #1a1a1a;
+    color: #ffffff;
+    --icon-color: #ffffff;
+}
+
+/* Auto's light-appearance counterpart to the rule above. */
+@media (prefers-color-scheme: light) {
+    body.auto .play-btn {
+        background: #1a1a1a;
+        color: #ffffff;
+        --icon-color: #ffffff;
+    }
+}
+
+.play-btn:hover {
+    transform: scale(1.05);
+    background: var(--text-primary);
+}
+
+.play-btn:active {
+    transform: scale(0.98);
+}
+
+.play-btn img.sf-icon {
+    width: 22px;
+    height: 22px;
+}
+
+.play-btn .pause-icon {
+    display: none;
+}
+
+.play-btn.playing .play-icon {
+    display: none;
+}
+
+.play-btn.playing .pause-icon {
+    display: block;
+}
+
+/* Repeat button states */
+.repeat-one-icon {
+    display: none;
+}
+
+.control-btn.repeat-one .repeat-icon {
+    display: none;
+}
+
+.control-btn.repeat-one .repeat-one-icon {
+    display: block;
+}
+
+/* Bottom row */
+.bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+}
+
+.volume-control.hidden {
+    display: none;
+}
+
+.icon-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.icon-btn:hover {
+    color: var(--text-primary);
+    background: var(--control-bg);
+}
+
+.icon-btn img.sf-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.mute-icon {
+    display: none;
+}
+
+.icon-btn.muted .volume-icon {
+    display: none;
+}
+
+.icon-btn.muted .mute-icon {
+    display: block;
+}
+
+/* Volume slider */
+.volume-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--progress-bg);
+    border-radius: 2px;
+    outline: none;
+    -webkit-app-region: no-drag;
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--text-primary);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+.volume-slider::-webkit-slider-thumb:active {
+    transform: scale(1.05);
+}
+
+/* Love button */
+.love-btn {
+    color: var(--text-secondary);
+}
+
+.love-btn .heart-filled {
+    display: none;
+}
+
+.love-btn.loved {
+    color: var(--accent-color);
+}
+
+.love-btn.loved .heart-outline {
+    display: none;
+}
+
+.love-btn.loved .heart-filled {
+    display: block;
+}
+
+/* Hidden state */
+.hidden {
+    display: none !important;
+}
+
+/* Shuffle/Repeat hidden */
+.controls .shuffle-repeat-hidden {
+    display: none;
+}
+
+/* Stopped state */
+.widget.stopped .title {
+    color: var(--text-secondary);
+}
+
+.widget.stopped .controls {
+    opacity: 0.6;
+}
+
+.widget.stopped .play-btn {
+    opacity: 1;
+}

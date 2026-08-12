@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>NepTunes Widget Dev Harness</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 13px/1.4 -apple-system, system-ui, sans-serif; color: #eee; background: #1b1b1f; display: flex; height: 100vh; }
+    #rail { width: 220px; flex: none; padding: 16px; background: #131316; border-right: 1px solid #2a2a30; display: flex; flex-direction: column; gap: 14px; overflow: auto; }
+    #rail h1 { font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: #9a9aa6; margin: 0 0 4px; }
+    .group { display: flex; flex-direction: column; gap: 6px; }
+    .group label { color: #9a9aa6; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+    button, select { font: inherit; color: #eee; background: #26262d; border: 1px solid #34343c; border-radius: 8px; padding: 8px 10px; cursor: pointer; text-align: left; }
+    button:hover { background: #303039; }
+    button.active { background: #3a6df0; border-color: #3a6df0; }
+    a.widget { text-decoration: none; }
+    #stageWrap { flex: 1; display: grid; place-items: center; overflow: auto;
+      background:
+        repeating-linear-gradient(45deg, #202026 0 12px, #232329 12px 24px); }
+    #stageWrap.light { background: repeating-linear-gradient(45deg, #d8d8de 0 12px, #e6e6ec 12px 24px); }
+    #stage { border: 0; background: transparent; box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+    .row { display: flex; gap: 6px; }
+    .row button { flex: 1; }
+    #hint { color: #7a7a86; font-size: 11px; line-height: 1.5; }
+    code { color: #c0c0cc; }
+  </style>
+</head>
+<body>
+  <div id="rail">
+    <h1>Widget</h1>
+    <div class="group" id="picker">
+      <a class="widget" href="?widget=Headline"><button data-w="Headline">Headline</button></a>
+      <a class="widget" href="?widget=Strip"><button data-w="Strip">Strip</button></a>
+      <a class="widget" href="?widget=Charts"><button data-w="Charts">Charts</button></a>
+      <a class="widget" href="?widget=Scrobbles"><button data-w="Scrobbles">Scrobbles</button></a>
+      <a class="widget" href="?widget=V3"><button data-w="V3">V3</button></a>
+    </div>
+
+    <h1>Player</h1>
+    <div class="group">
+      <div class="row">
+        <button id="prev">‹ Prev</button>
+        <button id="play">⏯ Play/Pause</button>
+        <button id="next">Next ›</button>
+      </div>
+    </div>
+
+    <h1>Last.fm</h1>
+    <div class="group">
+      <button id="signout">Toggle signed-out</button>
+      <span id="signstate" style="color:#9a9aa6">signed in</span>
+    </div>
+
+    <h1>Stage</h1>
+    <div class="group">
+      <button id="bg">Toggle light backdrop</button>
+      <button id="hover">Pin nt-hover</button>
+    </div>
+
+    <p id="hint">Serve this folder over http for best results:<br />
+      <code>cd "SampleWidgets" &amp;&amp; python3 -m http.server</code><br />
+      then open <code>localhost:8000/_dev/harness.html?widget=Headline</code>.<br />
+      Opening as a <code>file://</code> works in Safari.</p>
+  </div>
+
+  <div id="stageWrap">
+    <iframe id="stage"></iframe>
+  </div>
+
+  <script src="mock-neptunes.js"></script>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var widget = params.get('widget') || 'Headline';
+      var signedOut = params.get('signedout') === '1';
+      var stage = document.getElementById('stage');
+      var stageWrap = document.getElementById('stageWrap');
+      var controller = null;
+
+      // Highlight the active widget button.
+      document.querySelectorAll('#picker button').forEach(function (b) {
+        if (b.dataset.w === widget) b.classList.add('active');
+      });
+
+      // Default stage size per widget (matches each manifest's defaultSize).
+      var SIZES = { Headline: [360, 190], Strip: [560, 44], Charts: [300, 320], Scrobbles: [300, 340], V3: [260, 260] };
+      function setStageSize(w, h) { stage.style.width = w + 'px'; stage.style.height = h + 'px'; }
+      setStageSize.apply(null, SIZES[widget] || [360, 200]);
+
+      // The host pushes settings already merged with the manifest's declared defaults
+      // (WidgetWindowController.reloadAndPushSettings -> mergedWithDefaults). The mock used
+      // to pass `{}`, so every widget ran its own missing-value fallbacks here and the
+      // harness silently disagreed with the app about its own defaults.
+      function defaultSettings(manifest) {
+        var out = {};
+        var schema = manifest && manifest.settings && manifest.settings.schema;
+        (schema || []).forEach(function (s) {
+          if (s && s.id !== undefined && s.default !== undefined) out[s.id] = s.default;
+        });
+        return out;
+      }
+
+      function bootIframe(html, manifest) {
+        var doc = stage.contentWindow.document;
+        // Install the mock onto the iframe window BEFORE the widget scripts run.
+        controller = installNepTunesMock(stage.contentWindow, {
+          signedOut: signedOut,
+          settings: defaultSettings(manifest),
+          onSetSize: function (w, h) { setStageSize(w, h); }
+        });
+        // Inject <base> so the widget's relative src/href resolve to its bundle dir.
+        var base = '<base href="../' + widget + '.nepget/">';
+        var injected = html.replace(/<head([^>]*)>/i, '<head$1>' + base);
+        if (injected === html) injected = base + html; // no <head> found
+        doc.open(); doc.write(injected); doc.close();
+        updateSignState();
+      }
+
+      function load() {
+        Promise.all([
+          fetch('../' + widget + '.nepget/index.html')
+            .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); }),
+          // Optional: a widget without a readable manifest still boots, just without
+          // its declared defaults or its real window size.
+          fetch('../' + widget + '.nepget/manifest.json')
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .catch(function () { return null; })
+        ])
+          .then(function (both) {
+            var html = both[0], manifest = both[1];
+            if (manifest && manifest.defaultSize) {
+              setStageSize(manifest.defaultSize.width, manifest.defaultSize.height);
+            }
+            bootIframe(html, manifest);
+          })
+          .catch(function (e) {
+            var doc = stage.contentWindow.document;
+            doc.open();
+            doc.write('<body style="font:14px -apple-system;color:#900;padding:20px">Could not load ' +
+              widget + '.nepget/index.html (' + e.message + ').<br>Serve the SampleWidgets folder over http (see the hint in the left rail).</body>');
+            doc.close();
+          });
+      }
+
+      function updateSignState() {
+        document.getElementById('signstate').textContent = signedOut ? 'signed out' : 'signed in';
+      }
+
+      document.getElementById('prev').onclick = function () { controller && controller.state && stage.contentWindow.NepTunes.previous(); };
+      document.getElementById('next').onclick = function () { controller && controller.nextTrack(); };
+      document.getElementById('play').onclick = function () { controller && controller.togglePlay(); };
+      document.getElementById('signout').onclick = function () {
+        signedOut = !signedOut;
+        if (controller) controller.setSignedOut(signedOut);
+        updateSignState();
+      };
+      document.getElementById('bg').onclick = function () { stageWrap.classList.toggle('light'); };
+
+      // The host sets `nt-hover` on the widget's <html> from system-wide mouse monitors
+      // (WidgetWindowController.startHoverMonitoring), because the widget panel never becomes
+      // key and so its web view gets no mouse events of its own. The mock can't replicate that
+      // machinery, but the parent document here DOES see the pointer cross the iframe, so drive
+      // the same class from that. Without this, any hover-reveal widget looks permanently empty
+      // in the harness. `Pin` holds it on so the revealed state can be inspected.
+      var hoverPinned = false;
+      function setHover(on) {
+        var doc = stage.contentWindow && stage.contentWindow.document;
+        if (doc && doc.documentElement) doc.documentElement.classList.toggle('nt-hover', on);
+      }
+      stage.addEventListener('mouseenter', function () { setHover(true); });
+      stage.addEventListener('mouseleave', function () { if (!hoverPinned) setHover(false); });
+      document.getElementById('hover').onclick = function () {
+        hoverPinned = !hoverPinned;
+        this.classList.toggle('active', hoverPinned);
+        setHover(hoverPinned);
+      };
+
+      load();
+    })();
+  </script>
+</body>
+</html>

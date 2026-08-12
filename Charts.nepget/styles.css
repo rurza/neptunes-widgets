@@ -1,0 +1,265 @@
+/* Charts — minimal / typographic Last.fm chart.
+   Mostly monochrome; the single album-art accent (--accent) tints
+   only the rank numerals and the header rule. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+body {
+    /* Shadow margin must exceed the panel's shadow extent. The subtle two-layer shadow
+       (contact + ambient, both low-alpha — see `.panel-shadow`) reaches ~21px below,
+       ~16px to the sides and ~11px above, so this 32/32/40 padding clears it by ≥8px on
+       every side. defaultSize/minSize in the manifest carry the matching card size. */
+    padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    /* tabular figures everywhere by default */
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+}
+
+/* ---- Theme tokens ----
+   Default (and theme=dark) is a near-black panel.
+   theme=light forces a near-white panel.
+   theme=auto follows prefers-color-scheme (handled below). */
+:root {
+    /* Transparent gutter holding the drop shadow; also `body`'s padding. */
+    --gutter-top: 32px;
+    --gutter-x: 32px;
+    --gutter-bottom: 40px;
+    --panel-radius: 16px;
+
+    --accent: rgb(124, 124, 132);
+    --accent-ink: rgb(124, 124, 132); /* contrast-safe accent for text/numerals */
+    --on: rgb(255, 255, 255);
+    --muted: rgb(150, 150, 156);
+
+    --panel: #0d0d0f;
+    --ink: rgba(255, 255, 255, 0.96);
+    --ink-dim: rgba(255, 255, 255, 0.58);
+    --rule: rgba(255, 255, 255, 0.08);
+    --thumb-bg: rgba(255, 255, 255, 0.08);
+
+    --pad: 18px; /* horizontal content inset; lives on children so the list reaches the edge */
+}
+
+.theme-light {
+    --panel: #fbfbfc;
+    --ink: rgba(10, 10, 12, 0.94);
+    --ink-dim: rgba(10, 10, 12, 0.52);
+    --rule: rgba(0, 0, 0, 0.09);
+    --thumb-bg: rgba(0, 0, 0, 0.06);
+}
+
+@media (prefers-color-scheme: light) {
+    .theme-auto {
+        --panel: #fbfbfc;
+        --ink: rgba(10, 10, 12, 0.94);
+        --ink-dim: rgba(10, 10, 12, 0.52);
+        --rule: rgba(0, 0, 0, 0.09);
+        --thumb-bg: rgba(0, 0, 0, 0.06);
+    }
+}
+
+/* ---- Drop shadow ----
+   An empty box sitting exactly under the panel, carrying the shadow so that .widget has none
+   of its own.
+
+   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
+   WebKit intermittently paints that shadow as a *square, unblurred rectangle* — the bottom
+   corner notches, which a rounded silhouette leaves clear, fill in solid and the falloff stops
+   dead. It is a paint defect, not a CSS error, it is not reproducible on demand, and it shipped
+   visibly in Scrobbles. `filter: drop-shadow()` builds the shadow from this box's own alpha
+   channel rather than from a rounded-rect path, so a square-cornered result is not a shape it
+   can produce; the worst it degrades to is no shadow at all.
+
+   Its own box rather than a filter on .widget, because a filter there would push the whole
+   panel through the filter pipeline on every frame. Nothing here ever changes, so it is
+   rasterised once. `position: fixed` resolves against the viewport, so the inset values are
+   exactly `body`'s padding and the box lands on .widget at any window size.
+
+   Note drop-shadow()'s blur argument is half box-shadow's — WebKit reads it as a standard
+   deviation — so these are the same weights the box-shadow above carried. */
+.panel-shadow {
+    position: fixed;
+    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    border-radius: var(--panel-radius);
+    background: var(--panel);
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .14)) drop-shadow(0 5px 8px rgba(0, 0, 0, .12));
+    pointer-events: none;
+}
+
+.widget {
+    /* z-index only so the panel paints above .panel-shadow, which is out of flow. */
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--panel-radius);
+    overflow: hidden;
+    background: var(--panel);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    /* No horizontal/bottom padding: the list spans the full panel width so its scrollbar sits at
+       the right edge. Inset is applied per child via --pad. */
+    padding: 18px 0 0;
+    /* ease accent-driven colour changes */
+    transition: color .6s ease, background-color .6s ease;
+}
+
+/* ---- Header ---- */
+.header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding-bottom: 10px;
+    margin: 0 var(--pad) 6px;
+    border-bottom: 2px solid var(--accent-ink);
+    transition: border-color .6s ease;
+}
+
+.title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.period {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    flex: none;
+    transition: color .6s ease;
+}
+
+/* ---- List (scrolls when the rows overflow; bounce is killed host-side) ---- */
+.list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Thin, unobtrusive scrollbar. */
+.list::-webkit-scrollbar { width: 6px; }
+.list::-webkit-scrollbar-thumb {
+    background: var(--rule);
+    border-radius: 3px;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: none;
+    margin: 0 var(--pad);
+    padding: 9px 0;
+    border-top: 1px solid var(--rule);
+}
+.row:first-child { border-top: none; }
+
+.rank {
+    flex: none;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--accent-ink);
+    min-width: 1.9em;
+    text-align: left;
+    transition: color .6s ease;
+    font-variant-numeric: tabular-nums;
+}
+
+.thumb {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 5px;
+    object-fit: cover;
+    background: var(--thumb-bg);
+}
+
+/* name block grows; everything inside ellipsizes on a single line */
+.meta {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.15;
+}
+
+.name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.by {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.count {
+    flex: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-dim);
+    text-align: right;
+    white-space: nowrap;
+    transition: color .6s ease;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Status (loading / empty / error) ---- */
+.status {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 12px var(--pad);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--muted);
+    transition: color .6s ease;
+}
+.status[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+    .widget, .header, .period, .rank, .count, .status {
+        transition: none;
+    }
+}

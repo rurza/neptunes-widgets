@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Headline</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Carries the panel's drop shadow. Empty and inert on purpose — see styles.css. -->
+    <div class="panel-shadow" aria-hidden="true"></div>
+
+    <div class="widget" id="widget">
+        <!-- Oversized track title, auto-fit to its box -->
+        <div class="title-box">
+            <div class="title" id="title">Not Playing</div>
+        </div>
+
+        <!-- artist · album -->
+        <div class="subtitle" id="subtitle"></div>
+
+        <!-- Hairline progress -->
+        <div class="bar" id="bar">
+            <div class="bar-fill" id="barFill">
+                <div class="bar-thumb"></div>
+            </div>
+        </div>
+
+        <!-- Times + controls share a row -->
+        <div class="footer">
+            <div class="times">
+                <span id="elapsed">0:00</span>
+            </div>
+
+            <div class="controls" id="controls">
+                <button id="prevBtn" title="Previous" aria-label="Previous">
+                    <img class="sf-icon" data-symbol="backward.end.fill" data-size="16" alt="Previous">
+                </button>
+                <button id="playBtn" title="Play/Pause" aria-label="Play/Pause">
+                    <img class="sf-icon play-icon" data-symbol="play.fill" data-size="18" alt="Play">
+                    <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="18" alt="Pause">
+                </button>
+                <button id="nextBtn" title="Next" aria-label="Next">
+                    <img class="sf-icon" data-symbol="forward.end.fill" data-size="16" alt="Next">
+                </button>
+                <button id="loveBtn" title="Love" aria-label="Love">
+                    <img class="sf-icon love-off" data-symbol="heart" data-size="16" alt="Love">
+                    <img class="sf-icon love-on" data-symbol="heart.fill" data-size="16" alt="Loved">
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="neptunes-kit.js"></script>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

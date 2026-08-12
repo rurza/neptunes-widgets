@@ -1,0 +1,299 @@
+/* Scrobbles — lifetime counter + live recent-tracks feed.
+   Minimal / typographic: heavy display number as hero, monochrome,
+   a single album-derived accent applied sparingly. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Shadow-safe layout (per widget README): transparent window, the
+   .widget panel is the only visible surface, body padding leaves room
+   for the drop shadow. */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    overflow: visible;
+    background: transparent;
+}
+
+body {
+    /* Shadow margin: must exceed the shadow's extent (blur + offset) so it fades out fully
+       before the window edge instead of being hard-clipped. The same three values position
+       .panel-shadow, so the two can't drift apart. */
+    padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    /* Tabular figures everywhere — counter and relative times stay aligned. */
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Theme tokens. Default = dark; resolved theme set as a root class. ---- */
+:root {
+    --panel: #0c0c0e;
+    --ink: #f4f4f6;
+    --sub: rgba(244, 244, 246, 0.62);
+    --faint: rgba(244, 244, 246, 0.58);
+    --hairline: rgba(244, 244, 246, 0.12);
+    --row-hover: rgba(244, 244, 246, 0.05);
+    --np-bg: rgba(244, 244, 246, 0.05);
+
+    /* Accent palette (overwritten at runtime by NTKit.applyAccent).
+       --accent = raw album colour (dot/pulse); --accent-ink = contrast-safe for text. */
+    --accent: rgb(124, 124, 132);
+    --accent-ink: rgb(124, 124, 132);
+    --on: rgb(255, 255, 255);
+    --muted: rgb(150, 150, 156);
+
+    --pad: 22px; /* horizontal content inset; lives on children so the feed reaches the edge */
+
+    /* Transparent gutter between the window edge and the panel, holding the drop shadow.
+       Shared by `body`'s padding and `.panel-shadow`'s inset. */
+    --gutter-x: 22px;
+    --gutter-top: 22px;
+    --gutter-bottom: 26px;
+    --panel-radius: 16px;
+}
+
+html.theme-light {
+    --panel: #fbfbfc;
+    --ink: #16161a;
+    --sub: rgba(22, 22, 26, 0.60);
+    --faint: rgba(22, 22, 26, 0.52);
+    --hairline: rgba(22, 22, 26, 0.12);
+    --row-hover: rgba(22, 22, 26, 0.05);
+    --np-bg: rgba(22, 22, 26, 0.05);
+}
+
+/* ---- Drop shadow ----
+   An empty box sitting exactly under the panel, carrying the shadow so that .widget itself
+   has none.
+
+   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
+   WebKit intermittently painted that shadow as a *square, unblurred rectangle* — the two
+   bottom corner notches, which a rounded silhouette leaves clear, filled in solid and the
+   falloff cut off dead. Measured on a user's capture: the shadow in the corner notch was
+   0.20 alpha against 0.14 under the panel's straight bottom edge, i.e. stronger where a
+   rounded shadow is nearly gone, with 1px steps where it should feather over 12. A correct
+   render of the same bundle puts the notch at 0.06 against the same 0.14.
+
+   `filter: drop-shadow()` builds the shadow from this box's own alpha channel instead of
+   from a rounded-rect path, so a square-cornered result is not a shape it can produce; the
+   worst it can degrade to is no shadow at all. It lives on a separate, permanently empty box
+   rather than on .widget because a filter on .widget would push the whole panel — the pulsing
+   now-playing row, the counting-up hero number, the scrolling feed — through the filter
+   pipeline on every frame. Nothing here ever changes, so it is rasterised once.
+
+   `position: fixed` resolves against the viewport, so the inset values are exactly `body`'s
+   padding and the box lands precisely on .widget at any window size. */
+.panel-shadow {
+    position: fixed;
+    /* Flush with .widget, not inset. Insetting it by even 1px to keep its antialiased corner
+       out from under the panel's costs ~29% of the shadow at the panel edge (measured: 0.122
+       alpha -> 0.087). Flush, the two coincident edges differ from the old single edge by at
+       most 7% over ~150 subpixels on the two bottom corners, which is not visible. */
+    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
+    border-radius: var(--panel-radius);
+    background: var(--panel);
+    /* Same two-layer weight as the box-shadow it replaces: tight contact + soft ambient.
+       Extent below 16, sides 12, top 8 — each ≥8px inside the gutter (26/22/22/22). */
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14)) drop-shadow(0 3px 3.5px rgba(0, 0, 0, 0.12));
+    pointer-events: none;
+}
+
+/* ---- Panel ---- */
+.widget {
+    /* Positioned only to paint above .panel-shadow, which is out of flow. */
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--panel-radius);
+    overflow: hidden;
+    background: var(--panel);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    /* No horizontal/bottom padding: the feed spans the full panel width so its scrollbar sits
+       at the right edge, and reaches the bottom edge. Inset is applied per child via --pad. */
+    padding: 22px 0 0;
+}
+
+/* ---- Counter (hero) ---- */
+.counter {
+    flex: none;
+    padding: 0 var(--pad) 16px;
+}
+
+.counter.hidden {
+    display: none;
+}
+
+.big {
+    font-size: 52px;
+    font-weight: 800;
+    line-height: 0.94;
+    letter-spacing: -0.04em;
+    font-variant-numeric: tabular-nums;
+    /* The lone accent highlight on the counter (contrast-safe ink). */
+    color: var(--accent-ink);
+    transition: color 600ms ease;
+    white-space: nowrap;
+}
+
+.label {
+    margin-top: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.divider {
+    flex: none;
+    height: 1px;
+    background: var(--hairline);
+    margin: 0 var(--pad) 6px;
+}
+
+/* When the counter is hidden, the feed owns the whole panel. */
+.counter.hidden + .divider {
+    display: none;
+}
+
+/* ---- Feed (scrolls when rows overflow; bounce is killed host-side) ---- */
+.feed {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Thin, unobtrusive scrollbar. */
+.feed::-webkit-scrollbar { width: 6px; }
+.feed::-webkit-scrollbar-thumb {
+    background: var(--hairline);
+    border-radius: 3px;
+}
+
+.row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 7px var(--pad);
+    min-width: 0;
+}
+
+/* Now-playing marker dot — the accent, used sparingly. */
+.dot {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    align-self: center;
+    transition: background-color 600ms ease;
+}
+
+/* Spacer keeps non-playing rows aligned with the dotted ones. */
+.dot-spacer {
+    flex: none;
+    width: 7px;
+}
+
+.row-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.name {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sub {
+    margin-top: 1px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--sub);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.heart {
+    color: var(--accent-ink);
+    font-size: 10px;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 600ms ease;
+}
+
+.when {
+    flex: none;
+    align-self: center;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--faint);
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Now-playing row: full-bleed accented highlight + a soft pulse. */
+.row.now {
+    padding: 7px var(--pad);
+    background: var(--np-bg);
+    animation: pulse 2.6s ease-in-out infinite;
+}
+
+.row.now .name { color: var(--ink); }
+.row.now .when { color: var(--accent-ink); transition: color 600ms ease; }
+
+@keyframes pulse {
+    0%, 100% { background: var(--np-bg); }
+    50%      { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+}
+
+/* ---- Status (signed out / error) ---- */
+.status {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 16px var(--pad);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--faint);
+}
+
+.status[hidden] { display: none; }
+
+/* When the status owns the panel, hide the counter/divider/feed. */
+.widget.errored .counter,
+.widget.errored .divider,
+.widget.errored .feed { display: none; }
+
+/* ---- Reduced motion: kill the pulse and accent easing. ---- */
+@media (prefers-reduced-motion: reduce) {
+    .row.now { animation: none; }
+    :root,
+    .big,
+    .dot,
+    .heart,
+    .row.now .when { transition: none; }
+}

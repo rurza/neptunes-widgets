@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scrobbles</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Carries the panel's drop shadow. Empty and inert on purpose — see styles.css. -->
+    <div class="panel-shadow" aria-hidden="true"></div>
+
+    <div class="widget" id="widget">
+        <!-- Lifetime scrobble counter (hero) -->
+        <div class="counter" id="counter">
+            <div class="big" id="count">0</div>
+            <div class="label">scrobbles</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- Live recent-tracks feed -->
+        <div class="feed" id="feed"></div>
+
+        <!-- Signed-out / error message -->
+        <div class="status" id="status" hidden></div>
+    </div>
+
+    <script src="neptunes-kit.js"></script>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

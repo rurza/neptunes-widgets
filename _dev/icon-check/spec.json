@@ -1,0 +1,38 @@
+{
+  "_": "One case per bundle-and-state that puts SF Symbols on screen. `settings` holds only the OVERRIDES needed to make an optional icon exist — the manifest's own defaults are merged in first, and the window is `manifest.defaultSize` unless width/height say otherwise. `hover: true` sets the host's `nt-hover` class; `artwork: false` sends a coverless track, the only way to render a no-artwork placeholder glyph. Icons hidden by `display: none` (the other half of a play/pause or heart swap) are skipped, so a case only needs to cover states that put a NEW symbol on screen. `stale` is documented in README.md.",
+  "track": {
+    "title": "Wszystko czego dziś chcę",
+    "artist": "Robyn",
+    "album": "Honey",
+    "duration": 230,
+    "isLoved": true,
+    "artworkData": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCABAAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD12iiirEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/2Q=="
+  },
+  "cases": [
+    { "widget": "Glass" },
+    { "widget": "Glass", "label": "Glass · no artwork", "artwork": false },
+    { "widget": "Vinyl", "settings": { "labelPosition": "right", "controlsPosition": "bottom" }, "width": 404, "height": 284 },
+    { "widget": "V3", "hover": true },
+    { "widget": "V3", "label": "V3 · no artwork", "hover": true, "artwork": false,
+      "stale": "music.note is 120pt in a 96px box — a downscale, so the mildest of these" },
+    { "widget": "Headline", "hover": true },
+    { "widget": "NowPlaying" },
+    { "widget": "NowPlaying", "label": "NowPlaying · no artwork", "artwork": false },
+
+    { "widget": "Artwork", "stale": "transport is 18/22pt in 22px boxes" },
+    { "widget": "Artwork", "label": "Artwork · no artwork", "artwork": false,
+      "stale": "music.note is 36pt in a percentage box" },
+    { "widget": "FullPlayer", "stale": "shuffle/repeat 18pt in 16px, heart 20pt in 18px" },
+    { "widget": "FullPlayer", "label": "FullPlayer · no artwork", "artwork": false,
+      "stale": "music.note is 36pt in a percentage box" },
+    { "widget": "KitchenSink", "stale": "transport, arrows and heart all disagree with their boxes" },
+    { "widget": "Minimal", "settings": { "showControls": true },
+      "stale": "transport is 18/22pt in 16px boxes" },
+    { "widget": "Sleeve", "label": "Sleeve · no artwork", "artwork": false,
+      "stale": "music.note is 36pt in a 40px box" },
+    { "widget": "Stack", "hover": true, "stale": "prev/next are 18pt in 22px boxes" },
+    { "widget": "Stack", "label": "Stack · no artwork", "hover": true, "artwork": false,
+      "stale": "music.note is 36pt in a percentage box" },
+    { "widget": "Strip", "hover": true, "stale": "transport is 18/22pt in 16/18px boxes" }
+  ]
+}

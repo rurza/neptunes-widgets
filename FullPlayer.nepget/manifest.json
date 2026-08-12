@@ -1,0 +1,66 @@
+{
+    "manifestVersion": 1,
+    "id": "pl.micropixels.neptunes.widget.full-player",
+    "name": "Full Player",
+    "version": "1.0.11",
+    "author": "Adam Różyński",
+    "description": "Complete player with artwork, controls, volume, shuffle/repeat, and love button",
+    "license": "MIT",
+    "homepage": "https://neptunesmac.app",
+    "entry": "index.html",
+    "defaultSize": {
+        "width": 420,
+        "height": 264
+    },
+    "minSize": {
+        "width": 420,
+        "height": 264
+    },
+    "resizable": false,
+    "preview": "preview.jpg",
+    "permissions": [
+        "artwork",
+        "playbackControl",
+        "volumeControl",
+        "love",
+        "ratingControl",
+        "shuffleRepeatControl"
+    ],
+    "settings": {
+        "schema": [
+            {
+                "id": "showVolume",
+                "type": "checkbox",
+                "label": "Show Volume Slider",
+                "default": true
+            },
+            {
+                "id": "showShuffleRepeat",
+                "type": "checkbox",
+                "label": "Show Shuffle/Repeat",
+                "default": true
+            },
+            {
+                "id": "theme",
+                "type": "radio",
+                "label": "Theme",
+                "options": [
+                    {
+                        "value": "dark",
+                        "label": "Dark"
+                    },
+                    {
+                        "value": "light",
+                        "label": "Light"
+                    },
+                    {
+                        "value": "auto",
+                        "label": "Auto"
+                    }
+                ],
+                "default": "dark"
+            }
+        ]
+    },
+    "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

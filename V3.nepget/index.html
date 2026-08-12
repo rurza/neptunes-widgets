@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V3</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Layer order mirrors V1's ZStack: artwork, then the info strip, then the hover
+         panel on top of both (HoverView was layered over ArtworkView, not swapped for it). -->
+    <div class="widget" id="widget">
+        <img class="cover" id="cover" alt="">
+
+        <div class="nocover" id="nocover">
+            <img class="sf-icon" data-symbol="music.note" data-size="120" alt="">
+        </div>
+
+        <div class="info-bar" id="infoBar">
+            <div class="info-stack">
+                <div class="title" id="title"></div>
+                <div class="artist" id="artist"></div>
+            </div>
+        </div>
+
+        <div class="hover" id="hoverLayer">
+            <div class="hover-rows">
+                <div class="row row-secondary">
+                    <button type="button" class="control-btn" id="shuffleBtn" aria-label="Shuffle">
+                        <img class="sf-icon" data-symbol="shuffle" data-size="26" alt="">
+                    </button>
+                    <button type="button" class="control-btn" id="repeatBtn" aria-label="Repeat">
+                        <img class="sf-icon" id="repeatIcon" data-symbol="repeat" data-size="26" alt="">
+                    </button>
+                    <!-- Exactly one of these two is shown; the script hides the other. -->
+                    <button type="button" class="control-btn" id="loveBtn" aria-label="Love">
+                        <img class="sf-icon" id="loveIcon" data-symbol="heart" data-size="26" alt="">
+                    </button>
+                    <button type="button" class="control-btn" id="volumeBtn" aria-label="Volume">
+                        <img class="sf-icon" id="volumeIcon" data-symbol="speaker.wave.2" data-size="26" alt="">
+                    </button>
+                </div>
+                <div class="row row-transport">
+                    <button type="button" class="control-btn" id="prevBtn" aria-label="Previous track">
+                        <img class="sf-icon" data-symbol="backward.end.fill" data-size="26" alt="">
+                    </button>
+                    <button type="button" class="control-btn" id="playBtn" aria-label="Play or pause">
+                        <img class="sf-icon play-icon" data-symbol="play.fill" data-size="26" alt="">
+                        <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="26" alt="">
+                    </button>
+                    <button type="button" class="control-btn" id="nextBtn" aria-label="Next track">
+                        <img class="sf-icon" data-symbol="forward.end.fill" data-size="26" alt="">
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="volume-popover" id="volumePopover">
+            <input type="range" class="slider" id="volumeSlider" min="0" max="100" step="1" aria-label="Volume">
+        </div>
+
+        <div class="resize-handle" id="resizeHandle"></div>
+    </div>
+
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

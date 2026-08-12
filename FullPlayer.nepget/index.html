@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full Player</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="widget" id="widget">
+        <!-- Blurred artwork background -->
+        <div class="bg-artwork" id="bgArtwork"></div>
+
+        <div class="content">
+            <!-- Left: Artwork -->
+            <div class="artwork-container">
+                <img id="artwork" src="" alt="Album Art">
+                <div class="no-artwork" id="noArtwork">
+                    <img class="sf-icon" data-symbol="music.note" data-size="36" alt="">
+                </div>
+            </div>
+
+            <!-- Right: Info & Controls -->
+            <div class="main">
+                <!-- Track info -->
+                <div class="track-info">
+                    <div class="title" id="title">Not Playing</div>
+                    <div class="artist" id="artist"></div>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="time-display">
+                        <span id="currentTime">0:00</span>
+                        <span id="duration">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Playback controls -->
+                <div class="controls">
+                    <button class="control-btn secondary" id="shuffleBtn" title="Shuffle">
+                        <img class="sf-icon" data-symbol="shuffle" data-size="18" alt="">
+                    </button>
+
+                    <button class="control-btn" id="prevBtn" title="Previous">
+                        <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="">
+                    </button>
+
+                    <button class="control-btn play-btn" id="playBtn" title="Play/Pause">
+                        <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="">
+                        <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="">
+                    </button>
+
+                    <button class="control-btn" id="nextBtn" title="Next">
+                        <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">
+                    </button>
+
+                    <button class="control-btn secondary" id="repeatBtn" title="Repeat">
+                        <img class="sf-icon repeat-icon" data-symbol="repeat" data-size="18" alt="">
+                        <img class="sf-icon repeat-one-icon" data-symbol="repeat.1" data-size="18" alt="">
+                    </button>
+                </div>
+
+                <!-- Volume & Love -->
+                <div class="bottom-row">
+                    <div class="volume-control" id="volumeControl">
+                        <button class="icon-btn" id="muteBtn" title="Mute">
+                            <img class="sf-icon volume-icon" data-symbol="speaker.wave.2.fill" data-size="18" alt="">
+                            <img class="sf-icon mute-icon" data-symbol="speaker.slash.fill" data-size="18" alt="">
+                        </button>
+                        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="50">
+                    </div>
+
+                    <button class="icon-btn love-btn" id="loveBtn" title="Love">
+                        <img class="sf-icon heart-outline" data-symbol="heart" data-size="20" alt="">
+                        <img class="sf-icon heart-filled" data-symbol="heart.fill" data-size="20" alt="">
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="sfsymbols.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

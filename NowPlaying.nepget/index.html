@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Now Playing</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="widget" id="widget">
+        <div class="artwork-container" id="artworkContainer">
+            <img id="artwork" src="" alt="Album Art">
+            <div class="no-artwork" id="noArtwork">
+                <img class="sf-icon" data-symbol="music.note" data-size="36" alt="">
+            </div>
+        </div>
+
+        <div class="info">
+            <div class="track-info">
+                <div class="title" id="title">Not Playing</div>
+                <div class="artist" id="artist">—</div>
+            </div>
+
+            <div class="controls">
+                <button class="control-btn" id="prevBtn" title="Previous">
+                    <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="Previous">
+                </button>
+                <button class="control-btn play-btn" id="playBtn" title="Play/Pause">
+                    <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="Play">
+                    <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="Pause">
+                </button>
+                <button class="control-btn" id="nextBtn" title="Next">
+                    <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="Next">
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

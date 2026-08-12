@@ -1,0 +1,26 @@
+{
+    "manifestVersion": 1,
+    "id": "pl.micropixels.neptunes.widget.artwork",
+    "name": "Artwork",
+    "version": "1.0.9",
+    "author": "Adam Różyński",
+    "description": "Album artwork with frosted glass controls",
+    "license": "MIT",
+    "homepage": "https://neptunesmac.app",
+    "entry": "index.html",
+    "preview": "preview.jpg",
+    "defaultSize": {
+        "width": 300,
+        "height": 300
+    },
+    "minSize": {
+        "width": 180,
+        "height": 180
+    },
+    "resizable": true,
+    "permissions": [
+        "artwork",
+        "playbackControl"
+    ],
+    "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

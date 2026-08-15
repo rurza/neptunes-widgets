@@ -185,6 +185,9 @@ _dev/shadow-check/run.sh
 
 # Every SF Symbol drawn 1:1 — CSS box == data-size, so the PNG is never resampled
 _dev/icon-check/run.sh
+
+# Hover affordances: hidden, revealed by the host's nt-hover class, hidden again
+_dev/hover-check/run.sh
 ```
 
 - `_dev/mock-neptunes.js` installs a fake `window.NepTunes`
@@ -205,6 +208,10 @@ _dev/icon-check/run.sh
   `react`/`stable` case for it to `_dev/theme-check/spec.json`
   so `run.sh` covers it — a pure-function test cannot catch a widget that
   simply never learns the desktop appearance changed.
+- If anything in the widget appears on hover, add a case for it (both sides of
+  the setting, if it has one) to `_dev/hover-check/spec.json`.
+  **Gate the reveal on `html.nt-hover`, never on bare `:hover`** — see that
+  check's README for why a `:hover` rule latches open after the first click.
 
 ## The window.NepTunes API
 
@@ -435,9 +442,13 @@ days across ~9 of the sample widgets before they were written down.
 - **Don't use the album `--accent` for large fills or body text** — too garish over
   arbitrary art. Neutral white/dark controls, theme-flipped, read far cleaner; accent
   is for small cues only (hairlines, progress, dots).
-- **Regenerate picker previews** with `python3 _dev/make-previews.py`
-  (PIL, 960×400, 2× supersampled) and reference `"preview": "preview.jpg"` in the
-  manifest.
+- **Regenerate picker previews** with `_dev/preview-shot/run.sh <Widget>`,
+  which renders the real bundle in a WKWebView (real SF Symbols, real shadow) onto the
+  gallery backdrop, and reference `"preview": "preview.jpg"` in the manifest. The older
+  `python3 _dev/make-previews.py` draws a PIL *impression* of a widget
+  instead — it still owns the previews nobody has re-shot, and every one of those is a
+  picture that can drift from the bundle. A new `preview.jpg` needs a re-`embed-sign`
+  (it is inside the bundle) and a re-package (the site serves a copy of it).
 
 To see an edit without rebuilding the app: copy the bundle into
 `~/Library/Group Containers/group.pl.micropixels.NepTunes/Widgets/<manifest.id>/`,

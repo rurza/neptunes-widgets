@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.glass",
     "name": "Glass",
-    "version": "1.0.12",
+    "version": "1.1.0",
     "author": "Adam Różyński",
     "description": "Full-bleed album cover with a frosted-glass now-playing panel.",
     "license": "MIT",

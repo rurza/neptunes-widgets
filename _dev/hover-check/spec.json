@@ -1,0 +1,85 @@
+{
+ "_": "One case per element whose visibility a hover affordance drives. `settings` holds only the OVERRIDES for the case — the manifest's own defaults are merged in first — and the window is `manifest.defaultSize`. `expect` is \"hover-gated\" (off screen, revealed by the host's `nt-hover` class, off screen again when it leaves) or \"always-visible\". `inert: true` also requires pointer-events to follow, so the hidden thing cannot be clicked. Opacity is measured up the whole ancestor chain — see README.md.",
+ "track": {
+  "title": "Wszystko czego dziś chcę",
+  "artist": "Robyn",
+  "album": "Honey",
+  "duration": 230,
+  "isLoved": true,
+  "artworkData": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCABAAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD12iiirEFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAf/2Q=="
+ },
+ "cases": [
+  {
+   "widget": "Glass",
+   "settings": {
+    "controls": "hover"
+   },
+   "selector": ".panel",
+   "expect": "hover-gated",
+   "inert": true,
+   "why": "On hover hides the whole frosted sheet; hiding only the transport left a blank slab of glass with a hole in it"
+  },
+  {
+   "widget": "Glass",
+   "settings": {
+    "controls": "hover"
+   },
+   "selector": ".controls",
+   "expect": "hover-gated",
+   "why": "the transport rides the sheet it sits on"
+  },
+  {
+   "widget": "Glass",
+   "settings": {
+    "controls": "always"
+   },
+   "selector": ".panel",
+   "expect": "always-visible",
+   "why": "Always is the default, and it must survive the pointer coming and going"
+  },
+  {
+   "widget": "Stack",
+   "settings": {
+    "controls": "hover"
+   },
+   "selector": ".controls",
+   "expect": "hover-gated",
+   "why": "Stack has no sheet — the row itself is the affordance"
+  },
+  {
+   "widget": "Stack",
+   "settings": {
+    "controls": "always"
+   },
+   "selector": ".controls",
+   "expect": "always-visible",
+   "why": "Always keeps the row pinned"
+  },
+  {
+   "widget": "Headline",
+   "settings": {
+    "controls": "hover"
+   },
+   "selector": ".controls",
+   "expect": "hover-gated",
+   "why": "same row-only affordance as Stack"
+  },
+  {
+   "widget": "Headline",
+   "settings": {
+    "controls": "always"
+   },
+   "selector": ".controls",
+   "expect": "always-visible",
+   "why": "Always keeps the row pinned"
+  },
+  {
+   "widget": "V3",
+   "settings": {},
+   "selector": ".hover",
+   "expect": "hover-gated",
+   "inert": true,
+   "why": "the reference implementation: a full-cover panel gated on nt-hover, inert while hidden"
+  }
+ ]
+}

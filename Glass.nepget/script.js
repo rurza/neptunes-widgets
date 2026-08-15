@@ -12,7 +12,7 @@
     const noArtwork = document.getElementById('noArtwork');
     const titleEl = document.getElementById('title');
     const artistEl = document.getElementById('artist');
-    const controls = document.getElementById('controls');
+    const panel = document.getElementById('panel');
     const prevBtn = document.getElementById('prevBtn');
     const playBtn = document.getElementById('playBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -143,8 +143,9 @@
         settings = s || {};
         resolveTheme();
         document.documentElement.classList.toggle('no-text-shadow', settings.textShadow === false);
-        // Default = always visible; hover mode drops the .controls-always class.
-        controls.classList.toggle('controls-always', (settings.controls || 'always') !== 'hover');
+        // Default = the sheet is always there; hover mode drops .panel-always and the whole
+        // frosted panel — title, artist and transport with it — waits for the pointer.
+        panel.classList.toggle('panel-always', (settings.controls || 'always') !== 'hover');
         // Theme may have flipped -> re-apply accent so --on stays legible.
         refreshAccent(true);
 

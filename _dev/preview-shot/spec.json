@@ -1,0 +1,25 @@
+{
+ "_": "How each preview.jpg is staged. `track` is the state pushed to every bundle, `cover` the two stops of the generated album art (no real album is used — a preview ships in the app and on the web), `backdrop` the gallery ground, matched to _dev/make-previews.py's backdrop(). `playerState` 3 = paused, so the transport shows a play glyph rather than a pause one. A widget only appears here once its preview is rendered from the real bundle; everything absent is still one of the drawn PIL impressions.",
+ "playerState": 3,
+ "track": {
+  "title": "Song Title",
+  "artist": "Artist",
+  "album": "Album",
+  "duration": 214,
+  "isLoved": true
+ },
+ "cover": {
+  "from": "#E2603F",
+  "to": "#2B2050"
+ },
+ "backdrop": {
+  "top": "#1A1A20",
+  "bottom": "#0C0C10",
+  "glow": "#E2603F"
+ },
+ "widgets": [
+  {
+   "name": "Glass"
+  }
+ ]
+}

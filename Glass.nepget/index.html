@@ -20,14 +20,16 @@
             <img class="sf-icon" data-symbol="music.note" data-size="80" alt="">
         </div>
 
-        <!-- Frosted-glass control panel over the lower portion -->
-        <div class="panel">
+        <!-- Frosted-glass control panel over the lower portion. `panel-always` is the default
+             Controls mode; script.js drops it for "On hover", and then the whole sheet is what
+             the pointer reveals. -->
+        <div class="panel panel-always" id="panel">
             <div class="info">
                 <div class="title" id="title">Not Playing</div>
                 <div class="artist" id="artist"></div>
             </div>
 
-            <div class="controls controls-always" id="controls">
+            <div class="controls" id="controls">
                 <button class="control-btn" id="prevBtn" type="button" title="Previous" aria-label="Previous">
                     <img class="sf-icon" data-symbol="backward.end.fill" data-size="20" alt="">
                 </button>

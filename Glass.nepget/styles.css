@@ -177,7 +177,27 @@ html.theme-light {
     border: 1px solid var(--panel-border);
     box-shadow: 0 1px 8px rgba(0, 0, 0, 0.18);
     text-align: center;
-    transition: background-color 0.5s ease, border-color 0.5s ease;
+    /* The Controls setting shows and hides THIS — the sheet and everything on it, together. So
+       "On hover" is a full-bleed cover until the pointer arrives, which is the whole point of
+       the mode; hiding only the transport row left the sheet sitting there with a blank slab of
+       glass where the buttons had been, and the widget no smaller for it.
+       Hidden means inert as well as invisible: the window drags from the cover underneath, and
+       buttons nobody can see cannot be clicked. */
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, background-color 0.5s ease, border-color 0.5s ease;
+}
+
+/* Revealed by `nt-hover` — the class WidgetWindowController toggles from system-wide mouse
+   monitors — and never by bare `:hover`. A widget's panel never becomes key, so AppKit delivers
+   no mouseMoved events to the web view and WebKit never re-evaluates its hover chain: a `:hover`
+   rule latches onto whatever was clicked last and stays matched indefinitely. The reveal here
+   used to carry `.widget:hover`, so the first click on a control pinned it open for good.
+   See `NepTunes Widget/README.md` → ":hover does not work in a widget". */
+html.nt-hover .panel,
+.panel.panel-always {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .info {
@@ -239,22 +259,13 @@ html.theme-light {
     min-height: calc(15px + var(--shadow-gutter) * 2);
 }
 
-/* ---- Controls row (default always visible; hover mode via .controls-always toggle) ---- */
+/* ---- Controls row. No visibility of its own: it rides the panel's. ---- */
 .controls {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
     margin-top: 10px;
-    opacity: 0;
-    transition: opacity 0.25s ease;
-}
-
-/* Floating widgets rarely fire :hover, so reveal via all three selectors. */
-.widget:hover .controls,
-html.nt-hover .controls,
-.controls.controls-always {
-    opacity: 1;
 }
 
 .control-btn {
@@ -343,12 +354,11 @@ html.theme-light .play-btn {
 }
 
 /* ---- Stopped / no-track: dim the controls a touch. ----
-   On the BUTTONS, not on `.controls`. The row's own opacity is the one thing the Controls
-   setting drives, and `.widget.stopped .controls` is three classes — it outranked every reveal
-   selector above it (`.controls.controls-always` and `html.nt-hover .controls` are two), so
-   whenever nothing was playing the transport sat at 0.55 no matter which mode was picked, and
-   "On hover" looked like a dead setting. Nothing playing is exactly the state you are in while
-   changing the setting, so that is what you saw.
+   On the BUTTONS, never on `.controls` or `.panel`. The panel's opacity is the one thing the
+   Controls setting drives, and a `.widget.stopped` selector is specific enough to outrank the
+   reveal rules above — which is exactly how this went wrong once already: `.widget.stopped
+   .controls` pinned the transport at 0.55 in both modes, and since nothing playing is the state
+   you are in while changing the setting, "On hover" looked like a dead switch.
    A child's opacity multiplies with its parent's rather than competing with it: hidden × dimmed
    is still hidden, revealed × dimmed is dimmed. Both selectors below are gated on `.stopped`,
    where `:disabled` never applies (script.js re-enables prev/next with no track), so they
@@ -357,7 +367,6 @@ html.theme-light .play-btn {
     opacity: 0.6;
 }
 
-.widget.stopped:hover .control-btn,
 html.nt-hover .widget.stopped .control-btn {
     opacity: 0.9;
 }

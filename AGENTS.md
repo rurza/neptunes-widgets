@@ -212,6 +212,12 @@ _dev/hover-check/run.sh
   the setting, if it has one) to `_dev/hover-check/spec.json`.
   **Gate the reveal on `html.nt-hover`, never on bare `:hover`** — see that
   check's README for why a `:hover` rule latches open after the first click.
+  `nt-hover` fires over your **visible content**, not over the window: the host
+  measures the union of `body`'s visible element children and hovers that rect, so
+  the shadow gutter is not a hover target. Keep the card a child of `body`, and
+  don't leave an invisible full-bleed layer in there — it would hand the whole
+  window back. Details: `NepTunes Widget/README.md` → *`:hover` does not work in a
+  widget*.
 
 ## The window.NepTunes API
 

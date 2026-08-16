@@ -33,6 +33,13 @@ The rules deciding it are also unusually easy to get wrong here, in ways nothing
 - **Hidden has to mean inert.** An invisible panel that still swallows clicks stops the window
   dragging from the cover under it, and hands out presses on buttons nobody can see.
 
+## What this does *not* check
+
+Where the class comes from. This harness sets `nt-hover` itself and asks what the CSS does with
+it; the host decides *when* it lands, and it hovers the widget's visible content rather than its
+window — the shadow gutter is not a hover target. That half is `WidgetHoverRegion` in NepTunesKit,
+pinned against every shipped bundle by `WidgetHoverRegionBundleTests`.
+
 ## How it decides
 
 Each case loads the bundle at its `manifest.defaultSize`, pushes the manifest's default settings

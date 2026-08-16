@@ -34,10 +34,12 @@ body {
     /* SHADOW MATH — card shadow is `0 1px 3px + 0 2px 4px`, so it reaches 6px below,
        4px to the sides and 2px above. 20px on all four sides clears it with headroom,
        and is the exact padding/shadow pair proven clip-free in Artwork.nepget.
-       Do NOT enlarge either: the padding is also how far outside the visible cover the
-       host's `nt-hover` class fires (the window frame is cover + padding), so more
-       padding means the controls fade in even earlier. Manifest sizes include it:
-       visible cover is 220 / 160 / 460 for default / min / max. */
+       Manifest sizes include it: visible cover is 220 / 160 / 460 for default / min / max.
+       This padding used to double as hover slop — `nt-hover` keyed off the window frame,
+       which is cover + padding, so the controls began fading in 20px before the pointer
+       reached the cover. The host now measures the cover itself
+       (`WidgetHoverRegion.measurementScript`) and hovers that, so padding is only shadow
+       room again. */
     padding: 20px;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;

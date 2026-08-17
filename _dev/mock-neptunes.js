@@ -6,6 +6,18 @@
  * controller { nextTrack, togglePlay, setSignedOut, state }.
  *   opts.onSetSize(width, height)  — called when the widget requests a resize.
  *   opts.signedOut                 — start in the signed-out (Last.fm) state.
+ *   opts.track                     — stage a specific {title, artist, album, duration}
+ *                                    ahead of the built-in rotation, so a caller that
+ *                                    needs a *particular* track (preview shots) does
+ *                                    not have to reach in and patch state afterwards.
+ *   opts.artwork                   — data URL used as that track's cover, instead of
+ *                                    the generated gradient.
+ *   opts.playerState               — 2 playing (default) or 3 paused.
+ *
+ * Symbols: set win.__NEPTUNES_SYMBOL_CACHE__ before loading this file to supply the
+ * sfsymbols-cache.json contents directly. A page built with setContent() has no base
+ * URL to resolve the cache against, and silently falling back to the hand-drawn SVGs
+ * below would ship look-alike glyphs — which is exactly what that cache exists to stop.
  */
 (function (global) {
   'use strict';
@@ -18,6 +30,7 @@
   ];
 
   function coverDataURL(track) {
+    if (!track.color) return null;   // a staged track brings its own artwork
     var c = document.createElement('canvas');
     c.width = c.height = 300;
     var ctx = c.getContext('2d');
@@ -105,6 +118,11 @@
 
   function symbolCache() {
     if (!symbolCachePromise) {
+      // Pre-seeded by the caller (preview shots) — no fetch, no silent SVG fallback.
+      if (global.__NEPTUNES_SYMBOL_CACHE__) {
+        symbolCachePromise = Promise.resolve(global.__NEPTUNES_SYMBOL_CACHE__);
+        return symbolCachePromise;
+      }
       symbolCachePromise = fetch(SYMBOL_CACHE_URL)
         .then(function (r) { return r.ok ? r.json() : null; })
         .catch(function () { return null; });   // file:// or not generated yet -> SVGs
@@ -149,7 +167,7 @@
     opts = opts || {};
     var listeners = { statechange: [], settingschange: [], themechange: [] };
     var idx = 0;
-    var playing = true;
+    var playing = opts.playerState !== 3;
     var loved = false;
     var volume = 70;
     var muted = false;
@@ -158,10 +176,14 @@
     // not a mode the bridge ever sends, so a widget mapping the real values saw nothing.
     var repeatMode = 3;
     var signedOut = !!opts.signedOut;
-    var covers = TRACKS.map(coverDataURL);
+    // A staged track leads the rotation, so `next`/`previous` still work behind it.
+    var tracks = opts.track ? [opts.track].concat(TRACKS) : TRACKS;
+    var covers = tracks.map(function (t, i) {
+      return (i === 0 && opts.artwork) ? opts.artwork : coverDataURL(t);
+    });
 
     function buildState() {
-      var t = TRACKS[idx];
+      var t = tracks[idx];
       return {
         track: { title: t.title, artist: t.artist, album: t.album, albumArtist: t.artist, duration: t.duration, isLoved: loved },
         playerState: playing ? 2 : 3,
@@ -193,7 +215,7 @@
       setSize: function (w, h) { if (opts.onSetSize) opts.onSetSize(w, h); },
       playPause: function () { playing = !playing; refresh(); },
       next: function () { ctl.nextTrack(); },
-      previous: function () { idx = (idx + TRACKS.length - 1) % TRACKS.length; refresh(); },
+      previous: function () { idx = (idx + tracks.length - 1) % tracks.length; refresh(); },
       // Stateful, so a widget that renders volume/shuffle/repeat can actually be driven
       // here. These were no-ops, which made any such control look dead in the harness.
       setVolume: function (v) { volume = Math.max(0, Math.min(100, Math.round(v))); refresh(); },
@@ -228,7 +250,7 @@
 
     var ctl = {
       get state() { return NepTunes.state; },
-      nextTrack: function () { idx = (idx + 1) % TRACKS.length; refresh(); },
+      nextTrack: function () { idx = (idx + 1) % tracks.length; refresh(); },
       togglePlay: function () { NepTunes.playPause(); },
       setSignedOut: function (v) { signedOut = !!v; },
       setSettings: function (s) { NepTunes.settings = s; NepTunes._emit('settingschange', s); },

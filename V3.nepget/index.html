@@ -17,6 +17,8 @@
         </div>
 
         <div class="info-bar" id="infoBar">
+            <!-- Pre-blurred copy of the cover. Not a backdrop-filter; see styles.css. -->
+            <div class="frost" id="infoFrost" aria-hidden="true"></div>
             <div class="info-stack">
                 <div class="title" id="title"></div>
                 <div class="artist" id="artist"></div>
@@ -24,6 +26,7 @@
         </div>
 
         <div class="hover" id="hoverLayer">
+            <div class="frost" id="hoverFrost" aria-hidden="true"></div>
             <div class="hover-rows">
                 <div class="row row-secondary">
                     <button type="button" class="control-btn" id="shuffleBtn" aria-label="Shuffle">

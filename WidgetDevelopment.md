@@ -1196,11 +1196,100 @@ no subsystem at all, so `subsystem == "NepTunesWidget"` silently drops both.
 
 ### Hot Reload During Development
 
-The widget helper watches the installed bundle's **directory** with a `DispatchSource`
-(`eventMask: .write`) and reloads the web view when it fires. Measured: adding or renaming a
-file fires it, and so does an atomic save (write temp, then rename — what most editors do). An
-editor that rewrites a file **in place** does not. When an edit doesn't take, toggle the widget
-off and on in Settings → Widgets, which rebuilds the window and re-reads `manifest.json`.
+The widget helper watches **two** directories with a `DispatchSource`, and needs both.
+
+- **The installed bundle's own directory**, which catches edits to the files in it. The mask is
+  `[.write, .extend, .attrib, .rename, .delete, .revoke]`: `.write` alone reports changes to the
+  directory's entry list, so it sees a file added, removed, or renamed into place — including an
+  atomic save, which is what most editors do — but misses a file rewritten **in place**, which
+  is what `cp` over an installed bundle does.
+- **The directory that holds every installed bundle.** This is the one that catches an install,
+  and it is not optional.
+
+#### Why the second watcher exists
+
+Replacing a `.nepget` from Finder is not a rewrite of the widget's folder. Finder **removes the
+folder and copies a new one to the same path**. The descriptor held on the old directory is then
+on a deleted inode: it reports the unlink and goes permanently silent, so the replacement
+arrives completely unobserved and the running widget keeps rendering the bundle it was built
+from. Nothing recovers it except restarting the helper, which is why "I updated the widget and
+had to quit NepTunes" looked for all the world like a caching bug. Nothing was cached. No reload
+was ever *requested* — the whole session's log contained not one reload attempt at info level.
+
+Measured against a remove-then-copy of the watched folder:
+
+| watcher | events seen | times it observed the new manifest |
+| --- | --- | --- |
+| on the bundle directory | 2 | **0** |
+| on the parent directory | 3 | 1 |
+
+The parent's descriptor cannot die that way, because the parent is not what gets replaced. The
+cost is that every window is woken by every other widget's install, which `WidgetBundleStamp`
+(every file's name, size and modification date) settles for the price of one directory listing:
+a bundle that did not move stamps identically and the check stops there.
+
+Note that copying into the container by hand bypasses `WidgetManager.install` entirely, so the
+`widgetUpdated` Darwin notification is never posted and the watchers are the *only* thing that
+can notice. Installing by double-clicking the `.nepget` goes through the installer and does post
+it.
+
+#### Do not reach for the delegate through `NSApp.delegate`
+
+Both paths that rebuild a window used to find their owner with
+`NSApp.delegate as? WidgetAppDelegate`, in an `if let` with no `else`. That cast can never
+succeed here. The helper installs its delegate with `@NSApplicationDelegateAdaptor`, and under
+that `NSApp.delegate` is **SwiftUI's own private wrapper**, not the adapted class. From the
+running helper's own log:
+
+```
+APP_DELEGATE: NSApp.delegate is Optional(SwiftUI.AppDelegate)
+```
+
+So every manifest change and every `widgetUpdated` notification arrived, decided to rebuild,
+and silently did nothing — for every widget, since the day the code was written. It presented
+as a caching bug, because the only thing that ever made an update appear was quitting the app.
+The log said otherwise from the start: the two lines that *precede* the call were always there
+and `Reloading widget` never was, across hours and a dozen installs, while `windowCount` never
+moved.
+
+`WidgetWindowController` now takes the rebuild hook as an init dependency
+(`requestRecreate`), held strongly, with the delegate captured weakly on the other side. A
+missing owner is not expressible rather than silent. The startup line above is logged on
+purpose so the assumption stays one `grep` away.
+
+A healthy update now reads:
+
+```
+Widget update notification received
+Reloading widget: pl.micropixels.neptunes.widget.v3
+SHOW_WIDGET: … - loading package
+SHOW_WIDGET: … - shown at frame=(259, 294, 200x200)
+```
+
+#### What a change actually triggers
+
+`WidgetBundleReloadPlan` decides how far the change has to reach, because reloading the page
+picks up new HTML, CSS and JS and nothing else — window size limits, resizability, the entry
+file and the permission set were all read from `manifest.json` when the window was built:
+
+| what changed | plan |
+| --- | --- |
+| manifest unreadable (mid-copy) | `.none` |
+| page content only | `.reloadContent` — `reloadFromOrigin()`, since WebKit's memory cache will otherwise serve the previous `styles.css` for a `file://` load |
+| `version`, `entry`, sizes, `resizable`, `permissions`, `settings` | `.recreate` — tear the window down and rebuild |
+
+`.recreate` waits for the bundle to become loadable **before** closing the window. It used to
+close first and then call `showWidget`, which gives up silently when the package will not
+verify — and mid-copy it routinely will not — leaving no widget on screen and nothing that would
+ever try again.
+
+#### Finder will not tell you the bundle changed
+
+A `.nepget` is a directory, and Finder's **Date Modified** for a directory only moves when
+entries are added, removed or renamed. Editing files in place and re-signing rewrites the
+existing files, so the folder's date does not move and Finder shows an unchanged bundle when
+everything inside it is new. Check `manifest.json`'s `version`, or `touch` the bundle
+directory after signing.
 
 Edit the installed copy under
 `~/Library/Group Containers/group.pl.micropixels.NepTunes/Widgets/<id>/`; editing the source

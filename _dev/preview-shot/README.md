@@ -54,6 +54,17 @@ This renders the widget instead, so what you see in the picker is what installs.
 - **The backdrop matches `make-previews.py`'s** — near-black vertical gradient plus a faint accent
   glow top-left — so a re-rendered preview still belongs in a grid with the drawn ones.
 
+## Traps it has already fallen into
+
+- **Colours arrive as `rgba()`, not hex.** `sfsymbols.js` resolves a glyph's tint with
+  `getComputedStyle`, and computed style reports a custom property **verbatim as authored** — so
+  a bundle declaring `--icon-color: rgba(255, 255, 255, 0.9)` sends exactly that string. The
+  parser here scanned for hex digits, found none, and rasterised every glyph **black**, on a dark
+  panel, in a shipped preview, while the same widget drew them white on a real desktop because
+  the shipping rasterizer (`NSColor(hexString:)` in NepTunesKit) accepts the functional notation.
+  This harness has to accept everything that one does, or it is not previewing the widget the
+  user gets.
+
 ## What it cannot render yet
 
 The fake native side answers `symbol` and nothing else, so a widget whose content comes from

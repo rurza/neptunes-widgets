@@ -13,6 +13,42 @@
     --gutter-x: 20px;
     --gutter-bottom: 20px;
     --panel-radius: 16px;
+
+    /* Dark is the default; `.theme-light` and the auto media query below override.
+       `--frost-overlay` is composited into the frost image BEFORE it is blurred (script.js),
+       so it is the thing that makes the controls legible over a light cover. It is also the
+       bar's CSS background, which is what shows while there is no cover to blur. */
+    --frost-overlay: rgba(0, 0, 0, 0.42);
+    --ink: #ffffff;
+    --ink-dim: rgba(255, 255, 255, 0.8);
+    --ink-control: rgba(255, 255, 255, 0.9);
+    --placeholder-glyph: rgba(255, 255, 255, 0.15);
+    --text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --press-fill: rgba(255, 255, 255, 0.2);
+}
+
+/* A light cover under a light overlay needs dark ink, and a black text-shadow under dark ink
+   reads as grime rather than depth, so it goes. */
+.theme-light {
+    --frost-overlay: rgba(255, 255, 255, 0.55);
+    --ink: #17171a;
+    --ink-dim: rgba(0, 0, 0, 0.62);
+    --ink-control: rgba(0, 0, 0, 0.78);
+    --placeholder-glyph: rgba(0, 0, 0, 0.18);
+    --text-shadow: none;
+    --press-fill: rgba(0, 0, 0, 0.12);
+}
+
+@media (prefers-color-scheme: light) {
+    .theme-auto {
+        --frost-overlay: rgba(255, 255, 255, 0.55);
+        --ink: #17171a;
+        --ink-dim: rgba(0, 0, 0, 0.62);
+        --ink-control: rgba(0, 0, 0, 0.78);
+        --placeholder-glyph: rgba(0, 0, 0, 0.18);
+        --text-shadow: none;
+        --press-fill: rgba(0, 0, 0, 0.12);
+    }
 }
 
 html, body {
@@ -91,22 +127,90 @@ body {
 .no-artwork img.sf-icon {
     width: 40%;
     height: 40%;
-    color: rgba(255, 255, 255, 0.15);
+    --icon-color: var(--placeholder-glyph);
 }
 
 .no-artwork.hidden {
     display: none;
 }
 
+/* NO `backdrop-filter` here. The frost is a separately blurred COPY of the cover, in
+   `.controls-frost` below. That is not a stylistic choice, and putting `backdrop-filter` back
+   on this bar reintroduces a WebKit defect.
+
+   WebKit stops filtering a `backdrop-filter` surface in its rounded corner arcs when that
+   rounded clip coincides with the boundary between painted content and the transparent window.
+   The sharp cover then shows straight through this 0.3 tint. This bar is flush to the card on
+   three sides and the card's edge IS the window's transparent edge, so all three of its
+   corners sat exactly on that boundary.
+
+   Established by elimination on a real desktop. A screenshot cannot see this at all: the
+   capture path re-renders and applies the filter correctly, so it only ever reproduces on
+   screen, which is why every check here had to be a photograph.
+     - not the distance to the window edge. Widening the shadow gutter to 40px changed nothing.
+     - not how the corner is drawn. Ancestor `overflow: hidden`, `clip-path`, an SVG mask and
+       the surface's own `border-radius` all failed identically.
+     - not the surface's own rectangle. Oversizing the bar so its edges fell outside the window
+       entirely, then masking it back to the card's footprint, also failed.
+     - it needs BOTH a rounded clip AND the transparent boundary. A square-cornered bar at the
+       boundary is clean, and so is a rounded bar over an opaque surround.
+   Related, for background: WebKit bug 158807 ("-webkit-backdrop-filter leaves artifacts on
+   rounded borders") and 275919 ("Backdrop-filter: blur with a transparent web view renders
+   incorrectly"), whose root cause is WebKit mis-deciding whether the backdrop is opaque.
+
+   `filter` is a different code path and cannot hit any of that. Nothing is lost by not using
+   `backdrop-filter`: this card's background is opaque `#2a2a2a`, so the only thing there was
+   ever anything to blur was the cover, and the cover is in the page. */
 .controls-area {
     position: absolute;
     bottom: 0;
     left: 0;
     right: 0;
     padding: 10px 12px;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    /* Only ever seen where the frost is not: before the first cover arrives, while it fades,
+       and whenever the track has no artwork. The frost image carries this same colour baked in,
+       so the two match. */
+    background: var(--frost-overlay);
+    overflow: hidden;
+}
+
+/* The frost: a pre-blurred, pre-tinted copy of the cover, produced once per track in
+   script.js and clipped to this bar.
+
+   No `filter` here on purpose. A live CSS filter is re-evaluated during compositing, so any
+   element painted over it that takes its own layer (which `.info` and `.controls` must, to sit
+   above this) gets composited against it separately, leaving visible rectangular seams at
+   exactly those elements' bounds. Blurring once into an image and then simply composing has no
+   such interaction.
+
+   Being an image rather than a filtered element also means it is opaque to its own edges. A
+   filtered element fades to transparent at its box edges, which is why this used to have to
+   overhang its clip to stop a fringe of sharp cover showing at the bar's edges. It can now be
+   exactly the card's box, which is also what makes its crop match `.artwork-bg` exactly. */
+.controls-frost {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* The card's box: the window minus its gutters, anchored to the bar's bottom edge. Same
+       box and same `cover` crop as `.artwork-bg`, so the frost lines up with the picture it is
+       a copy of. */
+    height: calc(100vh - var(--gutter-top) - var(--gutter-bottom));
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.controls-frost.visible {
+    opacity: 1;
+}
+
+/* Above the frost, which is painted first inside the bar. */
+.info,
+.controls {
+    position: relative;
+    z-index: 1;
 }
 
 .info {
@@ -125,22 +229,22 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
     font-size: 16px;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--ink);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    text-shadow: var(--text-shadow);
 }
 
 .artist {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
     font-size: 13px;
     font-weight: 400;
-    color: rgba(255, 255, 255, 0.8);
+    color: var(--ink-dim);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    text-shadow: var(--text-shadow);
 }
 
 /* Room for the shadow inside the clip. `text-overflow: ellipsis` needs `overflow: hidden`, and
@@ -177,7 +281,8 @@ body {
     height: 32px;
     border: none;
     background: transparent;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--ink-control);
+    --icon-color: var(--ink-control);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -186,23 +291,30 @@ body {
     transition: background-color 0.15s ease;
 }
 
-.control-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
+/* Highlight on press, like an AppKit button, and never on hover.
+
+   `:hover` cannot be used here at all. The widget panel is `becomesKeyOnlyIfNeeded` and never
+   becomes the key window, so AppKit delivers no mouseMoved events to the web view and WebKit's
+   hover chain is never re-evaluated: after a click, `document.querySelectorAll(':hover')` ends
+   at that control indefinitely and no later mouse event of any kind dislodges it. Any hover
+   styling therefore latches onto whatever was pressed last, which is what left a transport
+   button lit after every press. `:active` has no such problem, being raised by the mouse-down
+   and dropped by the mouse-up, both of which the web view does receive.
+
+   Same fix, and the same reasoning, as Minimal.nepget. See `NepTunes Widget/README.md` ->
+   ":hover does not work in a widget". */
+.control-btn:not(:disabled):active {
+    background: var(--press-fill);
+    /* Instant on the way down, eased on the way back up by the transition above, which is how
+       an AppKit control reads under the pointer. */
+    transition: none;
 }
 
-.control-btn:active {
-    background: rgba(255, 255, 255, 0.2);
-}
-
-/* Greyed out during a Spotify ad (prev/next only — see script.js). */
+/* Greyed out during a Spotify ad (prev/next only — see script.js). A disabled button never
+   receives the events that raise `:active`, and the rule above excludes it regardless. */
 .control-btn:disabled {
     opacity: 0.35;
     cursor: default;
-}
-
-.control-btn:disabled:hover,
-.control-btn:disabled:active {
-    background: transparent;
 }
 
 .control-btn img.sf-icon {

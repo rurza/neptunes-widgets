@@ -160,10 +160,65 @@ body {
     justify-content: center;
     /* Clips the spring's overshoot, and the stack's overflow while the bar is short. */
     overflow: hidden;
+    /* Only ever seen where the frost is not: before the first cover arrives, and whenever
+       the track has no artwork. The frost image carries this same colour baked in. */
     background: var(--material);
-    -webkit-backdrop-filter: var(--material-blur);
-    backdrop-filter: var(--material-blur);
     transition: height var(--bar-spring);
+}
+
+/* ---- The frost ------------------------------------------------------------------
+   `.info-bar` and `.hover` are frosted with a pre-blurred, pre-tinted COPY of the cover,
+   produced once per track in script.js, rather than with `backdrop-filter`.
+
+   That is not a stylistic choice. WebKit stops filtering a `backdrop-filter` surface in its
+   rounded corner arcs when the rounded clip coincides with the boundary between painted
+   content and the transparent window — the sharp cover then shows straight through the tint,
+   in the corners only. Both of these surfaces sat exactly on that boundary: `.hover` is
+   `inset: 0` on the card, so all four of its corners are the card's corners, and `.info-bar`
+   is flush to the bottom, so two of them are. `.volume-popover` keeps `backdrop-filter`
+   because it floats in the middle of the card, where its rounded clip is over opaque content
+   and the defect cannot arise.
+
+   Established by elimination on a real desktop, in Artwork.nepget, where the same bar had the
+   same fault: it needs BOTH a rounded clip AND the transparent boundary, and neither the
+   distance to the window edge nor the way the corner is drawn (ancestor `overflow: hidden`,
+   `clip-path`, an SVG mask, the surface's own `border-radius`) makes any difference. A
+   screenshot cannot see it at all — the capture path re-renders and filters correctly — so it
+   only ever reproduces on screen. Related: WebKit bugs 158807 and 275919.
+
+   `--material-blur` is left declared but unused by these two, so the popover keeps one name
+   for the material's blur radius and the pre-blur in script.js can be read against it. */
+.frost {
+    position: absolute;
+    z-index: 0;
+    background-size: cover;
+    background-position: center;
+}
+
+/* Sized to the CARD, not to the bar. `.info-bar`'s height animates between 0, 28px and the
+   full cover, and a `cover` crop re-fitted to that box on every frame would slide the frost
+   against the picture it is a copy of. Anchored to the bar's bottom at the card's own height,
+   the crop is the card's crop and holds still. The card is the window minus `body`'s 20px
+   gutter on each side. */
+.info-bar .frost {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(100vh - 40px);
+}
+
+/* `.hover` is already `inset: 0` on the card, so this is the card exactly, and its crop
+   matches `.cover`'s `object-fit: cover; object-position: center` without further work. */
+.hover .frost {
+    inset: 0;
+}
+
+/* Above the frost, which is painted first inside each panel. Both are positioned, so they
+   order by z-index; without this the out-of-flow frost would paint over them. */
+.info-stack,
+.hover-rows {
+    position: relative;
+    z-index: 1;
 }
 
 /* `hideLabel` on and not revealing. */
@@ -271,8 +326,6 @@ body {
     align-items: center;
     justify-content: center;
     background: var(--material);
-    -webkit-backdrop-filter: var(--material-blur);
-    backdrop-filter: var(--material-blur);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.1s linear;

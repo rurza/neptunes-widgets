@@ -29,9 +29,32 @@ let FIT = 0.92                                 // fraction of the canvas the win
 // MARK: - Colour helpers
 
 extension NSColor {
-    /// `#rgb` / `#rrggbb`, the form the spec is written in.
+    /// `#rgb` / `#rrggbb`, the form the spec is written in, and CSS `rgb()` / `rgba()`, the form
+    /// a bundle's own colour variables come back in.
+    ///
+    /// Both, because this parser is on the receiving end of `resolveColor()` in sfsymbols.js,
+    /// which hands over whatever `getComputedStyle` returns for the widget's ink variable — and
+    /// computed style reports a custom property verbatim as authored. A bundle that writes
+    /// `--icon-color: rgba(255, 255, 255, 0.9)` therefore sends exactly that string. Scanning it
+    /// for hex digits finds none, which used to leave `v` at zero and rasterise every glyph
+    /// BLACK, on a dark panel, in a shipped preview — while the same widget drew them white on a
+    /// real desktop, because the shipping rasterizer (`NSColor(hexString:)` in NepTunesKit)
+    /// accepts the functional notation. This harness has to accept everything that one does or
+    /// it is not previewing the widget the user gets.
     convenience init(hex: String) {
-        var s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "# "))
+        let trimmed = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.lowercased().hasPrefix("rgb") {
+            let parts = trimmed.drop(while: { $0 != "(" }).dropFirst().prefix(while: { $0 != ")" })
+                .split(whereSeparator: { ",/ ".contains($0) })
+                .compactMap { Double($0) }
+            if parts.count >= 3 {
+                self.init(srgbRed: CGFloat(parts[0]) / 255, green: CGFloat(parts[1]) / 255,
+                          blue: CGFloat(parts[2]) / 255,
+                          alpha: parts.count > 3 ? CGFloat(parts[3]) : 1)
+                return
+            }
+        }
+        var s = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "# "))
         if s.count == 3 { s = s.map { "\($0)\($0)" }.joined() }
         var v: UInt64 = 0
         Scanner(string: s).scanHexInt64(&v)

@@ -122,6 +122,7 @@
     // ----------------------------------------------------------------- DOM ----
 
     var widget, cover, nocover, infoBar, titleEl, artistEl;
+    var infoFrost, hoverFrost;
     var shuffleBtn, repeatBtn, repeatIcon, loveBtn, loveIcon, volumeBtn, volumeIcon;
     var prevBtn, playBtn, nextBtn, volumePopover, volumeSlider, resizeHandle;
 
@@ -233,6 +234,138 @@
         return JSON.stringify([track.title || '', track.artist || '', track.album || '']);
     }
 
+    // ----------------------------------------------------------------- frost --
+    /* The frost behind `.info-bar` and `.hover` is a blurred, tinted copy of the cover
+       rather than a `backdrop-filter` (styles.css says why), so it is built here, once
+       per track, and set as a plain background image on both panels.
+
+       This block is a copy of Artwork.nepget's, which is where the blur was measured and
+       tuned, and is duplicated for the same reason `sfsymbols.js` is duplicated: a bundle
+       is a self-contained folder and there is no shared runtime to put it in. Keep the two
+       in step by hand, or move both to a shared file.
+
+       Two ways of asking the platform for the blur were tried and neither works. Setting
+       `ctx.filter = 'blur(Npx)'` assigns and reads back verbatim, so the obvious feature
+       test says it is supported, then `drawImage` ignores it entirely: the mean gradient of
+       the output is identical to the unfiltered draw at radius 4, 8, 16 and 32. And blurring
+       by downscaling the cover to a thumbnail, then letting `background-size` stretch it
+       back, is not a blur at all — bilinear interpolation between samples that far apart is
+       piecewise linear, so it creases along the sample grid, and a JPEG export adds 8x8
+       blocking on top. Both read as SQUARES in the finished panel. */
+
+    // The frost is rendered at this size and stretched over the card by `background-size: cover`.
+    // It only has to carry what survives the blur, so it is deliberately small.
+    const FROST_SIZE = 256;
+    // Blur radius per box pass, in pixels of that image. The blur knob: higher is blurrier.
+    //
+    // 35 reproduces the `--material-blur: blur(22px)` this replaced. The frost is exported at
+    // FROST_SIZE and scaled to the card by `background-size: cover`, so a radius here is worth
+    // `r * card / FROST_SIZE` on screen: at the 160pt default card that is 35 * 160/256 = 22.
+    // Note this scales with the card where the CSS filter did not — resized to the 460pt
+    // maximum the frost stays proportionally the same wash rather than getting sharper, which
+    // is the better behaviour of the two and the reason not to chase an exact match at every
+    // size by re-exporting on resize.
+    const FROST_BLUR = 35;
+
+    // One separable box pass, single channel, with the window clamped at the edges so the
+    // picture is extended rather than faded out. A blur that samples past the edge would leave
+    // a transparent fringe, and a transparent fringe here shows the sharp cover underneath.
+    function boxH(src, dst, w, h, r) {
+        const iarr = 1 / (r + r + 1);
+        for (let i = 0; i < h; i++) {
+            let ti = i * w, li = ti, ri = ti + r;
+            const fv = src[ti], lv = src[ti + w - 1];
+            let val = (r + 1) * fv;
+            for (let j = 0; j < r; j++) val += src[ti + j];
+            for (let j = 0; j <= r; j++) { val += src[ri++] - fv; dst[ti++] = Math.round(val * iarr); }
+            for (let j = r + 1; j < w - r; j++) { val += src[ri++] - src[li++]; dst[ti++] = Math.round(val * iarr); }
+            for (let j = w - r; j < w; j++) { val += lv - src[li++]; dst[ti++] = Math.round(val * iarr); }
+        }
+    }
+
+    function boxV(src, dst, w, h, r) {
+        const iarr = 1 / (r + r + 1);
+        for (let i = 0; i < w; i++) {
+            let ti = i, li = ti, ri = ti + r * w;
+            const fv = src[ti], lv = src[ti + w * (h - 1)];
+            let val = (r + 1) * fv;
+            for (let j = 0; j < r; j++) val += src[ti + j * w];
+            for (let j = 0; j <= r; j++) { val += src[ri] - fv; dst[ti] = Math.round(val * iarr); ri += w; ti += w; }
+            for (let j = r + 1; j < h - r; j++) { val += src[ri] - src[li]; dst[ti] = Math.round(val * iarr); li += w; ri += w; ti += w; }
+            for (let j = h - r; j < h; j++) { val += lv - src[li]; dst[ti] = Math.round(val * iarr); li += w; ti += w; }
+        }
+    }
+
+    /// Blur `pixels` in place. Alpha is left alone: the cover is opaque and the tint is painted
+    /// over all of it, so every pixel here is already fully opaque.
+    function blurInPlace(pixels, radius) {
+        const w = pixels.width, h = pixels.height, px = pixels.data, n = w * h;
+        if (radius < 1 || n === 0) return pixels;
+        const a = new Uint16Array(n), b = new Uint16Array(n);
+        for (let c = 0; c < 3; c++) {
+            for (let i = 0; i < n; i++) a[i] = px[i * 4 + c];
+            boxH(a, b, w, h, radius); boxV(b, a, w, h, radius);
+            boxH(a, b, w, h, radius); boxV(b, a, w, h, radius);
+            boxH(a, b, w, h, radius); boxV(b, a, w, h, radius);
+            for (let i = 0; i < n; i++) px[i * 4 + c] = a[i];
+        }
+        return pixels;
+    }
+
+    /// The overlay colour for the current theme, read from CSS so the palette lives in one
+    /// place. Canvas takes a CSS colour string directly, so no parsing is needed.
+    function frostOverlay() {
+        const value = getComputedStyle(document.documentElement)
+            .getPropertyValue('--material').trim();
+        return value || 'rgba(0, 0, 0, 0.58)';
+    }
+
+    function blurredCover(img) {
+        const w = img.naturalWidth || FROST_SIZE;
+        const h = img.naturalHeight || FROST_SIZE;
+        const scale = FROST_SIZE / Math.max(w, h);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        // The tint goes in BEFORE the blur, and before the controls are drawn over it, which is
+        // what keeps the glyphs legible on a pale cover. As a CSS layer on top it was doing the
+        // same arithmetic, but it could not survive the frost becoming an image, and baking it
+        // in means the bar and the frost cannot drift apart.
+        ctx.fillStyle = frostOverlay();
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        ctx.putImageData(blurInPlace(pixels, FROST_BLUR), 0, 0);
+
+        // PNG, not JPEG. This is a smooth field stretched to several times its own size, which
+        // is exactly the content 8x8 block artifacts are most visible in.
+        return canvas.toDataURL('image/png');
+    }
+
+    /// Paint `dataURL` behind both frosted panels, or clear them when there is no cover so
+    /// the panels fall back to their flat `--material` over the no-cover field.
+    function setFrost(dataURL) {
+        [infoFrost, hoverFrost].forEach(function (el) {
+            if (!el) return;
+            el.style.backgroundImage = dataURL ? 'url(' + dataURL + ')' : '';
+        });
+    }
+
+    /// The frost for `img`, or null if the canvas refuses — a panel with no frost is a
+    /// flatter panel, not a broken widget.
+    function frostFor(img) {
+        try {
+            return blurredCover(img);
+        } catch (e) {
+            return null;
+        }
+    }
+
     // --------------------------------------------------------------- artwork --
 
     function applyArtwork() {
@@ -248,6 +381,7 @@
         if (!url) {
             cover.src = TRANSPARENT_PX;
             nocover.classList.remove('hidden');
+            setFrost(null);
             return;
         }
 
@@ -259,6 +393,9 @@
         pre.onload = function () {
             if (lastArtworkURL !== url) return;  // a newer track won the race
             cover.src = url;
+            // From the image that was just decoded, on the same turn the cover is swapped:
+            // the frost is a copy of the picture and must never lag behind it.
+            setFrost(frostFor(pre));
             nocover.classList.add('hidden');
             if (typeof cover.animate === 'function') {
                 try {
@@ -271,6 +408,7 @@
             if (lastArtworkURL !== url) return;
             cover.src = TRANSPARENT_PX;
             nocover.classList.remove('hidden');
+            setFrost(null);
         };
         pre.src = url;
     }
@@ -579,6 +717,8 @@
         widget = document.getElementById('widget');
         cover = document.getElementById('cover');
         nocover = document.getElementById('nocover');
+        infoFrost = document.getElementById('infoFrost');
+        hoverFrost = document.getElementById('hoverFrost');
         infoBar = document.getElementById('infoBar');
         titleEl = document.getElementById('title');
         artistEl = document.getElementById('artist');

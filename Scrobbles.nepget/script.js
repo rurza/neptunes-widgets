@@ -6,23 +6,29 @@
  * is extracted from the now-playing artwork (or a fixed color) and tints the
  * counter number and the now-playing row.
  */
-(function () {
+(function (factory) {
+    var api = factory();
+    if (typeof module === 'object' && module.exports) module.exports = api;
+    else api.start();
+})(function () {
     'use strict';
 
     // ---- DOM ----
-    var widget  = document.getElementById('widget');
-    var counter = document.getElementById('counter');
-    var countEl = document.getElementById('count');
-    var feed    = document.getElementById('feed');
-    var status  = document.getElementById('status');
-    var root    = document.documentElement;
+    // Looked up in init(), not here: Node has no document, and _dev/scrobbles.test.mjs
+    // requires this file to cover the accent cache. Same shape as Vinyl and Minimal.
+    var widget  = null;
+    var counter = null;
+    var countEl = null;
+    var feed    = null;
+    var status  = null;
+    var root    = null;
 
     var SIGNED_OUT_MSG = 'Sign in to Last.fm in NepTunes settings to see your scrobbles.';
     var REFRESH_MS = 30000;     // periodic refresh cadence
     var TRACK_DEBOUNCE_MS = 5000; // a new scrobble lands shortly after a track change
 
-    var prefersReducedMotion =
-        window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Read in init() for the same reason as the DOM handles above.
+    var prefersReducedMotion = false;
 
     // ---- State ----
     var settings = {};
@@ -31,7 +37,17 @@
     var trackDebounce = null;      // debounce for track-change-triggered refresh
     var displayedCount = 0;        // number currently shown in #count
     var countRaf = null;           // count-up animation handle
-    var lastArtworkURL = null;     // cache so accent only re-extracts on change
+    // Accent caching. The key is everything the painted accent depends on, so the widget
+    // repaints exactly when one of them moves.
+    //
+    // This used to be the artwork URL on its own, and null meant two different things:
+    // "nothing is playing, so there is no cover" and "settings changed, re-extract". With
+    // the player paused, switching Accent from a fixed colour back to album art compared
+    // null to null, took the early return, and left the fixed colour painted on the card
+    // until a cover happened to turn up. The sentinel is an object so it can never be
+    // equal to a key, which is always a string.
+    var ACCENT_UNSET = {};
+    var lastAccentKey = ACCENT_UNSET;
     var lastTrackKey = null;       // detect now-playing track changes
 
     // ---------------------------------------------------------------- Theme ----
@@ -49,53 +65,41 @@
 
     // --------------------------------------------------------------- Accent ----
 
-    function hexToRgb(hex) {
-        if (typeof hex !== 'string') return null;
-        var m = hex.replace('#', '');
-        if (m.length === 3) m = m[0] + m[0] + m[1] + m[1] + m[2] + m[2];
-        if (m.length !== 6) return null;
-        var n = parseInt(m, 16);
-        if (isNaN(n)) return null;
-        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-    }
-
-    // Build the {accent,on,muted} palette object NTKit.applyAccent expects.
-    function paletteFromRgb(rgb) {
-        return {
-            accent: rgb,
-            on: NTKit.onColor(rgb),
-            muted: rgb.map(function (v) { return Math.round(v * 0.5 + 55); })
-        };
-    }
+    // The manifest's default, and what an unreadable fixedColor falls back to.
+    var DEFAULT_FIXED_RGB = [255, 55, 95];
 
     function curDark() {
         return NTKit.panelIsDark(settings.theme);
     }
 
-    function applyFixedAccent() {
-        var rgb = hexToRgb(settings.fixedColor) || [255, 55, 95];
-        NTKit.applyAccent(root, paletteFromRgb(rgb), curDark());
-        lastArtworkURL = null; // so switching back to album re-extracts
+    // Cache identity for the accent currently on the card. Pure, and exported, because
+    // the case that broke has no artwork URL to key on: see _dev/scrobbles.test.mjs.
+    function accentKey(source, url, color, dark) {
+        var panel = dark ? 'dark' : 'light';
+        return source === 'fixed'
+            ? 'fixed|' + panel + '|' + color
+            : 'album|' + panel + '|' + (url || '');
     }
 
-    // Re-extract the accent only when the artwork data URL actually changes.
     function updateAccent() {
-        if (settings.accentSource === 'fixed') {
-            applyFixedAccent();
-            return;
-        }
-        var url = window.NepTunes.getArtworkDataURL();
-        if (url === lastArtworkURL) return;
-        lastArtworkURL = url;
+        var source = settings.accentSource === 'fixed' ? 'fixed' : 'album';
+        var dark = curDark();
+        var url = source === 'fixed' ? null : window.NepTunes.getArtworkDataURL();
+        var key = accentKey(source, url, settings.fixedColor, dark);
+        if (key === lastAccentKey) return;
+        lastAccentKey = key;
 
-        if (!url) {
-            NTKit.applyAccent(root, paletteFromRgb([124, 124, 132]), curDark());
+        if (source === 'fixed') {
+            var rgb = NTKit.hexToRgb(settings.fixedColor) || DEFAULT_FIXED_RGB;
+            NTKit.applyAccent(root, NTKit.fixedPalette(rgb, dark), dark);
             return;
         }
+
+        // NTKit.accent resolves a neutral palette for a missing or undecodable cover
+        // rather than rejecting, so the no-artwork case needs no branch of its own.
         NTKit.accent(url).then(function (palette) {
-            // Ignore if the source flipped to fixed while we were extracting.
-            if (settings.accentSource === 'fixed') return;
-            NTKit.applyAccent(root, palette, curDark());
+            if (lastAccentKey !== key) return;   // settings moved on while it decoded
+            NTKit.applyAccent(root, palette, dark);
         });
     }
 
@@ -257,8 +261,8 @@
             counter.classList.remove('hidden');
         }
 
-        // Theme may have flipped — re-apply so --accent-ink matches the panel.
-        lastArtworkURL = null;
+        // A flipped theme, a new fixed colour or a switch of accent source all move the
+        // accent key, so updateAccent() repaints on its own.
         updateAccent();
         loadStats(); // re-fetch (feed row count / fixed color may have changed)
     }
@@ -269,7 +273,6 @@
     function onThemeChange() {
         if ((settings.theme || 'auto') !== 'auto') return;
         resolveTheme(settings.theme);
-        lastArtworkURL = null; // force --accent-ink to be re-picked for the new panel
         updateAccent();
     }
 
@@ -302,6 +305,15 @@
     // --------------------------------------------------------------- Init ----
 
     function init() {
+        widget  = document.getElementById('widget');
+        counter = document.getElementById('counter');
+        countEl = document.getElementById('count');
+        feed    = document.getElementById('feed');
+        status  = document.getElementById('status');
+        root    = document.documentElement;
+        prefersReducedMotion =
+            window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
         if (!window.NepTunes) return;
         NepTunes.on('statechange', onState);
         NepTunes.on('settingschange', onSettings);
@@ -313,9 +325,13 @@
         if (NepTunes._signalReady) NepTunes._signalReady();
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+    function start() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     }
-})();
+
+    return { start: start, accentKey: accentKey };
+});

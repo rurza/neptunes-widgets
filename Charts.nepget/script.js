@@ -3,21 +3,28 @@
  * typographic chart. The lone accent (extracted from the now-playing
  * artwork) tints the rank numerals and the header rule.
  */
-(function () {
+(function (factory) {
+    var api = factory();
+    if (typeof module === 'object' && module.exports) module.exports = api;
+    else api.start();
+})(function () {
     'use strict';
 
-    // DOM
-    const root = document.getElementById('widget');
-    const chartTitle = document.getElementById('chartTitle');
-    const periodLabel = document.getElementById('periodLabel');
-    const listEl = document.getElementById('list');
-    const statusEl = document.getElementById('status');
+    // DOM. Looked up in init(), not here: Node has no document, and _dev/charts.test.mjs
+    // requires this file to cover the accent cache. Same shape as Vinyl and Minimal.
+    let root = null;
+    let chartTitle = null;
+    let periodLabel = null;
+    let listEl = null;
+    let statusEl = null;
 
     // Settings (with sane defaults matching the manifest)
-    let chart = 'albums';   // albums | artists | tracks
-    let period = '7day';
-    let limit = 8;
-    let showThumbnails = false;
+     let chart = 'albums';    // albums | artists | tracks
+     let period = '7day';
+     let limit = 8;
+     let showThumbnails = false;
+     let accentSource = 'album'; // album | fixed
+     let fixedColor = '#FF375F';
 
     // Last.fm request coordination
     let inFlight = false;      // a request is currently running
@@ -25,8 +32,17 @@
     let refreshTimer = null;   // 60s periodic refresh
     let trackDebounce = null;  // debounce for now-playing-driven refresh
 
-    // Accent caching — only re-extract when the artwork URL actually changes
-    let lastArtworkURL = null;
+    // Accent caching. The key is everything the painted accent depends on, so the widget
+    // repaints exactly when one of them moves.
+    //
+    // This used to be the artwork URL on its own, and null meant two different things:
+    // "nothing is playing, so there is no cover" and "settings changed, re-extract". With
+    // the player paused, switching Accent from a fixed colour back to album art compared
+    // null to null, took the early return, and left the fixed colour painted on the card
+    // until a cover happened to turn up. The sentinel is an object so it can never be
+    // equal to a key, which is always a string.
+    const ACCENT_UNSET = {};
+    let lastAccentKey = ACCENT_UNSET;
     let currentTheme = 'auto'; // resolved panel polarity for legible accent ink
 
     const PERIOD_LABELS = {
@@ -67,6 +83,8 @@
         period = settings.period || '7day';
         limit = parseInt(settings.limit, 10) || 8;
         showThumbnails = !!settings.showThumbnails;
+        accentSource = settings.accentSource || 'album';
+        fixedColor = settings.fixedColor || '#FF375F';
 
         currentTheme = settings.theme || 'auto';
         applyTheme(currentTheme);
@@ -74,8 +92,8 @@
         chartTitle.textContent = CHART_LABELS[chart] || 'TOP';
         periodLabel.textContent = PERIOD_LABELS[period] || '';
 
-        // Theme may have flipped — re-apply the accent so --accent-ink matches the panel.
-        lastArtworkURL = null;
+        // A flipped theme, a new fixed colour or a switch of accent source all move the
+        // accent key, so updateAccent() repaints on its own.
         updateAccent();
 
         loadChart();
@@ -174,12 +192,39 @@
     }
 
     // ---- Accent (now-playing tint) ----------------------------------------
+
+    // The manifest's default, and what an unreadable fixedColor falls back to.
+    const DEFAULT_FIXED_RGB = [255, 55, 95];
+
+    // Cache identity for the accent currently on the card. Pure, and exported, because
+    // the case that broke has no artwork URL to key on: see _dev/charts.test.mjs.
+    function accentKey(source, url, color, dark) {
+        const panel = dark ? 'dark' : 'light';
+        return source === 'fixed'
+            ? 'fixed|' + panel + '|' + color
+            : 'album|' + panel + '|' + (url || '');
+    }
+
     function updateAccent() {
-        const url = window.NepTunes.getArtworkDataURL();
-        if (url === lastArtworkURL) return; // only re-extract on real change
-        lastArtworkURL = url;
-        // Never block chart load on accent extraction.
-        NTKit.accent(url).then((palette) => NTKit.applyAccent(root, palette, NTKit.panelIsDark(currentTheme))).catch(() => {});
+        const dark = NTKit.panelIsDark(currentTheme);
+        const url = accentSource === 'fixed' ? null : window.NepTunes.getArtworkDataURL();
+        const key = accentKey(accentSource, url, fixedColor, dark);
+        if (key === lastAccentKey) return;
+        lastAccentKey = key;
+
+        if (accentSource === 'fixed') {
+            const rgb = NTKit.hexToRgb(fixedColor) || DEFAULT_FIXED_RGB;
+            NTKit.applyAccent(root, NTKit.fixedPalette(rgb, dark), dark);
+            return;
+        }
+
+        // Never block the chart load on accent extraction. NTKit.accent resolves a neutral
+        // palette for a missing or undecodable cover rather than rejecting, so the only
+        // thing a .catch here could swallow is a real throw from applyAccent.
+        NTKit.accent(url).then((palette) => {
+            if (lastAccentKey !== key) return;   // settings moved on while it decoded
+            NTKit.applyAccent(root, palette, dark);
+        });
     }
 
     // Identify the now-playing track so we only refetch on a real song change
@@ -228,12 +273,17 @@
     // accent ink has to be re-picked here. No chart refetch: the data hasn't changed.
     function onThemeChange() {
         if (currentTheme !== 'auto') return;
-        lastArtworkURL = null;
         updateAccent();
     }
 
     // ---- Init -------------------------------------------------------------
     function init() {
+        root = document.getElementById('widget');
+        chartTitle = document.getElementById('chartTitle');
+        periodLabel = document.getElementById('periodLabel');
+        listEl = document.getElementById('list');
+        statusEl = document.getElementById('status');
+
         if (!window.NepTunes) return;
         NepTunes.on('statechange', onState);
         NepTunes.on('settingschange', onSettings);
@@ -244,6 +294,10 @@
         if (NepTunes._signalReady) NepTunes._signalReady();
     }
 
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-    else init();
-})();
+    function start() {
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+    }
+
+    return { start: start, accentKey: accentKey };
+});

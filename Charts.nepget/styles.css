@@ -19,10 +19,15 @@ html, body {
 }
 
 body {
-    /* Shadow margin must exceed the panel's shadow extent. The subtle two-layer shadow
-       (contact + ambient, both low-alpha — see `.panel-shadow`) reaches ~21px below,
-       ~16px to the sides and ~11px above, so this 32/32/40 padding clears it by ≥8px on
-       every side. defaultSize/minSize in the manifest carry the matching card size. */
+    /* Shadow margin must exceed the panel's shadow extent. The two-layer shadow
+       (contact + ambient, both low-alpha, see `.panel-shadow`) reaches 16px below, 12px to
+       the sides and 8px above, so this 22/22/26 padding clears it by ≥8px on every side.
+
+       These are Scrobbles' numbers, deliberately: the two are siblings, stacked one above the
+       other on the desktop, and the visible card is `defaultSize` minus this padding. A gutter
+       10px wider than Scrobbles' therefore draws a card 20px narrower at the same window size,
+       which reads as the two widgets being different sizes.
+       `LastFmWidgetCardParityTests` measures both and fails if they drift apart. */
     padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     /* tabular figures everywhere by default */
@@ -36,9 +41,9 @@ body {
    theme=auto follows prefers-color-scheme (handled below). */
 :root {
     /* Transparent gutter holding the drop shadow; also `body`'s padding. */
-    --gutter-top: 32px;
-    --gutter-x: 32px;
-    --gutter-bottom: 40px;
+    --gutter-top: 22px;
+    --gutter-x: 22px;
+    --gutter-bottom: 26px;
     --panel-radius: 16px;
 
     --accent: rgb(124, 124, 132);
@@ -91,13 +96,17 @@ body {
    exactly `body`'s padding and the box lands on .widget at any window size.
 
    Note drop-shadow()'s blur argument is half box-shadow's — WebKit reads it as a standard
-   deviation — so these are the same weights the box-shadow above carried. */
+   deviation. The contact layer carries the weight the box-shadow above did; the ambient layer
+   no longer does, for the reason on the filter below. */
 .panel-shadow {
     position: fixed;
     inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
     border-radius: var(--panel-radius);
     background: var(--panel);
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .14)) drop-shadow(0 5px 8px rgba(0, 0, 0, .12));
+    /* Tightened to fit the 22/22/26 gutter: the old `0 5px 8px` ambient layer reached ~21px
+       below and ~16px to the sides, which needed the wider gutter this bundle used to carry.
+       Same two-layer weight, same alphas, extent below 16, sides 12, top 8. */
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .14)) drop-shadow(0 3px 3.5px rgba(0, 0, 0, .12));
     pointer-events: none;
 }
 

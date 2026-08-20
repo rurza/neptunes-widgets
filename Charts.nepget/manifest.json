@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.charts",
   "name": "Charts",
-  "version": "1.0.7",
+    "version": "1.0.10",
   "author": "Adam Różyński",
   "description": "Your Last.fm top albums, artists, or tracks as a clean numbered chart. Tinted by what's playing now.",
   "license": "MIT",
@@ -101,27 +101,49 @@
         "label": "Show thumbnails",
         "default": false
       },
-      {
-        "id": "theme",
-        "type": "radio",
-        "label": "Theme",
-        "options": [
-          {
-            "value": "auto",
-            "label": "Auto"
-          },
-          {
-            "value": "dark",
-            "label": "Dark"
-          },
-          {
-            "value": "light",
-            "label": "Light"
-          }
-        ],
-        "default": "auto"
-      }
-    ]
+        {
+          "id": "theme",
+          "type": "radio",
+          "label": "Theme",
+          "options": [
+            {
+              "value": "auto",
+              "label": "Auto"
+            },
+            {
+              "value": "dark",
+              "label": "Dark"
+            },
+            {
+              "value": "light",
+              "label": "Light"
+            }
+          ],
+          "default": "auto"
+        },
+        {
+          "id": "accentSource",
+          "type": "radio",
+          "label": "Accent",
+          "options": [
+            {
+              "value": "album",
+              "label": "From album art"
+            },
+            {
+              "value": "fixed",
+              "label": "Fixed color"
+            }
+          ],
+          "default": "album"
+        },
+        {
+          "id": "fixedColor",
+          "type": "color",
+          "label": "Fixed accent color",
+          "default": "#FF375F"
+        }
+      ]
   },
   "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
 }

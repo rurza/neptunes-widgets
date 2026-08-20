@@ -1,24 +1,24 @@
 {
-  "manifestVersion": 1,
-  "id": "pl.micropixels.neptunes.widget.scrobbles",
-  "name": "Scrobbles",
-  "version": "1.0.6",
+   "manifestVersion": 1,
+   "id": "pl.micropixels.neptunes.widget.scrobbles",
+   "name": "Scrobbles",
+   "version": "1.0.8",
   "author": "Adam Różyński",
   "description": "Your lifetime scrobble count and a live feed of what you've been listening to.",
   "license": "MIT",
   "entry": "index.html",
-  "defaultSize": {
-    "width": 300,
-    "height": 340
-  },
-  "minSize": {
-    "width": 260,
-    "height": 220
-  },
-  "maxSize": {
-    "width": 460,
-    "height": 600
-  },
+   "defaultSize": {
+      "width": 332,
+      "height": 360
+    },
+    "minSize": {
+      "width": 292,
+      "height": 260
+    },
+    "maxSize": {
+      "width": 492,
+      "height": 600
+    },
   "resizable": true,
   "preview": "preview.jpg",
   "permissions": [

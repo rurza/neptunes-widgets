@@ -139,3 +139,45 @@ test('displayInfo collapses ads and handles edge cases', () => {
     { title: 'Unknown Title', artist: '' }
   );
 });
+
+// The panel colours the two Last.fm bundles paint behind this text, from their own
+// `--panel` tokens: #0c0c0e dark, #fbfbfc light. `legibleAccent` uses the same pair.
+const PANEL = { dark: [12, 12, 14], light: [251, 251, 252] };
+
+test('hexToRgb accepts only real hex, and rejects the rest', () => {
+    assert.deepEqual(NTKit.hexToRgb('#FF375F'), [255, 55, 95]);
+    assert.deepEqual(NTKit.hexToRgb('ff375f'), [255, 55, 95]);
+    assert.deepEqual(NTKit.hexToRgb('#f0a'), [255, 0, 170]);
+
+    // parseInt stops at the first character it cannot read and returns what it got so
+    // far, so `parseInt('FF375G', 16)` is 1045365, not NaN: an isNaN() guard passes it
+    // through and the widget paints a green nobody picked.
+    assert.equal(NTKit.hexToRgb('#FF375G'), null);
+    assert.equal(NTKit.hexToRgb('#12 345'), null);
+    assert.equal(NTKit.hexToRgb('#'), null);
+    assert.equal(NTKit.hexToRgb(''), null);
+    assert.equal(NTKit.hexToRgb(null), null);
+    assert.equal(NTKit.hexToRgb(0xff375f), null);
+});
+
+test('fixedPalette leaves the picked colour alone as the accent', () => {
+    // --accent paints fills and markers, not text: it must be exactly what the user chose.
+    assert.deepEqual(NTKit.fixedPalette([255, 55, 95], true).accent, [255, 55, 95]);
+    assert.deepEqual(NTKit.fixedPalette([0, 0, 0], false).accent, [0, 0, 0]);
+});
+
+test('fixedPalette keeps muted readable whatever colour is picked', () => {
+    // An album accent can only ever be a mid-vivid pixel, so muted was safe as a plain
+    // 50% lift of it. A colour well hands over pure black and pure white too, and Charts
+    // paints .status (12px "No data for this period yet.") in --muted, so black-on-black
+    // and white-on-white are both reachable from the UI.
+    for (const hex of ['#000000', '#ffffff', '#FF375F', '#0a0a0a', '#fdfdfd', '#1a1a2e']) {
+        for (const dark of [true, false]) {
+            const panel = dark ? PANEL.dark : PANEL.light;
+            const muted = NTKit.fixedPalette(NTKit.hexToRgb(hex), dark).muted;
+            assert.ok(contrast(muted, panel) >= 4.5,
+                `${hex} on ${dark ? 'dark' : 'light'}: muted ${muted} is ` +
+                `${contrast(muted, panel).toFixed(2)}:1`);
+        }
+    }
+});

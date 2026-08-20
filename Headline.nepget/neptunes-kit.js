@@ -142,6 +142,52 @@
     return out;
   }
 
+  // Step a colour's lightness toward the panel-opposite end until it clears `target`
+  // contrast against the panel, leaving hue and saturation where they are. This is the
+  // half of `legibleAccent` that applies to a colour which is *meant* to be quiet:
+  // legibleAccent also re-saturates and clamps lightness first, which is right for an
+  // accent and would undo the point of a muted tone.
+  function liftToContrast(rgb, dark, target) {
+    var panel = dark ? [12, 12, 14] : [251, 251, 252];
+    if (contrastRatio(rgb, panel) >= target) return rgb;
+    var hsl = rgbToHsl(rgb[0], rgb[1], rgb[2]);
+    var h = hsl[0], s = hsl[1], l = hsl[2], out = rgb, guard = 0;
+    while (contrastRatio(out, panel) < target && guard < 60) {
+      l += dark ? 0.02 : -0.02;
+      if (l >= 1) return hslToRgb(h, s, 1);
+      if (l <= 0) return hslToRgb(h, s, 0);
+      out = hslToRgb(h, s, l);
+      guard++;
+    }
+    return out;
+  }
+
+  // '#rrggbb' or '#rgb' (hash optional) to [r,g,b], or null if it is not that.
+  //
+  // Strict on purpose. parseInt stops at the first character it cannot read and returns
+  // the digits it got up to there, so parseInt('FF375G', 16) is 1045365 rather than NaN:
+  // an isNaN() guard passes it straight through and the widget paints a colour nobody
+  // picked. Only a full-width hex test rejects it.
+  function hexToRgb(hex) {
+    if (typeof hex !== 'string') return null;
+    var m = hex.charAt(0) === '#' ? hex.slice(1) : hex;
+    if (m.length === 3) m = m[0] + m[0] + m[1] + m[1] + m[2] + m[2];
+    if (!/^[0-9a-f]{6}$/i.test(m)) return null;
+    var n = parseInt(m, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+
+  // The {accent,on,muted} palette for a colour the USER picked, rather than one pulled
+  // out of artwork. Same shape and same 50%-toward-grey muted as `paletteFromPixels`,
+  // with one difference that matters: that function can only ever return a mid-vivid
+  // pixel, so its muted always lands somewhere readable. A colour well hands over pure
+  // black and pure white too, and `--muted` paints body text, so muted is pushed back
+  // onto the panel here rather than left wherever the arithmetic put it.
+  function fixedPalette(rgb, dark) {
+    var muted = rgb.map(function (v) { return Math.round(v * 0.5 + 110 * 0.5); });
+    return { accent: rgb, on: onColor(rgb), muted: liftToContrast(muted, dark !== false, 4.5) };
+  }
+
   // Is the widget's panel dark? Picks which way `legibleAccent` should push.
   function panelIsDark(theme) {
     if (theme === 'light') return false;
@@ -251,6 +297,7 @@
     formatTime: formatTime, formatCount: formatCount, relativeTime: relativeTime,
     clock: clock, paletteFromPixels: paletteFromPixels, luminance: luminance,
     onColor: onColor, legibleAccent: legibleAccent, panelIsDark: panelIsDark,
+    hexToRgb: hexToRgb, fixedPalette: fixedPalette,
     accent: accent, applyAccent: applyAccent, fitText: fitText,
     displayInfo: displayInfo
   };

@@ -349,18 +349,20 @@ body {
 
 /* All buttons transparent - NO backgrounds ever */
 .control-btn {
-    width: 24px;
-    height: 24px;
-    border: none !important;
-    border-radius: 50%;
-    background: none !important;
-    background-color: transparent !important;
-    color: #fff;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    -webkit-app-region: no-drag;
+     width: 24px;
+     height: 24px;
+     border: none !important;
+     border-radius: 50%;
+     background: none !important;
+     background-color: transparent !important;
+     color: #fff;
+     cursor: pointer;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     -webkit-app-region: no-drag;
+     /* Eases the press highlight back out (see .pressed below) like an AppKit control. */
+     transition: transform 0.12s ease, background-color 0.15s ease;
 }
 
 .control-btn.play-btn {
@@ -373,8 +375,19 @@ body {
 .control-btn:hover,
 .control-btn:active,
 .control-btn:focus {
-    background: none !important;
-    background-color: transparent !important;
+     background: none !important;
+     background-color: transparent !important;
+}
+
+/* Press highlight: script.js toggles a `.pressed` class on mousedown/mouseup/mouseleave
+    (`:active` is unreliable here — WebKit in the widget panel raises but does not always drop
+   it). Instant on the way down, eased back out via the base transition, as an AppKit control.
+    `!important` outranks the base and `.color-*` rules; the `.pressed` scale needs its own
+    faster ease so the pop reads instant on the way in. */
+.control-btn.pressed:not(:disabled) {
+     background: color-mix(in srgb, currentColor 18%, transparent) !important;
+     transform: scale(0.92);
+     transition: transform 0.08s ease;
 }
 
 /* Greyed out during a Spotify ad (prev/next only — see script.js). Opacity, not

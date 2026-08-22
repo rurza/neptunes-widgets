@@ -1,0 +1,86 @@
+/* CD Case — the widget is a single transparent GL canvas.
+
+   Unlike the card-based widgets there is no panel and no box-shadow, so there
+   is no gutter to reserve: the case's contact shadow is rendered inside the
+   scene, and the camera already pulls back far enough that a dragged case
+   cannot reach the window edge. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* A canvas is a replaced element: with position:fixed and auto width it takes
+   its INTRINSIC size (the drawing buffer, i.e. CSS px x devicePixelRatio) and
+   overflows the window instead of filling it. The explicit 100% is load-bearing. */
+#gl {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+
+}
+
+/* ---- empty state ------------------------------------------------------- */
+
+#empty {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    color: rgba(255, 255, 255, 0.55);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+#empty[hidden] { display: none; }
+
+#empty .disc {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 50%, transparent 0 12%, rgba(255,255,255,.10) 12.5% 13.5%, transparent 14%),
+        conic-gradient(from 210deg,
+            rgba(255,255,255,.14), rgba(255,255,255,.04),
+            rgba(255,255,255,.16), rgba(255,255,255,.04), rgba(255,255,255,.14));
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+#empty p {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+/* ---- failure surface --------------------------------------------------- */
+
+#err {
+    position: fixed;
+    inset: auto 0 0 0;
+    padding: 8px 10px;
+    background: rgba(92, 20, 20, 0.94);
+    color: #fff;
+    font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: pre-wrap;
+    max-height: 60%;
+    overflow: auto;
+}
+
+#err[hidden] { display: none; }

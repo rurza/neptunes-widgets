@@ -1,0 +1,95 @@
+{
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.cdcase",
+  "name": "CD Case",
+  "version": "1.0.0",
+  "author": "Adam Różyński",
+  "description": "The album you're playing as a real CD in a jewel case, in 3D on your desktop. Case and disc models by sodaraptor and Regex, CC BY 4.0.",
+  "license": "MIT, 3D models CC BY 4.0",
+  "homepage": "https://neptunesmac.app/widgets/cdcase",
+  "entry": "index.html",
+  "defaultSize": {
+    "width": 320,
+    "height": 300
+  },
+  "minSize": {
+    "width": 200,
+    "height": 188
+  },
+  "maxSize": {
+    "width": 760,
+    "height": 714
+  },
+  "resizable": true,
+  "preview": "preview.jpg",
+  "permissions": [
+    "artwork"
+  ],
+  "settings": {
+    "schema": [
+      {
+        "id": "caseSize",
+        "type": "select",
+        "label": "Size",
+        "options": [
+          {
+            "value": "240",
+            "label": "Small"
+          },
+          {
+            "value": "320",
+            "label": "Default"
+          },
+          {
+            "value": "400",
+            "label": "Large"
+          },
+          {
+            "value": "500",
+            "label": "Extra large"
+          }
+        ],
+        "default": "320"
+      },
+      {
+        "id": "hingeTint",
+        "type": "checkbox",
+        "label": "Colour the hinge paper from the artwork",
+        "default": true
+      },
+      {
+        "id": "idleMotion",
+        "type": "checkbox",
+        "label": "Drift gently when idle",
+        "default": false
+      },
+      {
+        "id": "openOnPause",
+        "type": "checkbox",
+        "label": "Open the case when paused",
+        "default": false
+      },
+      {
+        "id": "quality",
+        "type": "select",
+        "label": "Rendering",
+        "options": [
+          {
+            "value": "high",
+            "label": "High"
+          },
+          {
+            "value": "balanced",
+            "label": "Balanced"
+          },
+          {
+            "value": "low",
+            "label": "Battery saver"
+          }
+        ],
+        "default": "high"
+      }
+    ]
+  },
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

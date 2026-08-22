@@ -1468,7 +1468,7 @@ packaged zip:
 - id present, same key → fine, the registered author re-publishing.
 - id present, **different** key → the whole run aborts. An id cannot change author.
 
-All 14 built-in ids are registered to the first-party author key
+All 15 built-in ids are registered to the first-party author key
 (`public-keys/first-party-author.pub`); `website/test/keyConsistency.test.js` pins
 that the registry, the committed `.pub` files and the key pinned in Swift stay in agreement.
 
@@ -1668,7 +1668,7 @@ Two vendor keypairs, both Ed25519:
 | Key | Signs | Public half |
 |-----|-------|-------------|
 | Release key | `index.json` (the feed) | compiled into the app as `WidgetUpdateTrust.vendorPublicKeyBase64` |
-| First-party author key | the built-in `.nepget` bundles — both their `bundle.sig` and their feed-entry zip signature | committed at `public-keys/first-party-author.pub`, published in each feed entry's `authorPublicKey`, and recorded against all 14 built-in ids in `Scripts/widget-id-registry.json` |
+| First-party author key | the built-in `.nepget` bundles — both their `bundle.sig` and their feed-entry zip signature | committed at `public-keys/first-party-author.pub`, published in each feed entry's `authorPublicKey`, and recorded against all 15 built-in ids in `Scripts/widget-id-registry.json` |
 
 Rules for the private halves, no exceptions:
 

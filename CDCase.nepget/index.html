@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CD Case</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<!-- The whole widget is one GL canvas. There is no card and no drop shadow:
+     the case casts its own contact shadow inside the render, so the usual
+     gutter arithmetic does not apply here. -->
+<canvas id="gl"></canvas>
+
+<!-- Shown until the first artwork arrives, and whenever there is no track. -->
+<div id="empty" hidden>
+  <div class="disc"></div>
+  <p id="emptyText">Nothing playing</p>
+</div>
+
+<!-- The host gives a widget no console and no Web Inspector, so failures have
+     to surface in the widget itself or they are invisible. -->
+<div id="err" hidden></div>
+
+<script src="three.js"></script>
+<script src="models.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

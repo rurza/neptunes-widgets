@@ -47,9 +47,9 @@ run, and the messages name the widget and the reason:
 
 ```bash
 # a widget that never applies the direction
-git show v4:SampleWidgets/Minimal.nepget/script.js > SampleWidgets/Minimal.nepget/script.js
+git show main:SampleWidgets/Minimal.nepget/script.js > SampleWidgets/Minimal.nepget/script.js
 # a bundle carrying a stale kit that still hard-codes en-US — the original bug
-git show v4:SampleWidgets/Strip.nepget/neptunes-kit.js > SampleWidgets/Strip.nepget/neptunes-kit.js
+git show main:SampleWidgets/Strip.nepget/neptunes-kit.js > SampleWidgets/Strip.nepget/neptunes-kit.js
 ```
 
 ```

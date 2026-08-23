@@ -69,7 +69,7 @@ body {
 
 .widget.align-right {
     align-items: flex-end;
-    text-align: right;
+    text-align: end;
 }
 
 .labels {
@@ -147,6 +147,10 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    /* Media transport keeps its physical order under RTL — HIG: controls referring to the
+       direction media moves keep it, and the glyphs do not auto-mirror. Without this pin,
+       `dir="rtl"` on <html> reverses this flex row and "next" ends up on the physical left. */
+    direction: ltr;
 }
 
 /* Author `display: flex` above would otherwise defeat the `hidden` attribute. */

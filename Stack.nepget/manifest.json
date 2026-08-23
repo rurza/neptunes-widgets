@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.stack",
     "name": "Stack",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "author": "Adam Różyński",
     "description": "A centered album cover with transport controls, title, and artist stacked below it — floating right on your wallpaper.",
     "license": "MIT",

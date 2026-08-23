@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.strip",
     "name": "Strip",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "author": "Adam Różyński",
     "description": "A slim now-playing ticker to dock along a screen edge. Long titles scroll; a thin accent line tracks progress.",
     "license": "MIT",

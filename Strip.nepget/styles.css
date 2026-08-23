@@ -86,6 +86,22 @@ body {
     gap: 8px;
     padding: 0 12px;
     cursor: default;
+    /* This row IS the transport (play/pause glyph, prev/next) and the timeline (elapsed
+       `.time`) in one strip — both categories that never mirror under RTL. Without this pin,
+       `dir="rtl"` reverses the whole flex row: `.time` moves to the physical left, the glyph
+       to the physical right, and prev/next swap sides. A flex row's main axis follows its
+       own container's `direction`, so the pin has to sit HERE: pinning the children instead
+       cannot restore their order.
+
+       The cost is that it is inherited by `.label-wrap`/`.label`, which is this bundle's only
+       text. That is not free, and the earlier claim that Unicode bidi absorbs it was wrong on
+       two counts: an Arabic title set flush LEFT inside its wrap instead of flush right, and
+       `artist — title` got an LTR paragraph embedding level, which reorders a mixed
+       Arabic/Latin pair. `.label-wrap` therefore opts back in below.
+
+       `.underline` is a sibling, not a descendant, and already stays physical via absolute
+       positioning with a literal `left: 0`. */
+    direction: ltr;
 }
 
 /* ---- Glyph (play/pause) ---- */
@@ -165,6 +181,26 @@ html.nt-hover .widget:not(.empty) .nav:disabled {
     mask-image: linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
 }
 
+/* The row above is pinned LTR for the transport's sake. The text inside it must not be: this
+   is the one place in the bundle where direction is a property of the *content*, not of the
+   controls. Re-asserting `rtl` here is what sets an Arabic title flush against the wrap's
+   right edge and gives `artist — title` an RTL paragraph embedding level. Scoped to the wrap,
+   so the row's own child order (glyph, prev, label, next, time) is untouched.
+
+   `html[dir="rtl"]` and not `:dir(rtl)` is a preference, not a requirement: both work here.
+   `:dir()` matches on the element's *directionality* — the *dir* attribute chain, per CSS
+   Selectors 4 — not on the computed `direction` property, so `.strip`'s `direction: ltr` pin does
+   not stop it matching; substituting `.label-wrap:dir(rtl)` into this bundle was measured to give
+   byte-identical geometry. The attribute selector is kept because `script.js` sets
+   `documentElement.dir` from the host's `layoutDirection`, so it names the actual signal.
+
+   `--scroll-dir` goes with it: the marquee is physically authored and has to travel the other
+   way for a right-to-left run. See `@keyframes strip-scroll`. */
+html[dir="rtl"] .label-wrap {
+    direction: rtl;
+    --scroll-dir: 1;
+}
+
 .label {
     display: inline-block;
     white-space: nowrap;
@@ -183,12 +219,25 @@ html.nt-hover .widget:not(.empty) .nav:disabled {
 }
 .label.marquee::after {
     content: attr(data-text);
-    padding-left: 48px;
+    padding-inline-start: 48px;
+    /* Without this the two copies are ONE bidi paragraph, and the algorithm reorders across
+       the seam: two Arabic copies merge into a single right-to-left run, so copy 2 paints
+       where copy 1 should be and each copy is split into fragments. Measured, before this
+       line: the original copy's glyphs sat 334px right of the label's own left edge and the
+       loop missed its seam by 4px. Isolating the duplicate makes each copy resolve bidi on
+       its own, so both render identically and are placed as atomic units in the label's
+       direction — the only thing the loop's width math can be right about. */
+    unicode-bidi: isolate;
 }
 
+/* Travel is PHYSICAL, so the direction of travel is not free. A negative X scrolls a
+   left-to-right run in its own reading direction; a right-to-left run reads the other way and
+   has to travel positive, or the first thing the loop does is scroll the title off its own
+   start. `--scroll-dir` (set with `direction` on `.label-wrap`) is that sign. The distance is
+   the same either way — one copy plus the `::after` gap, measured in JS into `--scroll-w`. */
 @keyframes strip-scroll {
     from { transform: translateX(0); }
-    to   { transform: translateX(calc(-1 * var(--scroll-w, 50%))); }
+    to   { transform: translateX(calc(var(--scroll-dir, -1) * var(--scroll-w, 50%))); }
 }
 
 .widget.empty .label { color: var(--fg-dim); font-weight: 500; }

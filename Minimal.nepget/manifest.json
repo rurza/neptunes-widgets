@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.minimal",
     "name": "Minimal",
-    "version": "1.4.11",
+    "version": "1.4.12",
     "author": "Adam Różyński",
     "description": "Ultra-minimal text display — title, artist and album in elegant type, with optional playback controls",
     "license": "MIT",

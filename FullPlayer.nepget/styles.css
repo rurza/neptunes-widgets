@@ -190,6 +190,16 @@ body {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    /* The playback timeline never mirrors — same exception as media transport, and it keeps
+       the fill agreeing with its own time labels. Without this pin, two things break under
+       `dir="rtl"`: `.progress-fill`'s `width: NN%` is a plain (non-absolutely-positioned)
+       block box, so its unconstrained margin resolves against the *inline-start* edge, which
+       is physically the right under RTL — the fill visually grows from the right instead of
+       the left. And `.time-display`, a `justify-content: space-between` flex row, reverses
+       to put elapsed on the right and the duration on the left. Measured on a real ar capture:
+       both defects were live and self-consistent with each other (elapsed sat beside the
+       flipped fill in both cases) — pinning direction here fixes both at once. */
+    direction: ltr;
 }
 
 .progress-container.hidden {
@@ -225,6 +235,10 @@ body {
     align-items: center;
     justify-content: center;
     gap: 6px;
+    /* Media transport keeps its physical order under RTL — HIG: controls referring to the
+       direction media moves keep it, and the glyphs do not auto-mirror. Without this pin,
+       `dir="rtl"` on <html> reverses this flex row and "next" ends up on the physical left. */
+    direction: ltr;
 }
 
 .control-btn {

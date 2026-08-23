@@ -1898,6 +1898,14 @@
 
   var applyState = guard('applyState failed', function (state) {
     if (!state) return;
+
+    // Mirror for a right-to-left host language. Nothing in this bundle's layout reverses
+    // — it is one GL canvas plus a centred, column-direction empty state — but `#emptyText`
+    // is real text, and `dir` is what gives an Arabic string its paragraph direction. The
+    // 3D scene is unaffected either way. Applied on state rather than at startup because
+    // window.NepTunes.state is null until the host's first push, which lands after
+    // DOMContentLoaded.
+    if (state.layoutDirection) document.documentElement.dir = state.layoutDirection;
     var t = state.track;
     var has = !!(t && t.title);
     emptyEl.hidden = has;

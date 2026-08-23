@@ -260,12 +260,12 @@ body {
 }
 
 .side.left .track-info {
-    text-align: right;
+    text-align: end;
     align-items: flex-end;
 }
 
 .side.right .track-info {
-    text-align: left;
+    text-align: start;
     align-items: flex-start;
 }
 
@@ -345,6 +345,12 @@ body {
     flex-direction: row;
     gap: 2px;
     align-items: center;
+    /* Media transport keeps its physical order under RTL — HIG: controls referring to the
+       direction media moves keep it, and the glyphs do not auto-mirror. Without this pin,
+       `dir="rtl"` on <html> reverses this flex row and "next" ends up on the physical left.
+       (Not visible with the manifest's default `controlsPosition: "off"`, but the row is
+       reachable through a widget setting, so it is fixed regardless.) */
+    direction: ltr;
 }
 
 /* All buttons transparent - NO backgrounds ever */

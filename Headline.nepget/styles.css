@@ -192,6 +192,13 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
+    /* Neither half of this row mirrors under RTL: `.times` is the playback timeline's elapsed
+       label (paired with `.bar-fill` above, which is already pinned physical via absolute
+       positioning) and `.controls` is media transport — both "No" in the mirroring table.
+       Pinning direction here, rather than on `.controls` alone, also keeps `.times` on its
+       physical left rather than `justify-content: space-between` swapping which side each
+       occupies. `.controls`'s own internal button order inherits this too. */
+    direction: ltr;
 }
 
 .times {

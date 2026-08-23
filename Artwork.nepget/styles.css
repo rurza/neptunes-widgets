@@ -274,6 +274,11 @@ body {
     justify-content: center;
     gap: 4px;
     -webkit-app-region: no-drag;
+    /* Media transport keeps its physical order under RTL — HIG: controls referring to the
+       direction media moves keep it, and the glyphs (backward.end.fill / forward.end.fill)
+       do not auto-mirror. Without this pin, `dir="rtl"` on <html> reverses this flex row and
+       "next" ends up on the physical left. */
+    direction: ltr;
 }
 
 .control-btn {

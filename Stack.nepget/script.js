@@ -15,11 +15,19 @@
     var noArtwork = document.getElementById('noArtwork');
     var title     = document.getElementById('title');
     var artist    = document.getElementById('artist');
+    var live      = document.getElementById('live');
     var controls  = document.getElementById('controls');
     var playBtn   = document.getElementById('playBtn');
     var prevBtn   = document.getElementById('prevBtn');
     var nextBtn   = document.getElementById('nextBtn');
     var root      = document.documentElement;
+
+    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
+    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
+    // live stream centrally, so prev/next are hidden here rather than merely greyed.
+    function isLiveStream(track) {
+        return !!(track && track.isLiveStream);
+    }
 
     var prefersReducedMotion =
         window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -119,22 +127,27 @@
         applyDirection(state);
         if (!state || !state.track) {
             widget.classList.add('stopped');
-            widget.classList.remove('playing');
+            widget.classList.remove('playing', 'live');
             title.textContent = 'Not Playing';
             artist.textContent = '';
+            live.hidden = true;
             updateArtwork(null);   // shows the no-artwork placeholder
             updateAccent();        // null art -> neutral accent
             // Nothing playing must not block transport — pressing next may start playback.
             prevBtn.disabled = false;
             nextBtn.disabled = false;
+            prevBtn.hidden = false;
+            nextBtn.hidden = false;
             return;
         }
 
         widget.classList.remove('stopped');
         var track = state.track;
         var isAd = !!track.isAdvertisement;
+        var isLive = isLiveStream(track);
         title.textContent = isAd ? 'Advertisement' : (track.title || 'Unknown Title');
         artist.textContent = isAd ? '' : (track.artist || '');
+        live.hidden = !isLive;
 
         // Greyed out during a Spotify ad — Spotify refuses to skip one.
         // `isAdvertisement` is only ever sent when true, so a missing value here
@@ -145,7 +158,13 @@
         prevBtn.disabled = adPlaying;
         nextBtn.disabled = adPlaying;
 
+        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
+        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
+        prevBtn.hidden = isLive;
+        nextBtn.hidden = isLive;
+
         // playerState: 1 = stopped, 2 = playing, 3 = paused
+        widget.classList.toggle('live', isLive);
         if (state.playerState === 2) {
             widget.classList.add('playing');
         } else {

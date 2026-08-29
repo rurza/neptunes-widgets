@@ -35,7 +35,7 @@ const V3 = require('../V3.nepget/script.js');
 test('script.js exports exactly the contract surface, all callable', () => {
   for (const name of [
     'volumeStep', 'clampVolume', 'speakerSymbol', 'repeatSymbol', 'repeatIsOn',
-    'wheelAxis', 'swipeDecision', 'infoBarState', 'start',
+    'isLiveStream', 'wheelAxis', 'swipeDecision', 'infoBarState', 'start',
   ]) {
     assert.equal(typeof V3[name], 'function', `V3.${name} is missing or not a function`);
   }

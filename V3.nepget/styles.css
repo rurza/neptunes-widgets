@@ -130,6 +130,31 @@ body {
     --icon-color: rgba(255, 255, 255, 0.25);
 }
 
+/* Corner badge over the cover art, not the wallpaper — art colour is arbitrary, so a fixed
+   frosted-dark chip stays legible regardless of the album's own palette. z-index above
+   `.hover` (3) so it reads through the hover panel too, since live status is not something
+   the hover reveal should hide. */
+.live {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 4;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+html[dir="rtl"] .live {
+    left: auto;
+    right: 8px;
+}
+
 .nocover img.sf-icon {
     /* 60%, matching the asset's 60.3% glyph HEIGHT. The rasteriser aspect-fits the glyph
        inside a square canvas, so a square box of side N renders music.note at N tall and
@@ -420,7 +445,8 @@ html.nt-hover .hover-rows,
 /* IDs, not just the class, so these outrank `.control-btn img.sf-icon` above — that
    rule also sets `display: block` and would otherwise leave the pause glyph stuck
    visible while paused. */
-#playBtn .pause-icon {
+#playBtn .pause-icon,
+#playBtn .stop-icon {
     display: none;
 }
 
@@ -429,6 +455,15 @@ html.nt-hover .hover-rows,
 }
 
 .widget.playing #playBtn .pause-icon {
+    display: block;
+}
+
+/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+.widget.playing.live #playBtn .pause-icon {
+    display: none;
+}
+
+.widget.playing.live #playBtn .stop-icon {
     display: block;
 }
 

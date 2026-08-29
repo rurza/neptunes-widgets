@@ -21,7 +21,17 @@
     let getPos = () => 0;          // NTKit.clock interpolator, rebuilt every state
     let duration = 0;
     let isPlaying = false;
+    let isLive = false;
     let rafId = null;
+
+    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
+    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
+    // live stream centrally, so prev/next stay hidden here rather than merely greyed.
+    // Position never leaves zero and there is no duration, so the underline and elapsed
+    // reading are replaced by the LIVE badge instead.
+    function isLiveStream(track) {
+        return !!(track && track.isLiveStream);
+    }
 
     // ---- Accent ----------------------------------------------------------
 
@@ -115,13 +125,16 @@
         if (!track) {
             // Empty: neutral, no progress, no scroll.
             widget.classList.add('empty');
-            widget.classList.remove('playing');
+            widget.classList.remove('playing', 'live');
             setLabel('Nothing playing', false);
             duration = 0;
             isPlaying = false;
+            isLive = false;
             getPos = () => 0;
             stopLoop();
+            underline.style.display = '';
             underline.style.width = '0%';
+            timeEl.classList.remove('live');
             timeEl.textContent = NTKit.formatTime(0);
             refreshAccent();
             // Nothing playing must not block transport — pressing next may start playback.
@@ -140,6 +153,9 @@
         const adPlaying = !!track.isAdvertisement;
         prevBtn.disabled = adPlaying;
         nextBtn.disabled = adPlaying;
+
+        isLive = isLiveStream(track);
+        widget.classList.toggle('live', isLive);
 
         // "Artist — Title" (fall back gracefully when a field is missing).
         if (adPlaying) {
@@ -166,14 +182,26 @@
 
         refreshAccent();
 
-        // Run the rAF only while playing; otherwise paint one static frame.
-        if (isPlaying) {
-            startLoop();
-        } else {
+        // Position never leaves zero and there is no duration on a live stream, so the
+        // underline and elapsed reading would only ever show a permanent 0:00 — replace
+        // them with the LIVE badge instead, and skip the rAF loop entirely.
+        if (isLive) {
             stopLoop();
-            const pos = getPos();
-            underline.style.width = (duration > 0 ? Math.min(100, (pos / duration) * 100) : 0) + '%';
-            timeEl.textContent = NTKit.formatTime(pos);
+            underline.style.display = 'none';
+            timeEl.classList.add('live');
+            timeEl.textContent = 'LIVE';
+        } else {
+            underline.style.display = '';
+            timeEl.classList.remove('live');
+            // Run the rAF only while playing; otherwise paint one static frame.
+            if (isPlaying) {
+                startLoop();
+            } else {
+                stopLoop();
+                const pos = getPos();
+                underline.style.width = (duration > 0 ? Math.min(100, (pos / duration) * 100) : 0) + '%';
+                timeEl.textContent = NTKit.formatTime(pos);
+            }
         }
     }
 

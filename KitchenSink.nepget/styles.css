@@ -65,6 +65,27 @@ body {
     color: var(--accent-secondary);
 }
 
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+/* Same pill language as .player-badge, tinted with the widget's --accent instead of
+   --accent-secondary — a live stream is state, not the player identity. */
+.live-badge {
+    display: flex;
+    align-items: center;
+    padding: 2px 6px;
+    background: rgba(255, 45, 85, 0.15);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+}
+
 .header-actions {
     display: flex;
     gap: 8px;
@@ -182,6 +203,10 @@ body {
 }
 
 /* Progress */
+.progress-section[hidden] {
+    display: none;
+}
+
 .progress-section {
     display: flex;
     align-items: center;
@@ -270,6 +295,12 @@ body {
     transform: none;
 }
 
+/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
+   unlike an ad's, so a visible-but-disabled button could only mislead. */
+.control-btn[hidden] {
+    display: none;
+}
+
 .control-btn.small {
     width: 32px;
     height: 32px;
@@ -316,9 +347,13 @@ body {
     height: 24px;
 }
 
-.play-btn .pause-icon { display: none; }
+.play-btn .pause-icon, .play-btn .stop-icon { display: none; }
 .play-btn.playing .play-icon { display: none; }
 .play-btn.playing .pause-icon { display: block; }
+
+/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+.play-btn.playing.live .pause-icon { display: none; }
+.play-btn.playing.live .stop-icon { display: block; }
 
 #repeatBtn .repeat-one { display: none; }
 #repeatBtn.repeat-one .repeat-all { display: none; }

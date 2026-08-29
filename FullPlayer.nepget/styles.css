@@ -229,6 +229,16 @@ body {
     font-variant-numeric: tabular-nums;
 }
 
+/* Replaces .progress-container for a live stream — see script.js. Same 10px caps scale as
+   .time-display, which is what this slot otherwise holds. */
+.live {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
 /* Controls */
 .controls {
     display: flex;
@@ -275,6 +285,12 @@ body {
 .control-btn:disabled:active {
     background: var(--control-bg);
     transform: none;
+}
+
+/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
+   unlike an ad's, so a visible-but-disabled button could only mislead. */
+.control-btn.hidden {
+    display: none !important;
 }
 
 .control-btn img.sf-icon {
@@ -342,7 +358,8 @@ body.light .play-btn {
     height: 22px;
 }
 
-.play-btn .pause-icon {
+.play-btn .pause-icon,
+.play-btn .stop-icon {
     display: none;
 }
 
@@ -351,6 +368,15 @@ body.light .play-btn {
 }
 
 .play-btn.playing .pause-icon {
+    display: block;
+}
+
+/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+.play-btn.playing.live .pause-icon {
+    display: none;
+}
+
+.play-btn.playing.live .stop-icon {
     display: block;
 }
 

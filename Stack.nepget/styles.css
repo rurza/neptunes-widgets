@@ -137,6 +137,27 @@ html.theme-light {
     display: none;
 }
 
+/* Corner badge over the cover art, not the wallpaper — art colour is arbitrary, so a fixed
+   frosted-dark chip stays legible regardless of theme or the album's own palette. */
+.live {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.55);
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+html[dir="rtl"] .live {
+    left: auto;
+    right: 8px;
+}
+
 /* ---- Controls: prev / play-pause / next ---- */
 .controls {
     display: flex;
@@ -197,6 +218,12 @@ html.nt-hover .controls,
     cursor: default;
 }
 
+/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
+   unlike an ad's, so a visible-but-disabled button could only mislead. */
+.control-btn[hidden] {
+    display: none;
+}
+
 .control-btn.glyph img.sf-icon {
     width: 22px;
     height: 22px;
@@ -229,7 +256,8 @@ html.theme-light .play-btn {
     height: 22px;
 }
 
-.play-btn .pause-icon {
+.play-btn .pause-icon,
+.play-btn .stop-icon {
     display: none;
 }
 
@@ -238,6 +266,15 @@ html.theme-light .play-btn {
 }
 
 .widget.playing .play-btn .pause-icon {
+    display: block;
+}
+
+/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+.widget.playing.live .play-btn .pause-icon {
+    display: none;
+}
+
+.widget.playing.live .play-btn .stop-icon {
     display: block;
 }
 

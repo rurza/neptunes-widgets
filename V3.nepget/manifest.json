@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.v3",
   "name": "V3",
-  "version": "1.1.3",
+  "version": "1.2.0",
   "author": "Adam Różyński",
   "description": "The classic NepTunes cover — hover for controls, scroll to change volume, and the track info sweeps up when the song changes.",
   "license": "MIT",

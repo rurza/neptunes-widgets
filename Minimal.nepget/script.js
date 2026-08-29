@@ -10,7 +10,7 @@
 })(function () {
     'use strict';
 
-    let widget, title, artist, album, controls, playBtn, prevBtn, nextBtn;
+    let widget, title, artist, album, live, controls, playBtn, prevBtn, nextBtn;
 
     const WIDTH = 280;
     const HEIGHT_LABELS = 100;  // title + artist + album, no controls
@@ -49,6 +49,16 @@
      */
     function transportDisabled(track) {
         return !!(track && track.isAdvertisement);
+    }
+
+    /*
+     * Whether `track` is a live Apple Music radio stream. Sent truthily only — omitted
+     * entirely for an ordinary track — so a missing value must read as false, same as
+     * isAdvertisement above. Unlike an ad, a live stream's skip refusal is permanent, so
+     * prev/next are hidden rather than merely greyed — see updateUI below.
+     */
+    function isLiveStream(track) {
+        return !!(track && track.isLiveStream);
     }
 
     function applySettings(settings) {
@@ -121,24 +131,30 @@
             title.textContent = 'Not Playing';
             artist.textContent = '';
             album.textContent = '';
-            playBtn.classList.remove('playing');
+            live.hidden = true;
+            playBtn.classList.remove('playing', 'live');
             playBtn.setAttribute('aria-label', 'Play');
             prevBtn.disabled = false;
             nextBtn.disabled = false;
+            prevBtn.hidden = false;
+            nextBtn.hidden = false;
             return;
         }
 
         widget.classList.remove('stopped');
         var isAd = !!state.track.isAdvertisement;
+        var isLive = isLiveStream(state.track);
         title.textContent = isAd ? 'Advertisement' : (state.track.title || 'Unknown Title');
         artist.textContent = isAd ? '' : (state.track.artist || '');
         // Only the text — visibility belongs to applySettings.
         album.textContent = isAd ? '' : (state.track.album || '');
+        live.hidden = !isLive;
 
         // playerState: 1 = stopped, 2 = playing, 3 = paused
         const isPlaying = state.playerState === 2;
         playBtn.classList.toggle('playing', isPlaying);
-        playBtn.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+        playBtn.classList.toggle('live', isLive);
+        playBtn.setAttribute('aria-label', isPlaying ? (isLive ? 'Stop' : 'Pause') : 'Play');
 
         // Greyed out during a Spotify ad — Spotify refuses to skip one. The native bridge
         // already refuses the action either way; this just keeps the button from inviting
@@ -146,6 +162,11 @@
         const disabled = transportDisabled(state.track);
         prevBtn.disabled = disabled;
         nextBtn.disabled = disabled;
+
+        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
+        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
+        prevBtn.hidden = isLive;
+        nextBtn.hidden = isLive;
     }
 
     function setupControls() {
@@ -175,6 +196,7 @@
         title = document.getElementById('title');
         artist = document.getElementById('artist');
         album = document.getElementById('album');
+        live = document.getElementById('live');
         controls = document.getElementById('controls');
         playBtn = document.getElementById('playBtn');
         prevBtn = document.getElementById('prevBtn');
@@ -197,5 +219,5 @@
         }
     }
 
-    return { targetHeight: targetHeight, transportDisabled: transportDisabled, start: start };
+    return { targetHeight: targetHeight, transportDisabled: transportDisabled, isLiveStream: isLiveStream, start: start };
 });

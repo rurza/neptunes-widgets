@@ -39,6 +39,10 @@
                     </div>
                 </div>
 
+                <!-- Live radio: replaces the progress bar, which has no real position or
+                     duration to show — see script.js. -->
+                <div class="live hidden" id="live">LIVE</div>
+
                 <!-- Playback controls -->
                 <div class="controls">
                     <button class="control-btn secondary" id="shuffleBtn" title="Shuffle">
@@ -52,6 +56,7 @@
                     <button class="control-btn play-btn" id="playBtn" title="Play/Pause">
                         <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="">
                         <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="">
+                        <img class="sf-icon stop-icon" data-symbol="stop.fill" data-size="22" alt="">
                     </button>
 
                     <button class="control-btn" id="nextBtn" title="Next">

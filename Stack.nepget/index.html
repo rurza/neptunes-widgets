@@ -15,6 +15,10 @@
                 <div class="no-artwork" id="noArtwork">
                     <img class="sf-icon" data-symbol="music.note" data-size="36" alt="">
                 </div>
+                <!-- Pinned to the cover, not the .stack flow: defaultSize is a fixed
+                     resizable:false window with no slack left in the column's height math
+                     above, so a badge here has to stay out of flow. -->
+                <div class="live" id="live" hidden>LIVE</div>
             </div>
 
             <!-- Transport: prev / play-pause / next -->
@@ -25,6 +29,7 @@
                 <button class="control-btn play-btn" id="playBtn" title="Play/Pause" aria-label="Play/Pause">
                     <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="">
                     <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="">
+                    <img class="sf-icon stop-icon" data-symbol="stop.fill" data-size="22" alt="">
                 </button>
                 <button class="control-btn glyph" id="nextBtn" title="Next" aria-label="Next">
                     <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">

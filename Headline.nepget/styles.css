@@ -217,6 +217,14 @@ body {
     transition: color 0.6s ease;
 }
 
+.times #live {
+    /* Same accent-tinted slot #elapsed occupies, just capitalized further into a badge. */
+    color: var(--accent-ink);
+    transition: color 0.6s ease;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
 /* ---- Controls: borderless glyph buttons ---- */
 .controls {
     display: flex;
@@ -272,9 +280,13 @@ html.nt-hover .controls,
 }
 
 /* Play/pause: show one glyph at a time based on playback state. */
-#playBtn .pause-icon { display: none; }
+#playBtn .pause-icon, #playBtn .stop-icon { display: none; }
 #playBtn.playing .play-icon { display: none; }
 #playBtn.playing .pause-icon { display: block; }
+
+/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+#playBtn.playing.live .pause-icon { display: none; }
+#playBtn.playing.live .stop-icon { display: block; }
 
 /* Love uses the accent when active. */
 #loveBtn {

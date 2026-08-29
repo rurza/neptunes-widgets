@@ -252,6 +252,32 @@ body {
     background: rgba(0, 0, 0, 0.6);
 }
 
+/* Corner badge, pinned to the static square corner OUTSIDE the disc's circular
+   silhouette (the sheen/rim pseudo-elements above are masked to a radial "closest-side"
+   shape that stops at the disc's own edge, so this area is otherwise empty) — independent
+   of labelPosition/controlsPosition, so it shows regardless of which sides are in use.
+   z-index above the sheen (10) and rim glint (11) pseudo-elements so nothing glazes over it. */
+.live {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 12;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    pointer-events: none;
+}
+
+html[dir="rtl"] .live {
+    right: auto;
+    left: 6px;
+}
+
 /* Track info */
 .track-info {
     display: flex;
@@ -404,6 +430,12 @@ body {
     cursor: default;
 }
 
+/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
+   unlike an ad's, so a visible-but-disabled button could only mislead. */
+.control-btn[hidden] {
+    display: none;
+}
+
 /* Color variants - just set the color */
 .controls.color-white .control-btn {
     color: #fff;
@@ -433,7 +465,8 @@ body {
     height: 24px;
 }
 
-.play-btn .pause-icon {
+.play-btn .pause-icon,
+.play-btn .stop-icon {
     display: none;
 }
 
@@ -442,5 +475,14 @@ body {
 }
 
 .play-btn.playing .pause-icon {
+    display: block;
+}
+
+/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+.play-btn.playing.live .pause-icon {
+    display: none;
+}
+
+.play-btn.playing.live .stop-icon {
     display: block;
 }

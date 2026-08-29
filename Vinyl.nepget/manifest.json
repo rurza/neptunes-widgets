@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.vinyl",
     "name": "Vinyl",
-      "version": "1.30.1",
+      "version": "1.31.0",
     "author": "Adam Różyński",
     "description": "Spinning vinyl record with album artwork",
     "license": "MIT",

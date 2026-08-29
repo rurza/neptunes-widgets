@@ -21,6 +21,7 @@
     let trackInfo = null;
     let titleEl = null;
     let artistEl = null;
+    let live = null;
     let controls = null;
     let playBtn = null;
     let prevBtn = null;
@@ -31,6 +32,7 @@
     let currentRotation = 0;
     let isSpinning = false;
     let isPlaying = false;
+    let isLive = false;
     let lastTimestamp = null;
     let animationId = null;
 
@@ -195,8 +197,18 @@
         } else {
             playBtn.classList.remove('playing');
         }
+        playBtn.classList.toggle('live', isLive);
+        if (prevBtn) prevBtn.hidden = isLive;
+        if (nextBtn) nextBtn.hidden = isLive;
 
         return controls;
+    }
+
+    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
+    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
+    // live stream centrally, so prev/next are hidden here rather than merely greyed.
+    function isLiveStream(track) {
+        return !!(track && track.isLiveStream);
     }
 
     // Pure: the period one revolution should take, for whatever the host pushed.
@@ -320,17 +332,23 @@
             artwork.classList.remove('visible');
             if (titleEl) titleEl.textContent = '';
             if (artistEl) artistEl.textContent = '';
+            if (live) live.hidden = true;
             isPlaying = false;
-            if (playBtn) playBtn.classList.remove('playing');
+            isLive = false;
+            if (playBtn) playBtn.classList.remove('playing', 'live');
             // Nothing playing must not block transport — pressing next may start playback.
             if (prevBtn) prevBtn.disabled = false;
             if (nextBtn) nextBtn.disabled = false;
+            if (prevBtn) prevBtn.hidden = false;
+            if (nextBtn) nextBtn.hidden = false;
             return;
         }
 
         var isAd = !!state.track.isAdvertisement;
+        isLive = isLiveStream(state.track);
         if (titleEl) titleEl.textContent = isAd ? 'Advertisement' : (state.track.title || '');
         if (artistEl) artistEl.textContent = isAd ? '' : (state.track.artist || '');
+        if (live) live.hidden = !isLive;
 
         // Greyed out during a Spotify ad — Spotify refuses to skip one.
         // `isAdvertisement` is only ever sent when true, so a missing value here
@@ -341,6 +359,12 @@
         if (prevBtn) prevBtn.disabled = adPlaying;
         if (nextBtn) nextBtn.disabled = adPlaying;
 
+        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
+        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
+        // prevBtn/nextBtn may be null when controls aren't shown.
+        if (prevBtn) prevBtn.hidden = isLive;
+        if (nextBtn) nextBtn.hidden = isLive;
+
         isPlaying = state.playerState === 2;
         if (playBtn) {
             if (isPlaying) {
@@ -348,6 +372,7 @@
             } else {
                 playBtn.classList.remove('playing');
             }
+            playBtn.classList.toggle('live', isLive);
         }
 
         if (isPlaying) {
@@ -391,6 +416,7 @@
         bottomSide = document.getElementById('bottomSide');
         trackInfoTemplate = document.getElementById('trackInfoTemplate');
         controlsTemplate = document.getElementById('controlsTemplate');
+        live = document.getElementById('live');
 
         if (!window.NepTunes) {
             console.error('NepTunes API not available');
@@ -425,5 +451,5 @@
         }
     }
 
-    return { spinDurationFor: spinDurationFor, start: start };
+    return { spinDurationFor: spinDurationFor, isLiveStream: isLiveStream, start: start };
 });

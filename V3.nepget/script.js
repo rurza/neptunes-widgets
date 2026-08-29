@@ -89,6 +89,13 @@
         return mode === 1 || mode === 2;
     }
 
+    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
+    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
+    // live stream centrally, so prev/next are hidden here rather than merely greyed.
+    function isLiveStream(track) {
+        return !!(track && track.isLiveStream);
+    }
+
     // V1Window.scrollWheel's `abs(scrollingDeltaX) <= abs(scrollingDeltaY)`, so a
     // dead-still 0,0 event counts as vertical exactly as it did in AppKit.
     function wheelAxis(deltaX, deltaY) {
@@ -121,7 +128,7 @@
 
     // ----------------------------------------------------------------- DOM ----
 
-    var widget, cover, nocover, infoBar, titleEl, artistEl;
+    var widget, cover, nocover, infoBar, titleEl, artistEl, liveEl;
     var infoFrost, hoverFrost;
     var shuffleBtn, repeatBtn, repeatIcon, loveBtn, loveIcon, volumeBtn, volumeIcon;
     var prevBtn, playBtn, nextBtn, volumePopover, volumeSlider, resizeHandle;
@@ -430,6 +437,7 @@
 
         var track = state && state.track;
         var isAd = !!(track && track.isAdvertisement);
+        var isLive = isLiveStream(track);
 
         if (!track) {
             titleEl.textContent = 'Not Playing';
@@ -439,6 +447,7 @@
             titleEl.textContent = isAd ? 'Advertisement' : (track.title || 'Unknown Title');
             artistEl.textContent = isAd ? '' : (track.artist || '');
         }
+        liveEl.classList.toggle('hidden', !isLive);
 
         // Spotify refuses to skip an ad and the bridge drops the call anyway; disabling
         // just stops the button inviting a tap that does nothing. No track is NOT an ad —
@@ -446,9 +455,15 @@
         prevBtn.disabled = isAd;
         nextBtn.disabled = isAd;
 
+        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
+        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
+        prevBtn.classList.toggle('hidden', isLive);
+        nextBtn.classList.toggle('hidden', isLive);
+
         widget.classList.toggle('playing', !!state && state.playerState === 2);
+        widget.classList.toggle('live', isLive);
         playBtn.setAttribute('aria-label',
-            (!!state && state.playerState === 2) ? 'Pause' : 'Play');
+            (!!state && state.playerState === 2) ? (isLive ? 'Stop' : 'Pause') : 'Play');
 
         // Shuffle / repeat.
         shuffleBtn.classList.toggle('on', !!(state && state.shuffleEnabled));
@@ -722,6 +737,7 @@
         infoBar = document.getElementById('infoBar');
         titleEl = document.getElementById('title');
         artistEl = document.getElementById('artist');
+        liveEl = document.getElementById('live');
         shuffleBtn = document.getElementById('shuffleBtn');
         repeatBtn = document.getElementById('repeatBtn');
         repeatIcon = document.getElementById('repeatIcon');
@@ -771,6 +787,7 @@
         speakerSymbol: speakerSymbol,
         repeatSymbol: repeatSymbol,
         repeatIsOn: repeatIsOn,
+        isLiveStream: isLiveStream,
         wheelAxis: wheelAxis,
         swipeDecision: swipeDecision,
         infoBarState: infoBarState,

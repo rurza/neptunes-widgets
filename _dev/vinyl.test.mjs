@@ -49,3 +49,23 @@ test('the picker offers only real turntable speeds, 33⅓ among them', () => {
     assert.equal(spinRpm.type, 'select');
     assert.ok(spinRpm.options.some((o) => o.label.includes('33⅓')));
 });
+
+// isLiveStream drives the LIVE corner badge and the stop-glyph/hidden-transport treatment
+// for an Apple Music radio stream. Sent truthily only (omitted entirely for an ordinary
+// track), mirroring isAdvertisement.
+test('isLiveStream is true for a live radio stream', () => {
+    assert.equal(Vinyl.isLiveStream({ title: 'brand new chanel$', artist: 'Slayyyter', isLiveStream: true }), true);
+});
+
+test('isLiveStream is false for an ordinary track', () => {
+    assert.equal(Vinyl.isLiveStream({ title: 'Time', artist: 'Pink Floyd' }), false);
+});
+
+test('isLiveStream treats a missing value as not live', () => {
+    assert.equal(Vinyl.isLiveStream({ title: 'Time', artist: 'Pink Floyd', isLiveStream: undefined }), false);
+});
+
+test('isLiveStream is false with nothing playing', () => {
+    assert.equal(Vinyl.isLiveStream(undefined), false);
+    assert.equal(Vinyl.isLiveStream(null), false);
+});

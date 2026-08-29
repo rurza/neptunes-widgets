@@ -16,6 +16,11 @@
             <img class="sf-icon" data-symbol="music.note" data-size="120" alt="">
         </div>
 
+        <!-- Pinned to the cover's corner, not the .info-stack flow: that bar animates
+             between 0/28px/full (see styles.css), with no budget for a fourth line at
+             rest, and this should stay legible through the hover panel too. -->
+        <div class="live hidden" id="live">LIVE</div>
+
         <div class="info-bar" id="infoBar">
             <!-- Pre-blurred copy of the cover. Not a backdrop-filter; see styles.css. -->
             <div class="frost" id="infoFrost" aria-hidden="true"></div>
@@ -50,6 +55,7 @@
                     <button type="button" class="control-btn" id="playBtn" aria-label="Play or pause">
                         <img class="sf-icon play-icon" data-symbol="play.fill" data-size="26" alt="">
                         <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="26" alt="">
+                        <img class="sf-icon stop-icon" data-symbol="stop.fill" data-size="26" alt="">
                     </button>
                     <button type="button" class="control-btn" id="nextBtn" aria-label="Next track">
                         <img class="sf-icon" data-symbol="forward.end.fill" data-size="26" alt="">

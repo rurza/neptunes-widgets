@@ -248,6 +248,15 @@ window.NepTunes.state = {
         // if your widget wants to grey its own transport controls too.
         isAdvertisement: true,         // Optional, Spotify only
 
+        // Apple Music live radio stream. OMITTED (undefined) for an ordinary track — it
+        // is only ever sent when true, so check `track.isLiveStream` truthily, never
+        // `=== false`. The stream has no real `duration` and its position never advances,
+        // so hide any progress bar or position readout. NepTunes' own bridge already
+        // refuses next()/previous() while this is true (see the note under Action Methods
+        // below); hide or disable your widget's own skip controls too, since the player
+        // accepts the request but silently ignores it.
+        isLiveStream: true,            // Optional, Apple Music only
+
         // Base64-encoded artwork (only if artwork permission granted)
         artworkData: "..."
     },
@@ -326,6 +335,10 @@ window.NepTunes.previous()     // Go to previous track
 // state.track.isAdvertisement is true — Spotify itself refuses to skip an ad, so the
 // bridge refuses on every widget's behalf rather than letting each widget find out the
 // hard way. playPause() is unaffected; Spotify does let an ad be paused.
+//
+// The same refusal applies while state.track.isLiveStream is true — Music.app accepts
+// next()/previous() on a live stream and silently ignores them, so the bridge refuses
+// those requests too. playPause() still works on a live stream.
 
 // ============================================================
 // VOLUME CONTROL (requires: volumeControl)

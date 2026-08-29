@@ -8,6 +8,9 @@
 </head>
 <body>
     <div class="widget stopped" id="widget">
+        <!-- Corner badge, out of flow: growing the labels stack would overflow the window's
+             fixed, precisely-budgeted height (see targetHeight() in script.js). -->
+        <div class="live" id="live" hidden>LIVE</div>
         <div class="labels">
             <div class="title" id="title">Not Playing</div>
             <div class="artist" id="artist"></div>
@@ -20,6 +23,7 @@
             <button class="control-btn play-btn" id="playBtn" title="Play/Pause" aria-label="Play or pause">
                 <img class="sf-icon play-icon" data-symbol="play.fill" data-size="22" alt="">
                 <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="22" alt="">
+                <img class="sf-icon stop-icon" data-symbol="stop.fill" data-size="22" alt="">
             </button>
             <button class="control-btn" id="nextBtn" title="Next" aria-label="Next">
                 <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">

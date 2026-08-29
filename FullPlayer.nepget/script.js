@@ -16,6 +16,7 @@
     const progressFill = document.getElementById('progressFill');
     const currentTime = document.getElementById('currentTime');
     const duration = document.getElementById('duration');
+    const live = document.getElementById('live');
     const playBtn = document.getElementById('playBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -32,6 +33,14 @@
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
+    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
+    // live stream centrally, so prev/next are hidden here rather than merely greyed. Position
+    // never leaves zero and there is no duration, so the progress bar is hidden too.
+    function isLiveStream(track) {
+        return !!(track && track.isLiveStream);
     }
 
     // Apply settings
@@ -84,19 +93,23 @@
             widget.classList.add('stopped');
             title.textContent = 'Not Playing';
             artist.textContent = '';
-            playBtn.classList.remove('playing');
+            live.classList.add('hidden');
+            playBtn.classList.remove('playing', 'live');
             artwork.classList.remove('visible');
             bgArtwork.classList.remove('visible');
             currentArtworkURL = null;
             progressFill.style.width = '0%';
             currentTime.textContent = '0:00';
             duration.textContent = '0:00';
+            progressContainer.classList.remove('hidden');
             loveBtn.classList.remove('loved');
             shuffleBtn.classList.remove('active');
             repeatBtn.classList.remove('active', 'repeat-one');
             // Nothing playing must not block transport — pressing next may start playback.
             prevBtn.disabled = false;
             nextBtn.disabled = false;
+            prevBtn.classList.remove('hidden');
+            nextBtn.classList.remove('hidden');
             return;
         }
 
@@ -104,6 +117,7 @@
 
         // Track info
         var isAd = !!state.track.isAdvertisement;
+        var isLive = isLiveStream(state.track);
         title.textContent = isAd ? 'Advertisement' : (state.track.title || 'Unknown Title');
         artist.textContent = isAd ? '' : (state.track.artist || '');
 
@@ -115,6 +129,11 @@
         const adPlaying = !!state.track.isAdvertisement;
         prevBtn.disabled = adPlaying;
         nextBtn.disabled = adPlaying;
+
+        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
+        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
+        prevBtn.classList.toggle('hidden', isLive);
+        nextBtn.classList.toggle('hidden', isLive);
 
         // Artwork
         const artworkURL = window.NepTunes.getArtworkDataURL();
@@ -155,14 +174,19 @@
         } else {
             playBtn.classList.remove('playing');
         }
+        playBtn.classList.toggle('live', isLive);
+        live.classList.toggle('hidden', !isLive);
 
-        // Progress
-        if (state.track.duration && state.playerPosition !== undefined) {
+        // Progress. Hidden entirely for a live stream — position never leaves zero and
+        // there is no duration, so the bar and both labels would otherwise read a
+        // permanent 0:00.
+        progressContainer.classList.toggle('hidden', isLive);
+        if (!isLive && state.track.duration && state.playerPosition !== undefined) {
             const progress = (state.playerPosition / state.track.duration) * 100;
             progressFill.style.width = `${Math.min(100, progress)}%`;
             currentTime.textContent = formatTime(state.playerPosition);
             duration.textContent = formatTime(state.track.duration);
-        } else {
+        } else if (!isLive) {
             progressFill.style.width = '0%';
             currentTime.textContent = '0:00';
             duration.textContent = '0:00';

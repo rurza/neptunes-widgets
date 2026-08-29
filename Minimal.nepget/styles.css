@@ -53,6 +53,7 @@ body {
 }
 
 .widget {
+    position: relative; /* anchors the .live corner badge */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -142,6 +143,29 @@ body {
     display: none;
 }
 
+/* Corner badge, styled off the same secondary-text token .album uses. Absolutely positioned
+   (relative to .widget below) and out of the .labels flow on purpose: script.js's
+   targetHeight() sizes the window to the exact label stack for the current settings, and a
+   live stream's title/artist are real content (station/show name) that stays visible as-is,
+   so there is no line left over to reuse for this without either overflowing the window or
+   coupling to the unrelated "Show Album" setting. */
+.live {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    text-shadow: var(--text-shadow);
+}
+
+html[dir="rtl"] .live {
+    right: auto;
+    left: 12px;
+}
+
 /* Optional playback controls — chromeless, tinted to the text color. */
 .controls {
     display: flex;
@@ -200,6 +224,13 @@ body {
     cursor: default;
 }
 
+/* Hidden, not greyed, during a live stream — the skip refusal is permanent (see script.js
+   isLiveStream()), unlike an ad's, so a visible-but-disabled button could only mislead.
+   Author `display: flex` above would otherwise defeat the `hidden` attribute. */
+.control-btn[hidden] {
+    display: none;
+}
+
 /* v3 renders the symbol at a uniform 16pt — play is not enlarged. */
 .control-btn img.sf-icon {
     width: 16px;
@@ -210,7 +241,8 @@ body {
 /* IDs, not just .play-btn, so these outrank the generic `.control-btn img.sf-icon`
    sizing rule above (which also sets `display: block` and would otherwise win on
    specificity, leaving .pause-icon stuck visible even while not playing). */
-#playBtn .pause-icon {
+#playBtn .pause-icon,
+#playBtn .stop-icon {
     display: none;
 }
 
@@ -219,6 +251,16 @@ body {
 }
 
 #playBtn.playing .pause-icon {
+    display: block;
+}
+
+/* A live radio stream has no pause, only stop — see script.js isLiveStream(). Swap the glyph
+   rather than the ad's greying treatment, since the bridge still accepts playPause() here. */
+#playBtn.playing.live .pause-icon {
+    display: none;
+}
+
+#playBtn.playing.live .stop-icon {
     display: block;
 }
 

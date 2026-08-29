@@ -62,3 +62,23 @@ test('transportDisabled is false with nothing playing', () => {
   assert.equal(Minimal.transportDisabled(undefined), false);
   assert.equal(Minimal.transportDisabled(null), false);
 });
+
+// isLiveStream drives the LIVE badge and the stop-glyph/hidden-transport treatment for an
+// Apple Music radio stream. Sent truthily only (omitted entirely for an ordinary track),
+// mirroring isAdvertisement above.
+test('isLiveStream is true for a live radio stream', () => {
+  assert.equal(Minimal.isLiveStream({ title: 'brand new chanel$', artist: 'Slayyyter', isLiveStream: true }), true);
+});
+
+test('isLiveStream is false for an ordinary track', () => {
+  assert.equal(Minimal.isLiveStream({ title: 'Time', artist: 'Pink Floyd' }), false);
+});
+
+test('isLiveStream treats a missing value as not live', () => {
+  assert.equal(Minimal.isLiveStream({ title: 'Time', artist: 'Pink Floyd', isLiveStream: undefined }), false);
+});
+
+test('isLiveStream is false with nothing playing', () => {
+  assert.equal(Minimal.isLiveStream(undefined), false);
+  assert.equal(Minimal.isLiveStream(null), false);
+});

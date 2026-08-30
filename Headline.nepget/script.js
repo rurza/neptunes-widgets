@@ -9,10 +9,8 @@
     const root = document.getElementById('widget');
     const titleEl = document.getElementById('title');
     const subtitleEl = document.getElementById('subtitle');
-    const bar = document.getElementById('bar');
     const barFill = document.getElementById('barFill');
     const elapsedEl = document.getElementById('elapsed');
-    const liveEl = document.getElementById('live');
     const controls = document.getElementById('controls');
     const prevBtn = document.getElementById('prevBtn');
     const playBtn = document.getElementById('playBtn');
@@ -29,17 +27,7 @@
     let clockFn = null;          // NTKit.clock(), rebuilt on every statechange
     let curDuration = 0;
     let isPlaying = false;
-    let isLive = false;
     let rafId = null;
-
-    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
-    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
-    // live stream centrally, so prev/next are hidden here rather than merely greyed. Position
-    // never leaves zero and there is no duration, so the hairline bar and elapsed numeral are
-    // hidden too, in favour of the LIVE badge in the same slot.
-    function isLiveStream(track) {
-        return !!(track && track.isLiveStream);
-    }
 
     // ---- Accent ----
     function hexToRgb(hex) {
@@ -147,15 +135,9 @@
         clockFn = null;
         curDuration = 0;
         isPlaying = false;
-        isLive = false;
-        bar.hidden = false;
-        elapsedEl.hidden = false;
-        liveEl.hidden = true;
         barFill.style.width = '0%';
         elapsedEl.textContent = '0:00';
-        playBtn.classList.remove('playing', 'live');
-        prevBtn.hidden = false;
-        nextBtn.hidden = false;
+        playBtn.classList.remove('playing');
         loveBtn.classList.add('hidden');
         loveBtn.classList.remove('loved');
         lastArtworkURL = null;
@@ -191,17 +173,11 @@
 
         // Title + "artist · album".
         const isAd = !!track.isAdvertisement;
-        isLive = isLiveStream(track);
         const title = isAd ? 'Advertisement' : (track.title || 'Unknown Title');
         const parts = [];
         if (!isAd && track.artist) parts.push(track.artist);
         if (!isAd && track.album) parts.push(track.album);
         setTrackText(title, parts.join('  ·  '), changed);
-
-        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
-        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
-        prevBtn.hidden = isLive;
-        nextBtn.hidden = isLive;
 
         // Accent: re-extract on track change (or always for fixed).
         refreshAccent(changed);
@@ -209,7 +185,6 @@
         // Play state + glyph.
         isPlaying = state.playerState === 2;
         playBtn.classList.toggle('playing', isPlaying);
-        playBtn.classList.toggle('live', isLive);
 
         // Rebuild the interpolated clock on every statechange.
         curDuration = Number(track.duration) || 0;
@@ -220,16 +195,8 @@
             timestamp: state.timestamp
         });
 
-        // Position never leaves zero and there is no duration on a live stream, so the
-        // hairline bar and elapsed numeral would only ever read a permanent 0:00 — hide
-        // them (both, not just the bar) in favour of the LIVE badge, and skip the rAF
-        // loop entirely.
-        bar.hidden = isLive;
-        elapsedEl.hidden = isLive;
-        liveEl.hidden = !isLive;
-        if (isLive) {
-            stopLoop();
-        } else if (isPlaying) {
+        // Drive the rAF loop only while playing; otherwise render once.
+        if (isPlaying) {
             startLoop();
         } else {
             stopLoop();

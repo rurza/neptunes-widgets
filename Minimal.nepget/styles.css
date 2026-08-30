@@ -53,7 +53,6 @@ body {
 }
 
 .widget {
-    position: relative; /* anchors the .live corner badge */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -143,29 +142,6 @@ body {
     display: none;
 }
 
-/* Corner badge, styled off the same secondary-text token .album uses. Absolutely positioned
-   (relative to .widget below) and out of the .labels flow on purpose: script.js's
-   targetHeight() sizes the window to the exact label stack for the current settings, and a
-   live stream's title/artist are real content (station/show name) that stays visible as-is,
-   so there is no line left over to reuse for this without either overflowing the window or
-   coupling to the unrelated "Show Album" setting. */
-.live {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    text-shadow: var(--text-shadow);
-}
-
-html[dir="rtl"] .live {
-    right: auto;
-    left: 12px;
-}
-
 /* Optional playback controls — chromeless, tinted to the text color. */
 .controls {
     display: flex;
@@ -179,6 +155,34 @@ html[dir="rtl"] .live {
 
 /* Author `display: flex` above would otherwise defeat the `hidden` attribute. */
 .controls[hidden] {
+    display: none;
+}
+
+/* LIVE is transport state, not track info: it lives inside .controls, so hiding the
+   row (showControls off) hides it for free, and script.js additionally gates it on
+   showControls so a settings-only change (no state push) still hides it. Text only,
+   no pill — every other control here is chromeless — and coloured from the widget's
+   own secondary text token rather than a system red, so it reads as quieter than the
+   title rather than as a badge shouting over it. Placed after nextBtn so it lands
+   beside the play button, which is the only transport control still visible once a
+   live stream hides prev/next. */
+.live-badge {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--text-secondary);
+    text-shadow: var(--text-shadow);
+}
+
+.live-badge[hidden] {
+    display: none;
+}
+
+/* Prev/next are HIDDEN (not greyed) during a live stream — see script.js
+   transportHidden. `.control-btn` below sets `display: flex`, which would
+   otherwise defeat the `hidden` attribute the same way `.controls` above does. */
+.control-btn[hidden] {
     display: none;
 }
 
@@ -224,13 +228,6 @@ html[dir="rtl"] .live {
     cursor: default;
 }
 
-/* Hidden, not greyed, during a live stream — the skip refusal is permanent (see script.js
-   isLiveStream()), unlike an ad's, so a visible-but-disabled button could only mislead.
-   Author `display: flex` above would otherwise defeat the `hidden` attribute. */
-.control-btn[hidden] {
-    display: none;
-}
-
 /* v3 renders the symbol at a uniform 16pt — play is not enlarged. */
 .control-btn img.sf-icon {
     width: 16px;
@@ -241,7 +238,10 @@ html[dir="rtl"] .live {
 /* IDs, not just .play-btn, so these outrank the generic `.control-btn img.sf-icon`
    sizing rule above (which also sets `display: block` and would otherwise win on
    specificity, leaving .pause-icon stuck visible even while not playing). */
-#playBtn .pause-icon,
+#playBtn .pause-icon {
+    display: none;
+}
+
 #playBtn .stop-icon {
     display: none;
 }
@@ -254,8 +254,9 @@ html[dir="rtl"] .live {
     display: block;
 }
 
-/* A live radio stream has no pause, only stop — see script.js isLiveStream(). Swap the glyph
-   rather than the ad's greying treatment, since the bridge still accepts playPause() here. */
+/* Live radio: playing shows a stop glyph, not pause — resuming does not pick up
+   where it left off, it restarts the stream, so "pause" would be a lie. Three
+   classes outrank the two-class rule above regardless of source order. */
 #playBtn.playing.live .pause-icon {
     display: none;
 }

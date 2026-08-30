@@ -33,8 +33,6 @@
     const currentTime = document.getElementById('currentTime');
     const duration = document.getElementById('duration');
     const progressFill = document.getElementById('progressFill');
-    const progressSection = document.querySelector('.progress-section');
-    const live = document.getElementById('live');
     const playBtn = document.getElementById('playBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -61,14 +59,6 @@
         const mins = Math.floor(seconds / 60);
         const secs = Math.floor(seconds % 60);
         return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
-    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
-    // live stream centrally, so prev/next are hidden here rather than merely greyed. Position
-    // never leaves zero and there is no duration, so the progress section is hidden too.
-    function isLiveStream(track) {
-        return !!(track && track.isLiveStream);
     }
 
     // Progress tracking functions
@@ -142,14 +132,9 @@
             artist.textContent = '';
             album.textContent = '';
             playerName.textContent = 'No Player';
-            live.hidden = true;
-            playBtn.classList.remove('live');
-            progressSection.hidden = false;
             // Nothing playing must not block transport — pressing next may start playback.
             prevBtn.disabled = false;
             nextBtn.disabled = false;
-            prevBtn.hidden = false;
-            nextBtn.hidden = false;
             return;
         }
 
@@ -164,24 +149,18 @@
             title.textContent = 'Not Playing';
             artist.textContent = '';
             album.textContent = '';
-            live.hidden = true;
-            playBtn.classList.remove('playing', 'live');
+            playBtn.classList.remove('playing');
             artwork.classList.remove('visible');
-            progressSection.hidden = false;
             prevBtn.disabled = false;
             nextBtn.disabled = false;
-            prevBtn.hidden = false;
-            nextBtn.hidden = false;
             return;
         }
 
         widget.classList.remove('stopped');
         var isAd = !!state.track.isAdvertisement;
-        var isLive = isLiveStream(state.track);
         title.textContent = isAd ? 'Advertisement' : (state.track.title || 'Unknown Title');
         artist.textContent = isAd ? '' : (state.track.artist || '');
         album.textContent = isAd ? '' : (state.track.album || '');
-        live.hidden = !isLive;
 
         // Greyed out during a Spotify ad — Spotify refuses to skip one.
         // `isAdvertisement` is only ever sent when true, so a missing value here
@@ -191,11 +170,6 @@
         const adPlaying = !!state.track.isAdvertisement;
         prevBtn.disabled = adPlaying;
         nextBtn.disabled = adPlaying;
-
-        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
-        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
-        prevBtn.hidden = isLive;
-        nextBtn.hidden = isLive;
 
         // Artwork
         const artworkURL = window.NepTunes.getArtworkDataURL();
@@ -231,29 +205,25 @@
         } else {
             playBtn.classList.remove('playing');
         }
-        playBtn.classList.toggle('live', isLive);
 
-        // Progress - store values for local tracking. Hidden entirely for a live stream:
-        // position never leaves zero and there is no duration, so the section would
-        // otherwise only ever read a permanent 0:00.
-        progressSection.hidden = isLive;
+        // Progress - store values for local tracking
         trackDuration = state.track.duration || 0;
         lastKnownPosition = state.playerPosition || 0;
         lastUpdateTime = Date.now();
 
-        if (!isLive && trackDuration > 0) {
+        if (trackDuration > 0) {
             const progress = (lastKnownPosition / trackDuration) * 100;
             progressFill.style.width = `${Math.min(100, progress)}%`;
             currentTime.textContent = formatTime(lastKnownPosition);
             duration.textContent = formatTime(trackDuration);
-        } else if (!isLive) {
+        } else {
             progressFill.style.width = '0%';
             currentTime.textContent = '0:00';
             duration.textContent = '0:00';
         }
 
         // Start/stop progress tracking based on play state
-        if (isPlaying && trackDuration > 0 && !isLive) {
+        if (isPlaying && trackDuration > 0) {
             startProgressTracking();
         } else {
             stopProgressTracking();

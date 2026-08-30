@@ -259,18 +259,6 @@ html.nt-hover .panel,
     min-height: calc(15px + var(--shadow-gutter) * 2);
 }
 
-/* Small-caps badge, same slot as .artist — the panel is `position: absolute` with no fixed
-   height, so this line simply grows the sheet rather than risking a clip. */
-.live {
-    margin-top: 4px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--artist);
-    text-shadow: var(--text-shadow);
-}
-
 /* ---- Controls row. No visibility of its own: it rides the panel's. ---- */
 .controls {
     display: flex;
@@ -318,12 +306,6 @@ html.nt-hover .panel,
     background: transparent;
 }
 
-/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
-   unlike an ad's, so a visible-but-disabled button could only mislead. */
-.control-btn[hidden] {
-    display: none;
-}
-
 /* Must equal the `data-size` in index.html — see .no-artwork above. No `filter` here either:
    a drop-shadow on a glyph this small is not depth, it is a smear, and paired with the
    resample it made every transport icon look soft and haloed next to the crisp play button.
@@ -363,8 +345,7 @@ html.theme-light .play-btn {
 }
 
 /* Icon swap: play glyph when paused/stopped, pause glyph while playing. */
-.play-btn .pause-icon,
-.play-btn .stop-icon {
+.play-btn .pause-icon {
     display: none;
 }
 
@@ -373,15 +354,6 @@ html.theme-light .play-btn {
 }
 
 .widget.playing .play-btn .pause-icon {
-    display: block;
-}
-
-/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
-.widget.playing.live .play-btn .pause-icon {
-    display: none;
-}
-
-.widget.playing.live .play-btn .stop-icon {
     display: block;
 }
 

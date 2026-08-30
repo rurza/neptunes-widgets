@@ -125,13 +125,9 @@ body {
 /* Show pause when playing, play otherwise. IDs, not .glyph, so these outrank the
    `.glyph img.sf-icon` sizing rule above (which also sets `display: block` and would
    otherwise win on specificity, leaving .ic-pause stuck visible even while paused). */
-#glyph .ic-pause, #glyph .ic-stop { display: none; }
+#glyph .ic-pause { display: none; }
 .widget.playing #glyph .ic-play { display: none; }
 .widget.playing #glyph .ic-pause { display: block; }
-
-/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
-.widget.playing.live #glyph .ic-pause { display: none; }
-.widget.playing.live #glyph .ic-stop { display: block; }
 
 /* ---- Nav buttons (hover-only) ---- */
 .nav {
@@ -169,15 +165,6 @@ html.nt-hover .widget:not(.empty) .nav:disabled {
     color: var(--fg-dim);
     opacity: 0.35;
     cursor: default;
-}
-
-/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
-   unlike an ad's, so a revealed-but-inert button could only mislead. !important because the
-   two hover-reveal rules above are more specific than a plain `.widget.live .nav` and would
-   otherwise win regardless of source order. */
-.widget.live .nav {
-    width: 0 !important;
-    opacity: 0 !important;
 }
 
 /* ---- Label (single line; scrolls when overflowing) ----
@@ -263,14 +250,6 @@ html[dir="rtl"] .label-wrap {
     color: var(--fg-dim);
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.01em;
-}
-
-/* Replaces the elapsed reading for a live stream — same slot, tinted with the glyph's own
-   accent ink so it reads as a highlight rather than plain secondary text. */
-.time.live {
-    color: var(--accent-ink);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 /* ---- Progress underline ---- */

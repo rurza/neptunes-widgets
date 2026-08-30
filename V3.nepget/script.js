@@ -85,15 +85,43 @@
         return mode === 2 ? 'repeat.1' : 'repeat';
     }
 
+    /*
+     * Whether prev/next should be HIDDEN right now — a live stream, not an ad.
+     * `track.isLiveStream` is only ever sent when true (omitted for an ordinary track),
+     * so a missing value must read as "not live" rather than throw or misreport. `track`
+     * itself may be undefined (nothing playing), which must NOT hide the buttons — pressing
+     * next may start playback. The bridge already refuses next()/previous() during a live
+     * stream centrally (WidgetTransportGuard); hiding here just keeps the row from
+     * offering a button that can only mislead.
+     */
+    function transportHidden(track) {
+        return !!(track && track.isLiveStream);
+    }
+
+    /*
+     * Which of the three play-button glyphs applies. playerState 2 is playing; a live
+     * stream only differs while playing, because resuming one restarts it rather than
+     * resuming where it left off — there is no "paused, will continue from here" state.
+     */
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
     function repeatIsOn(mode) {
         return mode === 1 || mode === 2;
     }
 
-    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
-    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
-    // live stream centrally, so prev/next are hidden here rather than merely greyed.
-    function isLiveStream(track) {
-        return !!(track && track.isLiveStream);
+    /*
+     * Whether the LIVE indicator should be hidden. It lives inside the hover panel now,
+     * next to the play/stop button, rather than beside the track title — so its own
+     * `hidden` attribute only ever needs to track the stream itself; the panel's
+     * `html.nt-hover` opacity gate (styles.css) is what makes it appear and disappear
+     * with the rest of the transport on hover. Pure and exported so _dev/v3.test.mjs can
+     * pin the contract without a DOM.
+     */
+    function liveBadgeHidden(isLive) {
+        return !isLive;
     }
 
     // V1Window.scrollWheel's `abs(scrollingDeltaX) <= abs(scrollingDeltaY)`, so a
@@ -128,7 +156,7 @@
 
     // ----------------------------------------------------------------- DOM ----
 
-    var widget, cover, nocover, infoBar, titleEl, artistEl, liveEl;
+    var widget, cover, nocover, infoBar, titleEl, artistEl, liveBadge;
     var infoFrost, hoverFrost;
     var shuffleBtn, repeatBtn, repeatIcon, loveBtn, loveIcon, volumeBtn, volumeIcon;
     var prevBtn, playBtn, nextBtn, volumePopover, volumeSlider, resizeHandle;
@@ -437,7 +465,7 @@
 
         var track = state && state.track;
         var isAd = !!(track && track.isAdvertisement);
-        var isLive = isLiveStream(track);
+        var isLive = !!(track && track.isLiveStream);
 
         if (!track) {
             titleEl.textContent = 'Not Playing';
@@ -447,7 +475,7 @@
             titleEl.textContent = isAd ? 'Advertisement' : (track.title || 'Unknown Title');
             artistEl.textContent = isAd ? '' : (track.artist || '');
         }
-        liveEl.classList.toggle('hidden', !isLive);
+        liveBadge.hidden = liveBadgeHidden(isLive);
 
         // Spotify refuses to skip an ad and the bridge drops the call anyway; disabling
         // just stops the button inviting a tap that does nothing. No track is NOT an ad —
@@ -455,15 +483,16 @@
         prevBtn.disabled = isAd;
         nextBtn.disabled = isAd;
 
-        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
-        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
-        prevBtn.classList.toggle('hidden', isLive);
-        nextBtn.classList.toggle('hidden', isLive);
+        // Hidden, not greyed, during a live stream — see transportHidden.
+        prevBtn.hidden = transportHidden(track);
+        nextBtn.hidden = transportHidden(track);
 
-        widget.classList.toggle('playing', !!state && state.playerState === 2);
+        var playerState = state && state.playerState;
+        var glyph = transportGlyph(playerState, isLive);
+        widget.classList.toggle('playing', playerState === 2);
         widget.classList.toggle('live', isLive);
         playBtn.setAttribute('aria-label',
-            (!!state && state.playerState === 2) ? (isLive ? 'Stop' : 'Pause') : 'Play');
+            glyph === 'stop' ? 'Stop' : (glyph === 'pause' ? 'Pause' : 'Play'));
 
         // Shuffle / repeat.
         shuffleBtn.classList.toggle('on', !!(state && state.shuffleEnabled));
@@ -737,7 +766,7 @@
         infoBar = document.getElementById('infoBar');
         titleEl = document.getElementById('title');
         artistEl = document.getElementById('artist');
-        liveEl = document.getElementById('live');
+        liveBadge = document.getElementById('liveBadge');
         shuffleBtn = document.getElementById('shuffleBtn');
         repeatBtn = document.getElementById('repeatBtn');
         repeatIcon = document.getElementById('repeatIcon');
@@ -787,10 +816,12 @@
         speakerSymbol: speakerSymbol,
         repeatSymbol: repeatSymbol,
         repeatIsOn: repeatIsOn,
-        isLiveStream: isLiveStream,
         wheelAxis: wheelAxis,
         swipeDecision: swipeDecision,
         infoBarState: infoBarState,
+        transportHidden: transportHidden,
+        transportGlyph: transportGlyph,
+        liveBadgeHidden: liveBadgeHidden,
         start: start
     };
 });

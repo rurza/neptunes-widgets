@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.full-player",
     "name": "Full Player",
-    "version": "1.1.0",
+    "version": "1.0.12",
     "author": "Adam Różyński",
     "description": "Complete player with artwork, controls, volume, shuffle/repeat, and love button",
     "license": "MIT",

@@ -35,7 +35,7 @@ const V3 = require('../V3.nepget/script.js');
 test('script.js exports exactly the contract surface, all callable', () => {
   for (const name of [
     'volumeStep', 'clampVolume', 'speakerSymbol', 'repeatSymbol', 'repeatIsOn',
-    'isLiveStream', 'wheelAxis', 'swipeDecision', 'infoBarState', 'start',
+    'wheelAxis', 'swipeDecision', 'infoBarState', 'transportHidden', 'transportGlyph', 'start',
   ]) {
     assert.equal(typeof V3[name], 'function', `V3.${name} is missing or not a function`);
   }
@@ -659,4 +659,62 @@ test('infoBarState returns only the three contract states', () => {
     }
   }
   assert.deepEqual([...seen].sort(), ['bar', 'full', 'hidden']);
+});
+
+// ---------------------------------------------------------------------------
+// transportHidden — HIDES prev/next during a live stream, rather than greying
+// them like the ad path does. The bridge already refuses the action centrally
+// (WidgetTransportGuard); this only keeps the row from offering a button that
+// can only mislead.
+// ---------------------------------------------------------------------------
+
+test('transportHidden is true for a live stream', () => {
+  assert.equal(V3.transportHidden({ title: 'Morning Show', artist: 'Radio One', isLiveStream: true }), true);
+});
+
+test('transportHidden is false for an ordinary track', () => {
+  assert.equal(V3.transportHidden({ title: 'Time', artist: 'Pink Floyd' }), false);
+});
+
+test('transportHidden treats a missing isLiveStream as not hidden', () => {
+  assert.equal(V3.transportHidden({ title: 'Time', artist: 'Pink Floyd', isLiveStream: undefined }), false);
+});
+
+test('transportHidden is false with nothing playing', () => {
+  assert.equal(V3.transportHidden(undefined), false);
+  assert.equal(V3.transportHidden(null), false);
+});
+
+// ---------------------------------------------------------------------------
+// transportGlyph — which of the three play-button glyphs the widget shows.
+// playerState: 1 = stopped, 2 = playing, 3 = paused.
+// ---------------------------------------------------------------------------
+
+test('transportGlyph is play whenever playerState is not 2, live or not', () => {
+  assert.equal(V3.transportGlyph(1, false), 'play');
+  assert.equal(V3.transportGlyph(3, false), 'play');
+  assert.equal(V3.transportGlyph(1, true), 'play');
+  assert.equal(V3.transportGlyph(3, true), 'play');
+  assert.equal(V3.transportGlyph(undefined, false), 'play');
+});
+
+test('transportGlyph is pause while playing an ordinary track', () => {
+  assert.equal(V3.transportGlyph(2, false), 'pause');
+});
+
+test('transportGlyph is stop while playing a live stream', () => {
+  assert.equal(V3.transportGlyph(2, true), 'stop');
+});
+
+// liveBadgeHidden — LIVE now lives inside the hover panel next to the play/stop
+// button rather than beside the track title. Its own `hidden` attribute tracks only
+// whether the stream is live; the panel's html.nt-hover opacity gate in styles.css is
+// what makes it appear and disappear with the rest of the transport on hover, so it
+// never shows up without the controls the way the old beside-the-title badge did.
+test('liveBadgeHidden is false for a live stream', () => {
+  assert.equal(V3.liveBadgeHidden(true), false);
+});
+
+test('liveBadgeHidden is true for an ordinary track', () => {
+  assert.equal(V3.liveBadgeHidden(false), true);
 });

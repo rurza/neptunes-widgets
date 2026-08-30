@@ -252,32 +252,6 @@ body {
     background: rgba(0, 0, 0, 0.6);
 }
 
-/* Corner badge, pinned to the static square corner OUTSIDE the disc's circular
-   silhouette (the sheen/rim pseudo-elements above are masked to a radial "closest-side"
-   shape that stops at the disc's own edge, so this area is otherwise empty) — independent
-   of labelPosition/controlsPosition, so it shows regardless of which sides are in use.
-   z-index above the sheen (10) and rim glint (11) pseudo-elements so nothing glazes over it. */
-.live {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    z-index: 12;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    font-size: 8px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    pointer-events: none;
-}
-
-html[dir="rtl"] .live {
-    right: auto;
-    left: 6px;
-}
-
 /* Track info */
 .track-info {
     display: flex;
@@ -430,9 +404,32 @@ html[dir="rtl"] .live {
     cursor: default;
 }
 
-/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
-   unlike an ad's, so a visible-but-disabled button could only mislead. */
+/* Hidden, not greyed, during a live stream (prev/next only — see script.js
+   transportHidden). The bridge already refuses next()/previous() centrally
+   (WidgetTransportGuard); this just keeps the row from offering a button that can
+   only mislead. `.control-btn` above sets `display: flex`, which would otherwise
+   defeat the `hidden` attribute. */
 .control-btn[hidden] {
+    display: none;
+}
+
+/* LIVE is transport state, not track info: it is a child of .controls in the markup, so
+   it only ever exists at all while controlsPosition !== 'off' (script.js only creates
+   the controls — and this element inside them — when a position is chosen), and within
+   that it is a plain flex sibling of the buttons, not a floating badge over the disc.
+   No pill, no gradient, no shadow — every other control here is a bare glyph, so this is
+   bare text. Colour comes from the same color-white/color-black variant as the buttons
+   themselves, just below, rather than a status red. During a live stream prevBtn/nextBtn
+   are hidden (see script.js transportHidden), which frees the width this text needs. */
+.live-badge {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    margin-left: 4px;
+}
+
+.live-badge[hidden] {
     display: none;
 }
 
@@ -451,6 +448,14 @@ html[dir="rtl"] .live {
     --icon-color: #000;
 }
 
+.controls.color-white .live-badge {
+    color: #fff;
+}
+
+.controls.color-black .live-badge {
+    color: #000;
+}
+
 /* Icons. Each box must equal that icon's `data-size` in index.html: the native side rasterises
    the PNG at exactly `data-size` CSS px (times the display scale), so any other box resamples
    it and the glyph goes soft. The play/pause pair was 22pt in a 24px box and read blurred
@@ -465,7 +470,10 @@ html[dir="rtl"] .live {
     height: 24px;
 }
 
-.play-btn .pause-icon,
+.play-btn .pause-icon {
+    display: none;
+}
+
 .play-btn .stop-icon {
     display: none;
 }
@@ -478,7 +486,9 @@ html[dir="rtl"] .live {
     display: block;
 }
 
-/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+/* Live radio: playing shows a stop glyph, not pause — resuming a live stream restarts
+   it rather than resuming where it left off. Three classes outrank the two-class rule
+   above regardless of source order. */
 .play-btn.playing.live .pause-icon {
     display: none;
 }

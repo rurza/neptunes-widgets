@@ -50,22 +50,61 @@ test('the picker offers only real turntable speeds, 33⅓ among them', () => {
     assert.ok(spinRpm.options.some((o) => o.label.includes('33⅓')));
 });
 
-// isLiveStream drives the LIVE corner badge and the stop-glyph/hidden-transport treatment
-// for an Apple Music radio stream. Sent truthily only (omitted entirely for an ordinary
-// track), mirroring isAdvertisement.
-test('isLiveStream is true for a live radio stream', () => {
-    assert.equal(Vinyl.isLiveStream({ title: 'brand new chanel$', artist: 'Slayyyter', isLiveStream: true }), true);
+// transportHidden HIDES prev/next during a live stream, rather than greying them like the
+// ad path does. The bridge already refuses the action centrally (WidgetTransportGuard);
+// this only keeps the row from offering a button that can only mislead.
+test('transportHidden is true for a live stream', () => {
+    assert.equal(Vinyl.transportHidden({ title: 'Morning Show', artist: 'Radio One', isLiveStream: true }), true);
 });
 
-test('isLiveStream is false for an ordinary track', () => {
-    assert.equal(Vinyl.isLiveStream({ title: 'Time', artist: 'Pink Floyd' }), false);
+test('transportHidden is false for an ordinary track', () => {
+    assert.equal(Vinyl.transportHidden({ title: 'Time', artist: 'Pink Floyd' }), false);
 });
 
-test('isLiveStream treats a missing value as not live', () => {
-    assert.equal(Vinyl.isLiveStream({ title: 'Time', artist: 'Pink Floyd', isLiveStream: undefined }), false);
+// isLiveStream is omitted entirely (not `false`) for an ordinary track — only ever sent
+// when true — so a missing value here must not read as live.
+test('transportHidden treats a missing isLiveStream as not hidden', () => {
+    assert.equal(Vinyl.transportHidden({ title: 'Time', artist: 'Pink Floyd', isLiveStream: undefined }), false);
 });
 
-test('isLiveStream is false with nothing playing', () => {
-    assert.equal(Vinyl.isLiveStream(undefined), false);
-    assert.equal(Vinyl.isLiveStream(null), false);
+test('transportHidden is false with nothing playing', () => {
+    assert.equal(Vinyl.transportHidden(undefined), false);
+    assert.equal(Vinyl.transportHidden(null), false);
+});
+
+// transportGlyph — which of the three play-button glyphs applies.
+// playerState: 1 = stopped, 2 = playing, 3 = paused.
+test('transportGlyph is play whenever playerState is not 2, live or not', () => {
+    assert.equal(Vinyl.transportGlyph(1, false), 'play');
+    assert.equal(Vinyl.transportGlyph(3, false), 'play');
+    assert.equal(Vinyl.transportGlyph(1, true), 'play');
+    assert.equal(Vinyl.transportGlyph(3, true), 'play');
+    assert.equal(Vinyl.transportGlyph(undefined, false), 'play');
+});
+
+test('transportGlyph is pause while playing an ordinary track', () => {
+    assert.equal(Vinyl.transportGlyph(2, false), 'pause');
+});
+
+test('transportGlyph is stop while playing a live stream — resuming restarts it, it does not resume', () => {
+    assert.equal(Vinyl.transportGlyph(2, true), 'stop');
+});
+
+// liveBadgeVisible — LIVE is transport state, so it must never show without the
+// controls it lives inside, regardless of whether the stream itself is live.
+test('liveBadgeVisible is false whenever controlsPosition is off, live or not', () => {
+    assert.equal(Vinyl.liveBadgeVisible('off', true), false);
+    assert.equal(Vinyl.liveBadgeVisible('off', false), false);
+});
+
+test('liveBadgeVisible is false with controls shown but not a live stream', () => {
+    assert.equal(Vinyl.liveBadgeVisible('left', false), false);
+    assert.equal(Vinyl.liveBadgeVisible('right', false), false);
+    assert.equal(Vinyl.liveBadgeVisible('bottom', false), false);
+});
+
+test('liveBadgeVisible is true only with controls shown AND a live stream', () => {
+    assert.equal(Vinyl.liveBadgeVisible('left', true), true);
+    assert.equal(Vinyl.liveBadgeVisible('right', true), true);
+    assert.equal(Vinyl.liveBadgeVisible('bottom', true), true);
 });

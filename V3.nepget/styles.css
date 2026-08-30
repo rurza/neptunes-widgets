@@ -130,31 +130,6 @@ body {
     --icon-color: rgba(255, 255, 255, 0.25);
 }
 
-/* Corner badge over the cover art, not the wallpaper — art colour is arbitrary, so a fixed
-   frosted-dark chip stays legible regardless of the album's own palette. z-index above
-   `.hover` (3) so it reads through the hover panel too, since live status is not something
-   the hover reveal should hide. */
-.live {
-    position: absolute;
-    top: 8px;
-    left: 8px;
-    z-index: 4;
-    padding: 3px 7px;
-    border-radius: 5px;
-    background: rgba(0, 0, 0, 0.55);
-    color: #ffffff;
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    pointer-events: none;
-}
-
-html[dir="rtl"] .live {
-    left: auto;
-    right: 8px;
-}
-
 .nocover img.sf-icon {
     /* 60%, matching the asset's 60.3% glyph HEIGHT. The rasteriser aspect-fits the glyph
        inside a square canvas, so a square box of side N renders music.note at N tall and
@@ -395,6 +370,24 @@ html.nt-hover .hover-rows,
     gap: 11px;
 }
 
+/* LIVE is transport state, not track info: it lives in row-transport, next to the play
+   button (which shows a stop glyph during a live stream — see the live-radio rules
+   below), and appears and disappears with the rest of the hover panel rather than
+   sitting over the artwork beside the title. No red, no material chip — this panel is
+   already frosted chrome, so a second badge on top of it would be a sticker on a
+   sticker. --ink-secondary keeps it exactly as quiet as the secondary control glyphs
+   around it (--ctrl-off), rather than shouting louder than the very icon it labels. */
+.live-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: var(--ink-secondary);
+}
+
+.live-badge[hidden] {
+    display: none;
+}
+
 /* ---- Controls ------------------------------------------------------------------- */
 
 .control-btn {
@@ -434,6 +427,14 @@ html.nt-hover .hover-rows,
     cursor: default;
 }
 
+/* Live stream: prev/next are HIDDEN, not just dimmed — the bridge already refuses
+   next()/previous() centrally (WidgetTransportGuard), and there is no "later" position
+   a live stream returns to skip back into. `.control-btn` above sets `display: flex`,
+   which would otherwise defeat the `hidden` attribute the same way it does in Minimal. */
+.control-btn[hidden] {
+    display: none;
+}
+
 /* `.font(.system(size: 26))`. Sized explicitly — the rasterised PNG is retina, so an
    unsized <img> renders at double size. */
 .control-btn img.sf-icon {
@@ -445,7 +446,10 @@ html.nt-hover .hover-rows,
 /* IDs, not just the class, so these outrank `.control-btn img.sf-icon` above — that
    rule also sets `display: block` and would otherwise leave the pause glyph stuck
    visible while paused. */
-#playBtn .pause-icon,
+#playBtn .pause-icon {
+    display: none;
+}
+
 #playBtn .stop-icon {
     display: none;
 }
@@ -458,7 +462,9 @@ html.nt-hover .hover-rows,
     display: block;
 }
 
-/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
+/* Live radio: playing shows a stop glyph, not pause — resuming a live stream restarts
+   it rather than resuming where it left off. Three classes outrank the two-class rule
+   above regardless of source order. */
 .widget.playing.live #playBtn .pause-icon {
     display: none;
 }

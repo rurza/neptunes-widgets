@@ -63,22 +63,58 @@ test('transportDisabled is false with nothing playing', () => {
   assert.equal(Minimal.transportDisabled(null), false);
 });
 
-// isLiveStream drives the LIVE badge and the stop-glyph/hidden-transport treatment for an
-// Apple Music radio stream. Sent truthily only (omitted entirely for an ordinary track),
-// mirroring isAdvertisement above.
-test('isLiveStream is true for a live radio stream', () => {
-  assert.equal(Minimal.isLiveStream({ title: 'brand new chanel$', artist: 'Slayyyter', isLiveStream: true }), true);
+// transportHidden HIDES prev/next during a live stream, rather than greying them like
+// transportDisabled does for an ad — the bridge already refuses the action centrally
+// (WidgetTransportGuard), and there is no "later" position a live stream returns to skip
+// back into, so a visible-but-inert button here would only mislead.
+test('transportHidden is true for a live stream', () => {
+  assert.equal(Minimal.transportHidden({ title: 'Morning Show', artist: 'Radio One', isLiveStream: true }), true);
 });
 
-test('isLiveStream is false for an ordinary track', () => {
-  assert.equal(Minimal.isLiveStream({ title: 'Time', artist: 'Pink Floyd' }), false);
+test('transportHidden is false for an ordinary track', () => {
+  assert.equal(Minimal.transportHidden({ title: 'Time', artist: 'Pink Floyd' }), false);
 });
 
-test('isLiveStream treats a missing value as not live', () => {
-  assert.equal(Minimal.isLiveStream({ title: 'Time', artist: 'Pink Floyd', isLiveStream: undefined }), false);
+// isLiveStream is omitted entirely (not `false`) for an ordinary track — only ever sent
+// when true — so a missing value here must not read as live.
+test('transportHidden treats a missing isLiveStream as not hidden', () => {
+  assert.equal(Minimal.transportHidden({ title: 'Time', artist: 'Pink Floyd', isLiveStream: undefined }), false);
 });
 
-test('isLiveStream is false with nothing playing', () => {
-  assert.equal(Minimal.isLiveStream(undefined), false);
-  assert.equal(Minimal.isLiveStream(null), false);
+test('transportHidden is false with nothing playing', () => {
+  assert.equal(Minimal.transportHidden(undefined), false);
+  assert.equal(Minimal.transportHidden(null), false);
+});
+
+// transportGlyph — which of the three play-button glyphs the widget shows.
+// playerState: 1 = stopped, 2 = playing, 3 = paused.
+test('transportGlyph is play whenever playerState is not 2, live or not', () => {
+  assert.equal(Minimal.transportGlyph(1, false), 'play');
+  assert.equal(Minimal.transportGlyph(3, false), 'play');
+  assert.equal(Minimal.transportGlyph(1, true), 'play');
+  assert.equal(Minimal.transportGlyph(3, true), 'play');
+  assert.equal(Minimal.transportGlyph(undefined, false), 'play');
+});
+
+test('transportGlyph is pause while playing an ordinary track', () => {
+  assert.equal(Minimal.transportGlyph(2, false), 'pause');
+});
+
+test('transportGlyph is stop while playing a live stream — resuming restarts it, it does not resume', () => {
+  assert.equal(Minimal.transportGlyph(2, true), 'stop');
+});
+
+// liveBadgeHidden — LIVE is transport state, so it must never show without the
+// transport row it lives in, regardless of whether the stream itself is live.
+test('liveBadgeHidden is true whenever controls are off, live or not', () => {
+  assert.equal(Minimal.liveBadgeHidden(false, true), true);
+  assert.equal(Minimal.liveBadgeHidden(false, false), true);
+});
+
+test('liveBadgeHidden is true with controls on but not a live stream', () => {
+  assert.equal(Minimal.liveBadgeHidden(true, false), true);
+});
+
+test('liveBadgeHidden is false only with controls on AND a live stream', () => {
+  assert.equal(Minimal.liveBadgeHidden(true, true), false);
 });

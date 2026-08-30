@@ -10,7 +10,7 @@
 })(function () {
     'use strict';
 
-    let widget, title, artist, album, live, controls, playBtn, prevBtn, nextBtn;
+    let widget, title, artist, album, liveBadge, controls, playBtn, prevBtn, nextBtn;
 
     const WIDTH = 280;
     const HEIGHT_LABELS = 100;  // title + artist + album, no controls
@@ -26,6 +26,9 @@
     let showAlbum = true;       // Declared, not implicit: 'use strict' makes a bare
     let showControls = false;   // assignment a ReferenceError. Initial values match
     let lastHeight = null;      // the manifest defaults.
+    let isLive = false;         // last-seen live-stream flag — see updateUI. Read by
+                                 // applySettings so toggling showControls alone (no
+                                 // accompanying state push) still gets liveBadge right.
 
     /*
      * The only place the widget's height is decided. Pure — takes its inputs as
@@ -52,13 +55,36 @@
     }
 
     /*
-     * Whether `track` is a live Apple Music radio stream. Sent truthily only — omitted
-     * entirely for an ordinary track — so a missing value must read as false, same as
-     * isAdvertisement above. Unlike an ad, a live stream's skip refusal is permanent, so
-     * prev/next are hidden rather than merely greyed — see updateUI below.
+     * Whether prev/next should be HIDDEN right now — a live stream, not an ad. Same
+     * missing-reads-as-false contract as transportDisabled: `track.isLiveStream` is only
+     * ever sent when true, and `track` itself may be undefined. Hidden rather than greyed:
+     * the bridge already refuses next()/previous() during a live stream centrally (see
+     * WidgetTransportGuard), and there is no "later" state a live stream returns to skip
+     * back into, so an inert-looking button here would only invite a tap that means nothing.
      */
-    function isLiveStream(track) {
+    function transportHidden(track) {
         return !!(track && track.isLiveStream);
+    }
+
+    /*
+     * Which of the three play-button glyphs applies. `playerState` 2 is playing; the host
+     * never sends duration/position for a live stream, so "paused" reads the same as any
+     * other paused track — only the PLAYING glyph differs, because resuming a live stream
+     * restarts it rather than resuming where it left off.
+     */
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
+    /*
+     * Whether the LIVE indicator should be hidden. It is transport state, not track info —
+     * it appears only where and when the controls themselves do, so it is gated on
+     * `showControls` exactly like the controls row, in addition to `isLive` itself. Pure,
+     * so _dev/minimal.test.mjs can pin "controls off => never shown" without a DOM.
+     */
+    function liveBadgeHidden(showControls, isLive) {
+        return !(showControls && isLive);
     }
 
     function applySettings(settings) {
@@ -93,6 +119,12 @@
         // Optional playback controls
         showControls = settings.showControls === true;
         controls.hidden = !showControls;
+
+        // LIVE is transport state — it appears only where and when the transport
+        // itself does. .controls[hidden] already hides it as a DOM descendant, but a
+        // widget host could in principle toggle visibility without display:none
+        // ever applying, so gate it explicitly too rather than rely on inheritance.
+        liveBadge.hidden = liveBadgeHidden(showControls, isLive);
 
         // Must follow both assignments above — resize() reads them.
         resize();
@@ -131,30 +163,34 @@
             title.textContent = 'Not Playing';
             artist.textContent = '';
             album.textContent = '';
-            live.hidden = true;
+            isLive = false;
+            liveBadge.hidden = true;
             playBtn.classList.remove('playing', 'live');
             playBtn.setAttribute('aria-label', 'Play');
-            prevBtn.disabled = false;
-            nextBtn.disabled = false;
             prevBtn.hidden = false;
             nextBtn.hidden = false;
+            prevBtn.disabled = false;
+            nextBtn.disabled = false;
             return;
         }
 
         widget.classList.remove('stopped');
         var isAd = !!state.track.isAdvertisement;
-        var isLive = isLiveStream(state.track);
+        isLive = !!state.track.isLiveStream;
         title.textContent = isAd ? 'Advertisement' : (state.track.title || 'Unknown Title');
         artist.textContent = isAd ? '' : (state.track.artist || '');
         // Only the text — visibility belongs to applySettings.
         album.textContent = isAd ? '' : (state.track.album || '');
-        live.hidden = !isLive;
+        // LIVE is transport state, shown only alongside the transport — see the
+        // matching gate in applySettings.
+        liveBadge.hidden = liveBadgeHidden(showControls, isLive);
 
         // playerState: 1 = stopped, 2 = playing, 3 = paused
         const isPlaying = state.playerState === 2;
+        const glyph = transportGlyph(state.playerState, isLive);
         playBtn.classList.toggle('playing', isPlaying);
         playBtn.classList.toggle('live', isLive);
-        playBtn.setAttribute('aria-label', isPlaying ? (isLive ? 'Stop' : 'Pause') : 'Play');
+        playBtn.setAttribute('aria-label', glyph === 'stop' ? 'Stop' : (glyph === 'pause' ? 'Pause' : 'Play'));
 
         // Greyed out during a Spotify ad — Spotify refuses to skip one. The native bridge
         // already refuses the action either way; this just keeps the button from inviting
@@ -163,10 +199,10 @@
         prevBtn.disabled = disabled;
         nextBtn.disabled = disabled;
 
-        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
-        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
-        prevBtn.hidden = isLive;
-        nextBtn.hidden = isLive;
+        // Hidden, not greyed, during a live stream — see transportHidden.
+        const hidden = transportHidden(state.track);
+        prevBtn.hidden = hidden;
+        nextBtn.hidden = hidden;
     }
 
     function setupControls() {
@@ -196,7 +232,7 @@
         title = document.getElementById('title');
         artist = document.getElementById('artist');
         album = document.getElementById('album');
-        live = document.getElementById('live');
+        liveBadge = document.getElementById('liveBadge');
         controls = document.getElementById('controls');
         playBtn = document.getElementById('playBtn');
         prevBtn = document.getElementById('prevBtn');
@@ -219,5 +255,12 @@
         }
     }
 
-    return { targetHeight: targetHeight, transportDisabled: transportDisabled, isLiveStream: isLiveStream, start: start };
+    return {
+        targetHeight: targetHeight,
+        transportDisabled: transportDisabled,
+        transportHidden: transportHidden,
+        transportGlyph: transportGlyph,
+        liveBadgeHidden: liveBadgeHidden,
+        start: start
+    };
 });

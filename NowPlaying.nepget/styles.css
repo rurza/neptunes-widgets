@@ -142,15 +142,6 @@ body {
     line-height: 1.3;
 }
 
-.live {
-    margin-top: 2px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-}
-
 .controls {
     display: flex;
     gap: 4px;
@@ -193,12 +184,6 @@ body {
     background: var(--control-bg);
 }
 
-/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
-   unlike an ad's, so a visible-but-disabled button could only mislead. */
-.control-btn[hidden] {
-    display: none;
-}
-
 .control-btn .sf-icon {
     width: 18px;
     height: 18px;
@@ -215,8 +200,7 @@ body {
     height: 22px;
 }
 
-.play-btn .pause-icon,
-.play-btn .stop-icon {
+.play-btn .pause-icon {
     display: none;
 }
 
@@ -225,15 +209,6 @@ body {
 }
 
 .play-btn.playing .pause-icon {
-    display: block;
-}
-
-/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
-.play-btn.playing.live .pause-icon {
-    display: none;
-}
-
-.play-btn.playing.live .stop-icon {
     display: block;
 }
 

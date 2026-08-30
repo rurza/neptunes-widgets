@@ -21,18 +21,19 @@
     let trackInfo = null;
     let titleEl = null;
     let artistEl = null;
-    let live = null;
     let controls = null;
     let playBtn = null;
     let prevBtn = null;
     let nextBtn = null;
+    let liveBadge = null; // lives inside .controls now — only exists while it does,
+                          // which is the whole point: LIVE is transport state, gated
+                          // on controlsPosition exactly like play/prev/next are.
 
     let currentArtworkURL = null;
     let artworkTransitionTimeout = null;
     let currentRotation = 0;
     let isSpinning = false;
     let isPlaying = false;
-    let isLive = false;
     let lastTimestamp = null;
     let animationId = null;
 
@@ -179,6 +180,7 @@
         playBtn = clone.querySelector('#playBtn');
         prevBtn = clone.querySelector('#prevBtn');
         nextBtn = clone.querySelector('#nextBtn');
+        liveBadge = clone.querySelector('#liveBadge');
 
         // Click handlers for actions
         playBtn.addEventListener('click', () => window.NepTunes.playPause());
@@ -197,18 +199,44 @@
         } else {
             playBtn.classList.remove('playing');
         }
-        playBtn.classList.toggle('live', isLive);
-        if (prevBtn) prevBtn.hidden = isLive;
-        if (nextBtn) nextBtn.hidden = isLive;
 
         return controls;
     }
 
-    // Sent truthily only — omitted entirely for an ordinary track — so a missing value must
-    // read as false, same as isAdvertisement. NepTunes' bridge refuses next()/previous() on a
-    // live stream centrally, so prev/next are hidden here rather than merely greyed.
-    function isLiveStream(track) {
+    /*
+     * Whether prev/next should be HIDDEN right now — a live stream, not an ad.
+     * `track.isLiveStream` is only ever sent when true (omitted for an ordinary track), so
+     * a missing value must read as "not live" rather than throw or misreport. `track` may
+     * be undefined (nothing playing), which must NOT hide the buttons — pressing next may
+     * start playback. The bridge already refuses next()/previous() during a live stream
+     * centrally (WidgetTransportGuard); hiding here just keeps the row from offering a
+     * button that can only mislead. prevBtn/nextBtn may not exist at all when controls
+     * aren't shown — callers must guard that themselves, this only answers the flag.
+     */
+    function transportHidden(track) {
         return !!(track && track.isLiveStream);
+    }
+
+    /*
+     * Which of the three play-button glyphs applies. playerState 2 is playing; a live
+     * stream only differs while playing, because resuming one restarts it rather than
+     * resuming where it left off — there is no "paused, will continue from here" state.
+     */
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
+    /*
+     * Whether the LIVE indicator should be visible. It is transport state, not track
+     * info, so it depends on the controls existing at all (controlsPosition !== 'off')
+     * in addition to the stream actually being live — matching what createControls()/
+     * the controlsPosition==='off' branch of applySettings already enforce by tearing
+     * `liveBadge` down to null. Pure and exported so _dev/vinyl.test.mjs can pin the
+     * contract without a DOM.
+     */
+    function liveBadgeVisible(controlsPosition, isLive) {
+        return controlsPosition !== 'off' && !!isLive;
     }
 
     // Pure: the period one revolution should take, for whatever the host pushed.
@@ -266,6 +294,7 @@
             playBtn = null;
             prevBtn = null;
             nextBtn = null;
+            liveBadge = null;
         }
         currentControlsPosition = controlsPosition;
 
@@ -332,23 +361,20 @@
             artwork.classList.remove('visible');
             if (titleEl) titleEl.textContent = '';
             if (artistEl) artistEl.textContent = '';
-            if (live) live.hidden = true;
+            if (liveBadge) liveBadge.hidden = true;
             isPlaying = false;
-            isLive = false;
             if (playBtn) playBtn.classList.remove('playing', 'live');
             // Nothing playing must not block transport — pressing next may start playback.
-            if (prevBtn) prevBtn.disabled = false;
-            if (nextBtn) nextBtn.disabled = false;
-            if (prevBtn) prevBtn.hidden = false;
-            if (nextBtn) nextBtn.hidden = false;
+            if (prevBtn) { prevBtn.disabled = false; prevBtn.hidden = false; }
+            if (nextBtn) { nextBtn.disabled = false; nextBtn.hidden = false; }
             return;
         }
 
         var isAd = !!state.track.isAdvertisement;
-        isLive = isLiveStream(state.track);
+        var isLive = !!state.track.isLiveStream;
         if (titleEl) titleEl.textContent = isAd ? 'Advertisement' : (state.track.title || '');
         if (artistEl) artistEl.textContent = isAd ? '' : (state.track.artist || '');
-        if (live) live.hidden = !isLive;
+        if (liveBadge) liveBadge.hidden = !liveBadgeVisible(currentControlsPosition, isLive);
 
         // Greyed out during a Spotify ad — Spotify refuses to skip one.
         // `isAdvertisement` is only ever sent when true, so a missing value here
@@ -359,11 +385,10 @@
         if (prevBtn) prevBtn.disabled = adPlaying;
         if (nextBtn) nextBtn.disabled = adPlaying;
 
-        // A live stream's skip refusal is permanent (unlike an ad's), so hide rather than
-        // grey — a visible button could only mislead, since the bridge refuses the tap anyway.
-        // prevBtn/nextBtn may be null when controls aren't shown.
-        if (prevBtn) prevBtn.hidden = isLive;
-        if (nextBtn) nextBtn.hidden = isLive;
+        // Hidden, not greyed, during a live stream — see transportHidden.
+        const hidden = transportHidden(state.track);
+        if (prevBtn) prevBtn.hidden = hidden;
+        if (nextBtn) nextBtn.hidden = hidden;
 
         isPlaying = state.playerState === 2;
         if (playBtn) {
@@ -373,6 +398,9 @@
                 playBtn.classList.remove('playing');
             }
             playBtn.classList.toggle('live', isLive);
+            var glyph = transportGlyph(state.playerState, isLive);
+            playBtn.setAttribute('aria-label',
+                glyph === 'stop' ? 'Stop' : (glyph === 'pause' ? 'Pause' : 'Play'));
         }
 
         if (isPlaying) {
@@ -411,12 +439,13 @@
 
         vinyl = document.getElementById('vinyl');
         artwork = document.getElementById('artwork');
+        // liveBadge is looked up in createControls() — it lives inside the controls
+        // template now, so it only exists while controlsPosition !== 'off'.
         leftSide = document.getElementById('leftSide');
         rightSide = document.getElementById('rightSide');
         bottomSide = document.getElementById('bottomSide');
         trackInfoTemplate = document.getElementById('trackInfoTemplate');
         controlsTemplate = document.getElementById('controlsTemplate');
-        live = document.getElementById('live');
 
         if (!window.NepTunes) {
             console.error('NepTunes API not available');
@@ -451,5 +480,11 @@
         }
     }
 
-    return { spinDurationFor: spinDurationFor, isLiveStream: isLiveStream, start: start };
+    return {
+        spinDurationFor: spinDurationFor,
+        transportHidden: transportHidden,
+        transportGlyph: transportGlyph,
+        liveBadgeVisible: liveBadgeVisible,
+        start: start
+    };
 });

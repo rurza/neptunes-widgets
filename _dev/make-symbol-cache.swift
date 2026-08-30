@@ -39,6 +39,7 @@ let symbols = [
     "speaker.wave.3",
     "star",
     "star.fill",
+    "stop.fill",
     "xmark",
 ]
 

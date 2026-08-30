@@ -268,18 +268,6 @@ body {
     margin-top: calc(2px - var(--shadow-gutter));
 }
 
-/* Small-caps badge, same slot as .artist — the bar is `position: absolute` with no fixed
-   height, so this line simply grows the frosted bar rather than risking a clip. */
-.live {
-    margin-top: 3px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-dim);
-    text-shadow: var(--text-shadow);
-}
-
 .controls {
     display: flex;
     align-items: center;
@@ -334,12 +322,6 @@ body {
     cursor: default;
 }
 
-/* Hidden, not greyed, during a live stream — its skip refusal is permanent (see script.js),
-   unlike an ad's, so a visible-but-disabled button could only mislead. */
-.control-btn[hidden] {
-    display: none;
-}
-
 .control-btn img.sf-icon {
     width: 22px;
     height: 22px;
@@ -350,8 +332,7 @@ body {
     height: 26px;
 }
 
-.control-btn.play-pause .pause-icon,
-.control-btn.play-pause .stop-icon {
+.control-btn.play-pause .pause-icon {
     display: none;
 }
 
@@ -360,15 +341,6 @@ body {
 }
 
 .widget.playing .control-btn.play-pause .pause-icon {
-    display: block;
-}
-
-/* A live radio stream has no pause, only stop — see script.js isLiveStream(). */
-.widget.playing.live .control-btn.play-pause .pause-icon {
-    display: none;
-}
-
-.widget.playing.live .control-btn.play-pause .stop-icon {
     display: block;
 }
 

@@ -138,6 +138,26 @@
     return 'adopt';
   }
 
+  /* Where "Open the case when paused" should put the lid on a state push.
+
+     The lid is also driven by hand: clicking the case toggles it. Deriving the
+     pose from every push therefore threw that away, because the host pushes
+     state roughly once a second while anything plays — so a case clicked open
+     shut again within the second and read as a widget that refuses to open.
+
+     The setting describes what PAUSING does, so it acts on the play/pause
+     transition and leaves whatever pose you chose alone in between. `was` is
+     null before the first push and while the setting is being switched on, so
+     that both land the pose immediately rather than waiting for a transition
+     that may be a whole album away.
+
+     Returns the new lid target, or null to leave the lid where it is. */
+  function lidPoseOnState(openOnPause, playing, was) {
+    if (!openOnPause) return null;
+    if (playing === was) return null;
+    return playing ? 0 : 1;
+  }
+
   /* ===== the printed back's type =====
 
      The back carries a title, an album and an artist, and no track list, so a
@@ -227,7 +247,7 @@
     TURN: TURN, EDGE_ON: EDGE_ON,
     easeInOut: easeInOut, lapAngle: lapAngle, facesToPaint: facesToPaint,
     BACK_PANEL: BACK_PANEL, backStretch: backStretch,
-    sleeveArrival: sleeveArrival,
+    sleeveArrival: sleeveArrival, lidPoseOnState: lidPoseOnState,
     splitTitleSuffix: splitTitleSuffix, titleLines: titleLines,
     wrapTitle: wrapTitle, fitTitleSize: fitTitleSize
   };
@@ -273,7 +293,10 @@
       recompositeTray();               // the tray wrap is baked; it has to be redrawn
     }
     if (typeof s.discSpin === 'boolean') opts.discSpin = s.discSpin;
-    if (typeof s.openOnPause === 'boolean') opts.openOnPause = s.openOnPause;
+    if (typeof s.openOnPause === 'boolean' && s.openOnPause !== opts.openOnPause) {
+      opts.openOnPause = s.openOnPause;
+      lastPlaying = null;              // re-arm: the new setting takes effect on the next push
+    }
     if (typeof s.spinOnChange === 'boolean') opts.spinOnChange = s.spinOnChange;
     if (typeof s.quality === 'string') opts.quality = s.quality;
     if (typeof s.caseSize === 'string' && s.caseSize !== opts.caseSize) {
@@ -1891,6 +1914,7 @@
   /* ===================== NepTunes ===================== */
 
   var playing = false;
+  var lastPlaying = null;   // null until the first push — see lidPoseOnState
   var lastArtURL = null;
   var artSeq = 0;
   var lastIdent = null;
@@ -1912,6 +1936,7 @@
     if (!has) {
       emptyText.textContent = state.playerType ? 'Nothing playing' : 'No player';
       playing = false;
+      lastPlaying = false;
       invalidate();
       return;
     }
@@ -1949,7 +1974,9 @@
       meta.posAt = performance.now();
     }
     playing = state.playerState === 2;
-    if (opts.openOnPause) lidTarget = playing ? 0 : 1;
+    var pose = lidPoseOnState(opts.openOnPause, playing, lastPlaying);
+    lastPlaying = playing;
+    if (pose !== null) lidTarget = pose;
 
     // The back is printed with the title, the artist and the album, so it is
     // out of date the moment any of them move, with or without new artwork.

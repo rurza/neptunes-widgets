@@ -273,8 +273,41 @@ html.nt-hover .controls,
 
 /* Play/pause: show one glyph at a time based on playback state. */
 #playBtn .pause-icon { display: none; }
+#playBtn .stop-icon { display: none; }
 #playBtn.playing .play-icon { display: none; }
 #playBtn.playing .pause-icon { display: block; }
+
+/* Live radio shows a stop square rather than a pause bar: resuming rejoins the stream
+   live instead of picking up where it left off. Three classes outrank the two-class
+   rules above whatever the source order. */
+#playBtn.playing.live .pause-icon { display: none; }
+#playBtn.playing.live .stop-icon { display: block; }
+
+/* LIVE is transport state, not track info, so it sits inside .controls and appears and
+   disappears with them — including under the hover reveal above, which it gets for free
+   as a descendant. Text only, in the same dimmed ink as the elapsed label it replaces:
+   every control in this row is monochrome and a coloured badge would shout over the
+   headline it sits under. */
+.live-badge {
+    align-self: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+}
+
+.live-badge[hidden] {
+    display: none;
+}
+
+/* Prev/next are gone, not greyed, during a live stream: a station has no next track to
+   reach for. `.controls` is a flex row, so the `hidden` attribute needs saying twice. */
+.controls button[hidden] { display: none; }
+
+/* No timeline: a station's position never leaves 0, so the hairline would sit at zero
+   width and the elapsed label at 0:00 for the whole broadcast. */
+.widget.live .bar,
+.widget.live .times { visibility: hidden; }
 
 /* Love uses the accent when active. */
 #loveBtn {

@@ -476,3 +476,37 @@ test('a title that fits is handed back whole, with no ellipsis', () => {
     assert.deepEqual(CD.wrapTitle(monospace, 'Alive!', 600, 20, 2), ['Alive!']);
     assert.deepEqual(CD.wrapTitle(monospace, '', 600, 20, 2), []);
 });
+
+/* ===== "Open the case when paused" =====
+
+   The host pushes state about once a second while anything plays, and once a
+   second flat during a live stream (whose position never advances, so the app's
+   drift check used to fire on every poll). Re-deriving the lid pose from every
+   one of those pushes overwrote the pose a click had just chosen, so clicking
+   the case open during radio lasted well under a second. The setting acts on the
+   play/pause transition instead; null means "leave the lid alone". */
+const { lidPoseOnState } = CD;
+
+test('the setting off never touches the lid', () => {
+    assert.equal(lidPoseOnState(false, true, false), null);
+    assert.equal(lidPoseOnState(false, false, true), null);
+    assert.equal(lidPoseOnState(false, true, null), null);
+});
+
+test('a repeated push at the same playback state leaves the lid alone', () => {
+    // This is the bug: every one of these used to re-assert a pose.
+    assert.equal(lidPoseOnState(true, true, true), null);
+    assert.equal(lidPoseOnState(true, false, false), null);
+});
+
+test('the pose lands on the play/pause transition', () => {
+    assert.equal(lidPoseOnState(true, false, true), 1, 'pausing opens the case');
+    assert.equal(lidPoseOnState(true, true, false), 0, 'playing shuts it');
+});
+
+test('the first push poses the case whichever state it arrives in', () => {
+    // `was` is null before the first push and after the setting is switched on,
+    // so neither has to wait for a transition that may be a whole album away.
+    assert.equal(lidPoseOnState(true, false, null), 1);
+    assert.equal(lidPoseOnState(true, true, null), 0);
+});

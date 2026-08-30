@@ -126,8 +126,15 @@ body {
    `.glyph img.sf-icon` sizing rule above (which also sets `display: block` and would
    otherwise win on specificity, leaving .ic-pause stuck visible even while paused). */
 #glyph .ic-pause { display: none; }
+#glyph .ic-stop { display: none; }
 .widget.playing #glyph .ic-play { display: none; }
 .widget.playing #glyph .ic-pause { display: block; }
+
+/* Live radio shows a stop square, not a pause bar: resuming a stream rejoins it live
+   rather than picking up where it left off, so a pause bar would be a lie. Three classes
+   outrank the two-class rules above whatever the source order. */
+.widget.playing.live #glyph .ic-pause { display: none; }
+.widget.playing.live #glyph .ic-stop { display: block; }
 
 /* ---- Nav buttons (hover-only) ---- */
 .nav {
@@ -147,6 +154,11 @@ body {
     transition: opacity 160ms ease, width 160ms ease, color 120ms ease;
 }
 .nav img.sf-icon { width: 16px; height: 16px; display: block; }
+
+/* Prev/next are gone, not greyed, during a live stream: there is no next station track
+   to reach for. The hover-reveal rules below set an explicit width and opacity, so the
+   `hidden` attribute alone would not hold them back. */
+.nav[hidden] { display: none; }
 .nav:hover { color: var(--fg); }
 
 /* Reveal prev/next when the strip is hovered (and a track exists). `nt-hover` is set by the
@@ -251,6 +263,18 @@ html[dir="rtl"] .label-wrap {
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.01em;
 }
+
+/* LIVE stands in the readout's own slot, in the readout's own dimmed ink — a station has
+   no elapsed time to show, and a frozen 0:00 there reads as a broken clock. Not a badge:
+   everything on this strip is monochrome, so the word is set like the time it replaces
+   and only loses the tabular figures it no longer needs. */
+.time.live {
+    font-variant-numeric: normal;
+    letter-spacing: 0.06em;
+}
+
+/* No timeline, no progress line. */
+.widget.live .underline { display: none; }
 
 /* ---- Progress underline ---- */
 .underline {

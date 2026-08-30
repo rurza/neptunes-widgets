@@ -5,6 +5,43 @@
 (function() {
     'use strict';
 
+    /* ===== live radio, decided above anything that touches the DOM =====
+
+       Exported and then returned from, the way CDCase.nepget/script.js does it, so these
+       can be pinned without a browser. An Apple Music station is a `URL track` with no
+       duration. Measured against a live Music.app: `next track`, `previous track`,
+       `set shuffle enabled` and `set song repeat` are all accepted and all silently
+       ignored, and `player position` never leaves 0. Only play/stop and volume do
+       anything. */
+
+    // Everything a station ignores is HIDDEN, not greyed. An ad is greyed because the
+    // queue behind it is still there to shuffle and reach; a station has no queue at all.
+    // `isLiveStream` is only ever sent when true, so a missing value reads as false.
+    function transportHidden(track) {
+        return !!(track && track.isLiveStream);
+    }
+
+    // Which glyph the play button wears. Playing a station shows a stop square rather than
+    // a pause bar: resuming rejoins the stream live instead of picking up where it left
+    // off. The verb sent is still playPause() — see PlaybackAffordances.
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
+    // Whether there is a position and duration worth drawing at all.
+    function hasTimeline(track) {
+        return !(track && track.isLiveStream);
+    }
+
+    const PURE = {
+        transportHidden: transportHidden,
+        transportGlyph: transportGlyph,
+        hasTimeline: hasTimeline
+    };
+    if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
+    if (typeof window === 'undefined') return;
+
     // Progress tracking
     let progressInterval = null;
     let lastKnownPosition = 0;
@@ -33,6 +70,7 @@
     const currentTime = document.getElementById('currentTime');
     const duration = document.getElementById('duration');
     const progressFill = document.getElementById('progressFill');
+    const liveBadge = document.getElementById('liveBadge');
     const playBtn = document.getElementById('playBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -119,6 +157,19 @@
     }
 
     // Update UI with state
+    // Put the transport back the way an ordinary track leaves it. Two branches of
+    // updateUI reach the empty state, and both have to undo everything a station hid.
+    function clearLive() {
+        widget.classList.remove('live');
+        playBtn.classList.remove('live');
+        playBtn.title = 'Play/Pause';
+        liveBadge.hidden = true;
+        prevBtn.hidden = false;
+        nextBtn.hidden = false;
+        shuffleBtn.hidden = false;
+        repeatBtn.hidden = false;
+    }
+
     function updateUI(state) {
         applyDirection(state);
         // Debug output
@@ -128,6 +179,7 @@
 
         if (!state) {
             widget.classList.add('stopped');
+            clearLive();
             title.textContent = 'Not Playing';
             artist.textContent = '';
             album.textContent = '';
@@ -146,6 +198,7 @@
         // Track info
         if (!state.track) {
             widget.classList.add('stopped');
+            clearLive();
             title.textContent = 'Not Playing';
             artist.textContent = '';
             album.textContent = '';
@@ -170,6 +223,16 @@
         const adPlaying = !!state.track.isAdvertisement;
         prevBtn.disabled = adPlaying;
         nextBtn.disabled = adPlaying;
+
+        // Hidden, not greyed, during a live stream — see transportHidden. Shuffle and
+        // repeat go with them: Music.app accepts both on a station and acts on neither.
+        const live = transportHidden(state.track);
+        widget.classList.toggle('live', live);
+        liveBadge.hidden = !live;
+        prevBtn.hidden = live;
+        nextBtn.hidden = live;
+        shuffleBtn.hidden = live;
+        repeatBtn.hidden = live;
 
         // Artwork
         const artworkURL = window.NepTunes.getArtworkDataURL();
@@ -205,13 +268,22 @@
         } else {
             playBtn.classList.remove('playing');
         }
+        playBtn.classList.toggle('live', live);
+        playBtn.title = transportGlyph(state.playerState, live) === 'stop' ? 'Stop' : 'Play/Pause';
 
         // Progress - store values for local tracking
         trackDuration = state.track.duration || 0;
         lastKnownPosition = state.playerPosition || 0;
         lastUpdateTime = Date.now();
 
-        if (trackDuration > 0) {
+        if (!hasTimeline(state.track)) {
+            // A station has no clock to run. The row is hidden in CSS off `.widget.live`;
+            // zeroing it here keeps it from flashing a stale bar on the way back to an
+            // ordinary track.
+            progressFill.style.width = '0%';
+            currentTime.textContent = '0:00';
+            duration.textContent = '0:00';
+        } else if (trackDuration > 0) {
             const progress = (lastKnownPosition / trackDuration) * 100;
             progressFill.style.width = `${Math.min(100, progress)}%`;
             currentTime.textContent = formatTime(lastKnownPosition);

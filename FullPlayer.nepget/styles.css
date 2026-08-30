@@ -346,11 +346,26 @@ body.light .play-btn {
     display: none;
 }
 
+.play-btn .stop-icon {
+    display: none;
+}
+
 .play-btn.playing .play-icon {
     display: none;
 }
 
 .play-btn.playing .pause-icon {
+    display: block;
+}
+
+/* Live radio shows a stop square rather than a pause bar: resuming a station rejoins it
+   live instead of picking up where it left off, so a pause bar would be a lie. Three
+   classes outrank the two-class rules above whatever the source order. */
+.play-btn.playing.live .pause-icon {
+    display: none;
+}
+
+.play-btn.playing.live .stop-icon {
     display: block;
 }
 
@@ -482,6 +497,36 @@ body.light .play-btn {
 /* Shuffle/Repeat hidden */
 .controls .shuffle-repeat-hidden {
     display: none;
+}
+
+/* Everything a live stream silently ignores is gone rather than greyed: skip, shuffle and
+   repeat are all accepted and all discarded by Music.app during a station, so a dimmed
+   button would invite a press that can never do anything. `.control-btn` sets
+   `display: flex`, which would otherwise defeat the `hidden` attribute. */
+.controls .control-btn[hidden] {
+    display: none;
+}
+
+/* LIVE is transport state, not track info: it rides in the controls row beside the stop
+   button, in the same secondary ink the time labels use. Text only — every control here
+   is monochrome on the blurred cover, and a coloured badge would be the one bright thing
+   on the panel. */
+.live-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+}
+
+.live-badge[hidden] {
+    display: none;
+}
+
+/* No timeline: a station's position never leaves 0, so the fill would sit at zero width
+   and both time labels at 0:00. The row keeps its space, so a station's panel is laid out
+   exactly like any other track's. */
+.widget.live .progress-container {
+    visibility: hidden;
 }
 
 /* Stopped state */

@@ -5,6 +5,42 @@
 (function () {
     'use strict';
 
+    /* ===== live radio, decided above anything that touches the DOM =====
+
+       Exported and then returned from, the way CDCase.nepget/script.js does it, so these
+       can be pinned without a browser. An Apple Music station is a `URL track` with no
+       duration: it cannot be skipped, it has no position to read, and stopping it is what
+       pausing it means. */
+
+    // Prev/next are HIDDEN, not greyed, during a live stream. An ad is greyed because the
+    // queue behind it is still there to reach; a station has no next track at all, so a
+    // dimmed button would invite a press that can never do anything. `isLiveStream` is
+    // only ever sent when true, so a missing value correctly reads as false.
+    function transportHidden(track) {
+        return !!(track && track.isLiveStream);
+    }
+
+    // Which glyph the play button wears. Playing a station shows a stop square rather than
+    // a pause bar: resuming rejoins the stream live instead of picking up where it left
+    // off. The verb sent is still playPause() — see PlaybackAffordances.
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
+    // Whether there is a position and duration worth drawing at all.
+    function hasTimeline(track) {
+        return !(track && track.isLiveStream);
+    }
+
+    const PURE = {
+        transportHidden: transportHidden,
+        transportGlyph: transportGlyph,
+        hasTimeline: hasTimeline
+    };
+    if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
+    if (typeof window === 'undefined') return;
+
     // ---- DOM ----
     const root = document.getElementById('widget');
     const titleEl = document.getElementById('title');
@@ -16,6 +52,7 @@
     const playBtn = document.getElementById('playBtn');
     const nextBtn = document.getElementById('nextBtn');
     const loveBtn = document.getElementById('loveBtn');
+    const liveBadge = document.getElementById('liveBadge');
 
     const prefersReducedMotion =
         window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -137,7 +174,12 @@
         isPlaying = false;
         barFill.style.width = '0%';
         elapsedEl.textContent = '0:00';
-        playBtn.classList.remove('playing');
+        playBtn.classList.remove('playing', 'live');
+        root.classList.remove('live');
+        liveBadge.hidden = true;
+        prevBtn.hidden = false;
+        nextBtn.hidden = false;
+        playBtn.setAttribute('aria-label', 'Play');
         loveBtn.classList.add('hidden');
         loveBtn.classList.remove('loved');
         lastArtworkURL = null;
@@ -186,6 +228,18 @@
         isPlaying = state.playerState === 2;
         playBtn.classList.toggle('playing', isPlaying);
 
+        // Live radio: no skipping, a stop square instead of a pause bar, LIVE in with the
+        // transport, and no timeline at all — the bar and the elapsed label are hidden in
+        // CSS off `.widget.live`.
+        const live = transportHidden(track);
+        root.classList.toggle('live', live);
+        playBtn.classList.toggle('live', live);
+        liveBadge.hidden = !live;
+        prevBtn.hidden = live;
+        nextBtn.hidden = live;
+        const verb = transportGlyph(state.playerState, live);
+        playBtn.setAttribute('aria-label', verb === 'stop' ? 'Stop' : (verb === 'pause' ? 'Pause' : 'Play'));
+
         // Rebuild the interpolated clock on every statechange.
         curDuration = Number(track.duration) || 0;
         clockFn = NTKit.clock({
@@ -195,8 +249,14 @@
             timestamp: state.timestamp
         });
 
-        // Drive the rAF loop only while playing; otherwise render once.
-        if (isPlaying) {
+        // Drive the rAF loop only while playing; otherwise render once. A station has no
+        // timeline to animate, so the loop would burn a frame a second painting a bar that
+        // CSS is hiding anyway.
+        if (!hasTimeline(track)) {
+            stopLoop();
+            barFill.style.width = '0%';
+            elapsedEl.textContent = NTKit.formatTime(0);
+        } else if (isPlaying) {
             startLoop();
         } else {
             stopLoop();

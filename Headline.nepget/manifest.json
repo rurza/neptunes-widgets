@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.headline",
     "name": "Headline",
-    "version": "1.0.11",
+    "version": "1.1.0",
     "author": "Adam Różyński",
     "description": "Big-type now playing. Title sized to fit, hairline progress, and color pulled from the album art.",
     "license": "MIT",

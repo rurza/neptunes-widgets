@@ -1,6 +1,36 @@
 (function() {
     'use strict';
 
+    /*
+     * The live-stream half, kept above every DOM lookup so `require`ing this file in Node
+     * gets the pure functions and stops — see _dev/live-stream.test.mjs.
+     */
+
+    /*
+     * Whether prev/next should be HIDDEN right now — a live stream, not an ad. `isLiveStream`
+     * is only ever sent when true, and `track` itself may be missing. Hidden rather than
+     * greyed: the bridge already refuses next()/previous() during a stream centrally, and a
+     * broadcast has no earlier point to skip back into, so an inert-looking button would only
+     * invite a tap that means nothing.
+     */
+    function transportHidden(track) {
+        return !!(track && track.isLiveStream);
+    }
+
+    /*
+     * Which of the three play-button glyphs applies. `playerState` 2 is playing; only that
+     * state differs for a stream, because stopping a broadcast is not pausing it — pressing
+     * play again restarts the stream rather than resuming it.
+     */
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
+    const PURE = { transportHidden: transportHidden, transportGlyph: transportGlyph };
+    if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
+    if (typeof window === 'undefined') return;
+
     const widget = document.getElementById('widget');
     const artworkBg = document.getElementById('artworkBg');
     // The frosted strip behind the controls is a blurred copy of the cover, not a
@@ -168,6 +198,7 @@
     const prevBtn = document.getElementById('prevBtn');
     const playPauseBtn = document.getElementById('playPauseBtn');
     const nextBtn = document.getElementById('nextBtn');
+    const liveBadge = document.getElementById('liveBadge');
 
     let currentArtworkURL = null;
     let settings = {};
@@ -186,7 +217,7 @@
     function updateUI(state) {
         applyDirection(state);
         if (!state || !state.track) {
-            widget.classList.remove('playing');
+            widget.classList.remove('playing', 'live');
             title.textContent = 'Not Playing';
             artist.textContent = '';
             setCoverVisible(false);
@@ -194,6 +225,9 @@
             // Nothing playing must not block transport — pressing next may start playback.
             prevBtn.disabled = false;
             nextBtn.disabled = false;
+            prevBtn.hidden = false;
+            nextBtn.hidden = false;
+            liveBadge.hidden = true;
             return;
         }
 
@@ -210,11 +244,24 @@
         prevBtn.disabled = adPlaying;
         nextBtn.disabled = adPlaying;
 
+        // Hidden, not greyed, during a live stream — see transportHidden. LIVE takes the
+        // space they leave, off to the right of a play button that stays dead centre.
+        const isLive = transportHidden(state.track);
+        prevBtn.hidden = isLive;
+        nextBtn.hidden = isLive;
+        liveBadge.hidden = !isLive;
+        widget.classList.toggle('live', isLive);
+
         if (state.playerState === 2) {
             widget.classList.add('playing');
         } else {
             widget.classList.remove('playing');
         }
+
+        // The glyph is the button's only content — its <img> carries an empty alt so the
+        // icon is not announced twice — so the label has to follow the glyph.
+        const glyph = transportGlyph(state.playerState, isLive);
+        playPauseBtn.setAttribute('aria-label', glyph === 'stop' ? 'Stop' : (glyph === 'pause' ? 'Pause' : 'Play'));
 
         const artworkURL = window.NepTunes.getArtworkDataURL();
         if (artworkURL !== currentArtworkURL) {

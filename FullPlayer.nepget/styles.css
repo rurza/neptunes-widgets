@@ -507,12 +507,17 @@ body.light .play-btn {
     display: none;
 }
 
-/* LIVE is transport state, not track info: it rides in the controls row beside the stop
-   button, in the same secondary ink the time labels use. Text only — every control here
-   is monochrome on the blurred cover, and a coloured badge would be the one bright thing
-   on the panel. */
+/* LIVE stands where the timeline would be, because it is the reason there is not one.
+   Inside .progress-container and set exactly like the elapsed label it replaces: same
+   size, same secondary ink, left-aligned on the same edge. Text only — every control here
+   is monochrome over the blurred cover, and a coloured badge would be the one bright thing
+   on the panel.
+
+   Not in the controls row. The transport centres its children as a group, so a label
+   sitting in it pushed the stop button off centre and left the word stranded in the middle
+   of an otherwise empty row. */
 .live-badge {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.06em;
     color: var(--text-secondary);
@@ -523,10 +528,15 @@ body.light .play-btn {
 }
 
 /* No timeline: a station's position never leaves 0, so the fill would sit at zero width
-   and both time labels at 0:00. The row keeps its space, so a station's panel is laid out
-   exactly like any other track's. */
-.widget.live .progress-container {
+   and both labels at 0:00. The bar keeps its space rather than collapsing, and LIVE takes
+   the line the times were on, so a station's panel is laid out exactly like any other
+   track's — same height, same rhythm. */
+.widget.live .progress-bar {
     visibility: hidden;
+}
+
+.widget.live .time-display {
+    display: none;
 }
 
 /* Stopped state */

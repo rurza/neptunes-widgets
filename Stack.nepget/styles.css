@@ -145,6 +145,8 @@ html.theme-light {
     gap: 10px;
     margin-top: 12px;
     height: 40px;
+    /* The containing block for LIVE, which is taken out of the flow below. */
+    position: relative;
     opacity: 0;
     transition: opacity 0.2s ease;
     /* Media transport keeps its physical order under RTL — HIG: controls referring to the
@@ -239,6 +241,53 @@ html.theme-light .play-btn {
 
 .widget.playing .play-btn .pause-icon {
     display: block;
+}
+
+.play-btn .stop-icon {
+    display: none;
+}
+
+/* Live radio: playing shows a stop glyph, not pause — resuming does not pick up where it
+   left off, it restarts the stream, so "pause" would be a lie. Three classes outrank the
+   two-class rules above regardless of source order. */
+.widget.playing.live .play-btn .pause-icon {
+    display: none;
+}
+
+.widget.playing.live .play-btn .stop-icon {
+    display: block;
+}
+
+/* Prev/next are HIDDEN (not greyed) during a live stream — see script.js transportHidden.
+   `.control-btn` sets `display: flex`, which would otherwise defeat the `hidden` attribute. */
+.control-btn[hidden] {
+    display: none;
+}
+
+/* LIVE. Out of the flex flow entirely and hung just past the row's right edge, so the play
+   button stays exactly centred once a stream has hidden prev/next — a badge that took part
+   in the centring would shove the only remaining control off to the left. Unlike the flat
+   panels, this row is only as wide as its buttons (the column centres each child), so the
+   anchor is the row's outer edge rather than `right: 0`, which would land on the button.
+   Even at its widest the badge stops short of the cover's edge above it. `.controls` pins
+   `direction: ltr` for the transport glyphs, so `left` here is physical in both writing
+   directions. */
+.live-badge {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-left: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    text-shadow: var(--ink-shadow);
+    white-space: nowrap;
+}
+
+.live-badge[hidden] {
+    display: none;
 }
 
 /* ---- Title + artist (white ink on wallpaper) ---- */

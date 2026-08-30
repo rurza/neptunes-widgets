@@ -262,6 +262,8 @@ html.nt-hover .panel,
 /* ---- Controls row. No visibility of its own: it rides the panel's. ---- */
 .controls {
     display: flex;
+    /* The containing block for LIVE, which is taken out of the flow below. */
+    position: relative;
     align-items: center;
     justify-content: center;
     gap: 12px;
@@ -355,6 +357,51 @@ html.theme-light .play-btn {
 
 .widget.playing .play-btn .pause-icon {
     display: block;
+}
+
+.play-btn .stop-icon {
+    display: none;
+}
+
+/* Live radio: playing shows a stop glyph, not pause — resuming does not pick up where it
+   left off, it restarts the stream, so "pause" would be a lie. Three classes outrank the
+   two-class rules above regardless of source order. */
+.widget.playing.live .play-btn .pause-icon {
+    display: none;
+}
+
+.widget.playing.live .play-btn .stop-icon {
+    display: block;
+}
+
+/* LIVE. Out of the flex flow entirely and parked at the right end of the transport row,
+   so the play button stays exactly centred once a stream has hidden prev/next — a badge
+   that took part in the centring would shove the only remaining control off to the left.
+   The row spans the panel and only its contents are centred, so `right: 0` lands on the
+   panel's inner edge. `.controls` pins `direction: ltr` for the transport glyphs, so that
+   edge is physical in both writing directions. Text only, no pill, in the artist's ink:
+   it labels the transport rather than shouting over the title. */
+.live-badge {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--artist);
+    text-shadow: var(--text-shadow);
+    white-space: nowrap;
+}
+
+.live-badge[hidden] {
+    display: none;
+}
+
+/* Prev/next are HIDDEN (not greyed) during a live stream — see script.js transportHidden.
+   `.control-btn` sets `display: flex`, which would otherwise defeat the `hidden` attribute. */
+.control-btn[hidden] {
+    display: none;
 }
 
 /* ---- Stopped / no-track: dim the controls a touch. ----

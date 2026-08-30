@@ -9,6 +9,35 @@
 (function () {
     'use strict';
 
+    // ---- The live-stream half ----
+    // Kept above every DOM lookup so `require`ing this file in Node gets the pure functions
+    // and stops there — see _dev/live-stream.test.mjs.
+
+    /*
+     * Whether prev/next should be HIDDEN right now — a live stream, not an ad. `isLiveStream`
+     * is only ever sent when true, and `track` itself may be missing. Hidden rather than
+     * greyed: the bridge already refuses next()/previous() during a stream centrally, and a
+     * broadcast has no earlier point to skip back into, so an inert-looking button would only
+     * invite a tap that means nothing.
+     */
+    function transportHidden(track) {
+        return !!(track && track.isLiveStream);
+    }
+
+    /*
+     * Which of the three play-button glyphs applies. `playerState` 2 is playing; only that
+     * state differs for a stream, because stopping a broadcast is not pausing it — pressing
+     * play again restarts the stream rather than resuming it.
+     */
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
+    var PURE = { transportHidden: transportHidden, transportGlyph: transportGlyph };
+    if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
+    if (typeof window === 'undefined') return;
+
     // ---- DOM ----
     var widget    = document.getElementById('widget');
     var artwork   = document.getElementById('artwork');
@@ -19,6 +48,7 @@
     var playBtn   = document.getElementById('playBtn');
     var prevBtn   = document.getElementById('prevBtn');
     var nextBtn   = document.getElementById('nextBtn');
+    var liveBadge = document.getElementById('liveBadge');
     var root      = document.documentElement;
 
     var prefersReducedMotion =
@@ -119,7 +149,7 @@
         applyDirection(state);
         if (!state || !state.track) {
             widget.classList.add('stopped');
-            widget.classList.remove('playing');
+            widget.classList.remove('playing', 'live');
             title.textContent = 'Not Playing';
             artist.textContent = '';
             updateArtwork(null);   // shows the no-artwork placeholder
@@ -127,6 +157,9 @@
             // Nothing playing must not block transport — pressing next may start playback.
             prevBtn.disabled = false;
             nextBtn.disabled = false;
+            prevBtn.hidden = false;
+            nextBtn.hidden = false;
+            liveBadge.hidden = true;
             return;
         }
 
@@ -144,6 +177,20 @@
         var adPlaying = !!track.isAdvertisement;
         prevBtn.disabled = adPlaying;
         nextBtn.disabled = adPlaying;
+
+        // Hidden, not greyed, during a live stream — see transportHidden. LIVE takes the
+        // space they leave, hung off the right of a play button that stays dead centre. It
+        // sits inside the controls row, so the "On hover" setting fades it with the
+        // transport it labels.
+        var isLive = transportHidden(track);
+        prevBtn.hidden = isLive;
+        nextBtn.hidden = isLive;
+        liveBadge.hidden = !isLive;
+        widget.classList.toggle('live', isLive);
+
+        // The glyph is the button's only content, so the label has to follow the glyph.
+        var glyph = transportGlyph(state.playerState, isLive);
+        playBtn.setAttribute('aria-label', glyph === 'stop' ? 'Stop' : (glyph === 'pause' ? 'Pause' : 'Play'));
 
         // playerState: 1 = stopped, 2 = playing, 3 = paused
         if (state.playerState === 2) {

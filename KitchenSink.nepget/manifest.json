@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.kitchen-sink",
     "name": "Kitchen Sink",
-    "version": "1.1.0",
+    "version": "1.1.2",
     "author": "Adam Różyński",
     "description": "Complete API demo showcasing all available features: playback, volume, ratings, shuffle/repeat, player activation, and more",
     "license": "MIT",

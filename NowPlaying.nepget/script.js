@@ -1,6 +1,36 @@
 (function() {
     'use strict';
 
+    /*
+     * The live-stream half, kept above every DOM lookup so `require`ing this file in Node
+     * gets the pure functions and stops — see _dev/live-stream.test.mjs.
+     */
+
+    /*
+     * Whether prev/next should be HIDDEN right now — a live stream, not an ad. `isLiveStream`
+     * is only ever sent when true, and `track` itself may be missing. Hidden rather than
+     * greyed: the bridge already refuses next()/previous() during a stream centrally, and a
+     * broadcast has no earlier point to skip back into, so an inert-looking button would only
+     * invite a tap that means nothing.
+     */
+    function transportHidden(track) {
+        return !!(track && track.isLiveStream);
+    }
+
+    /*
+     * Which of the three play-button glyphs applies. `playerState` 2 is playing; only that
+     * state differs for a stream, because stopping a broadcast is not pausing it — pressing
+     * play again restarts the stream rather than resuming it.
+     */
+    function transportGlyph(playerState, isLiveStream) {
+        if (playerState !== 2) return 'play';
+        return isLiveStream ? 'stop' : 'pause';
+    }
+
+    const PURE = { transportHidden: transportHidden, transportGlyph: transportGlyph };
+    if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
+    if (typeof window === 'undefined') return;
+
     const widget = document.getElementById('widget');
     const artworkContainer = document.getElementById('artworkContainer');
     const artwork = document.getElementById('artwork');
@@ -10,6 +40,17 @@
     const playBtn = document.getElementById('playBtn');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
+    const liveBadge = document.getElementById('liveBadge');
+
+    // Hidden prev/next, a stop glyph and the LIVE label, all from one flag. Called from
+    // every branch of updateUI so a station leaving the air puts the transport back.
+    function applyLive(track) {
+        const isLive = transportHidden(track);
+        prevBtn.hidden = isLive;
+        nextBtn.hidden = isLive;
+        liveBadge.hidden = !isLive;
+        playBtn.classList.toggle('live', isLive);
+    }
 
     let currentArtworkURL = null;
     let artworkTransitionTimeout = null;
@@ -99,6 +140,7 @@
             updateArtwork(null);
             prevBtn.disabled = false;
             nextBtn.disabled = false;
+            applyLive(null);
             return;
         }
 
@@ -116,6 +158,9 @@
             const adPlaying = !!state.track.isAdvertisement;
             prevBtn.disabled = adPlaying;
             nextBtn.disabled = adPlaying;
+
+            // Hidden, not greyed, during a live stream — see transportHidden.
+            applyLive(state.track);
         } else {
             title.textContent = 'Not Playing';
             artist.textContent = '—';
@@ -123,6 +168,7 @@
             // Nothing playing must not block transport — pressing next may start playback.
             prevBtn.disabled = false;
             nextBtn.disabled = false;
+            applyLive(null);
         }
 
         if (state.playerState === 2) {

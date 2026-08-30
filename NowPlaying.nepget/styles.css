@@ -212,6 +212,45 @@ body {
     display: block;
 }
 
+.play-btn .stop-icon {
+    display: none;
+}
+
+/* Live radio: playing shows a stop glyph, not pause — resuming does not pick up where it
+   left off, it restarts the stream, so "pause" would be a lie. Three classes outrank the
+   two-class rules above regardless of source order. */
+.play-btn.playing.live .pause-icon {
+    display: none;
+}
+
+.play-btn.playing.live .stop-icon {
+    display: block;
+}
+
+/* Prev/next are HIDDEN (not greyed) during a live stream — see script.js transportHidden.
+   `.control-btn` sets `display: flex`, which would otherwise defeat the `hidden` attribute. */
+.control-btn[hidden] {
+    display: none;
+}
+
+/* LIVE, last in the transport row. The row is left-aligned rather than centred, so the
+   badge can simply be the item after next: nothing moves when a stream hides prev/next,
+   the play button just becomes the leftmost control. Text only, no pill, in the secondary
+   ink — it labels the transport rather than shouting over the title. */
+.live-badge {
+    align-self: center;
+    margin-left: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.live-badge[hidden] {
+    display: none;
+}
+
 .widget.stopped .title {
     color: var(--text-secondary);
 }

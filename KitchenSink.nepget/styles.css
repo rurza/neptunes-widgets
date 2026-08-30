@@ -53,6 +53,14 @@ body {
     align-items: center;
 }
 
+/* The player badge and LIVE travel together, so `.header`'s space-between still sees one
+   thing on the left and the actions on the right. */
+.header-source {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .player-badge {
     display: flex;
     align-items: center;
@@ -333,9 +341,12 @@ body {
    would otherwise defeat the `hidden` attribute. */
 .controls-section .control-btn[hidden] { display: none; }
 
-/* LIVE is transport state, not track info: it rides in the controls row beside the stop
-   button, in the same tertiary ink the time labels use. Text only — every control on this
-   panel is monochrome. */
+/* LIVE reads as what the source IS, so it sits beside the player it qualifies: this is
+   Apple Music, and it is live. Text only, in the panel's tertiary ink rather than the
+   badge's own accent, so it stays quieter than the pill it stands next to.
+
+   Not in the controls row. The transport centres its children as a group, so a label
+   sitting in it pushed the stop button off centre and left the word stranded beside it. */
 .live-badge {
     font-size: 10px;
     font-weight: 600;
@@ -346,9 +357,9 @@ body {
 .live-badge[hidden] { display: none; }
 
 /* No timeline: a station's position never leaves 0, so the fill would sit at zero width
-   between two 0:00 labels. The row keeps its space, so the panel stays the height an
-   ordinary track gives it. */
-.widget.live .progress-section { visibility: hidden; }
+   between two 0:00 labels. With LIVE up in the header there is nothing left to keep the
+   row open for, so it goes entirely rather than leaving a blank band. */
+.widget.live .progress-section { display: none; }
 
 #repeatBtn .repeat-one { display: none; }
 #repeatBtn.repeat-one .repeat-all { display: none; }

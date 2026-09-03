@@ -2,7 +2,7 @@
     "manifestVersion": 1,
     "id": "pl.micropixels.neptunes.widget.vinyl",
     "name": "Vinyl",
-      "version": "1.31.1",
+      "version": "1.32.0",
     "author": "Adam Różyński",
     "description": "Spinning vinyl record with album artwork",
     "license": "MIT",
@@ -13,10 +13,14 @@
         "height": 232
     },
     "minSize": {
-        "width": 232,
-        "height": 232
+        "width": 200,
+        "height": 200
     },
-    "resizable": true,
+    "maxSize": {
+        "width": 684,
+        "height": 468
+    },
+    "resizable": false,
     "preview": "preview.jpg",
     "permissions": [
         "artwork",
@@ -24,6 +28,34 @@
     ],
     "settings": {
         "schema": [
+            {
+                "id": "discSize",
+                "type": "select",
+                "label": "Size",
+                "options": [
+                    {
+                        "value": "104",
+                        "label": "Small"
+                    },
+                    {
+                        "value": "136",
+                        "label": "Medium"
+                    },
+                    {
+                        "value": "168",
+                        "label": "Large"
+                    },
+                    {
+                        "value": "208",
+                        "label": "Extra Large"
+                    },
+                    {
+                        "value": "320",
+                        "label": "Huge"
+                    }
+                ],
+                "default": "136"
+            },
             {
                 "id": "spinRpm",
                 "type": "select",

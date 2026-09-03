@@ -52,38 +52,70 @@
     let currentTextShadow = true;
     let currentControlsBackground = true;
 
-    const VINYL_SIZE = 136;
-    const PADDING = 48; // for shadow
+    const PADDING = 48;         // shadow gutter; fixed, because the blur does not scale
     const GAP = 12;
-    const CONTROLS_WIDTH = 84; // 24+2+32+2+24
+    const CONTROLS_WIDTH = 84;  // 24+2+32+2+24
     const TRACK_INFO_WIDTH = 160;
     const BOTTOM_HEIGHT = 40;
+    const DEFAULT_DISC = 136;   // the diameter shipped Vinyl has always been
+
+    let currentDisc = DEFAULT_DISC;
+
+    /*
+     * How much room the side panels take, given where the two of them sit. Stacked on the
+     * same side they share one column, so it is the WIDER of the two that pays for it — not
+     * the sum. Split out of the size arithmetic because the drag variant needs to run it
+     * backwards, and a second copy of this rule is a second place to get it wrong.
+     */
+    function panelExtents(labelPos, controlsPos) {
+        function column(side) {
+            const width = Math.max(
+                labelPos === side ? TRACK_INFO_WIDTH : 0,
+                controlsPos === side ? CONTROLS_WIDTH : 0
+            );
+            return width === 0 ? 0 : width + GAP;
+        }
+        const hasBottom = labelPos === 'bottom' || controlsPos === 'bottom';
+        return {
+            left: column('left'),
+            right: column('right'),
+            bottom: hasBottom ? BOTTOM_HEIGHT + GAP : 0
+        };
+    }
+
+    // Pure: the window a record of `discSize` needs with those panels switched on.
+    function windowSizeFor(discSize, labelPos, controlsPos) {
+        const extents = panelExtents(labelPos, controlsPos);
+        return {
+            width: discSize + PADDING * 2 + extents.left + extents.right,
+            height: discSize + PADDING * 2 + extents.bottom
+        };
+    }
+
+    // The record's diameter, as a CSS variable the whole stylesheet is written against.
+    function applyDiscSize(discSize) {
+        currentDisc = discSize;
+        document.documentElement.style.setProperty('--vinyl-size', discSize + 'px');
+    }
 
     function calculateAndSetSize(labelPos, controlsPos) {
-        let width = VINYL_SIZE + PADDING * 2;
-        let height = VINYL_SIZE + PADDING * 2;
+        const size = windowSizeFor(currentDisc, labelPos, controlsPos);
+        window.NepTunes.setSize(size.width, size.height);
+    }
 
-        const hasLeft = labelPos === 'left' || controlsPos === 'left';
-        const hasRight = labelPos === 'right' || controlsPos === 'right';
-        const hasBottom = labelPos === 'bottom' || controlsPos === 'bottom';
+    /*
+     * The diameters the picker offers, keyed by the option values in manifest.json. A table
+     * rather than a parse of the key, for the same reason RPM_PERIOD_MS above is one: an
+     * unrecognised value — a hand-edited settings.json, a leftover from an older picker —
+     * has to land on the default rather than resolve to a zero-width or negative record.
+     * _dev/vinyl-resize.test.mjs pins every option the picker offers to an entry here, so a
+     * size the widget names is always a size it actually draws.
+     */
+    const DISC_SIZES = { '104': 104, '136': 136, '168': 168, '208': 208, '320': 320 };
 
-        if (hasLeft) {
-            width += Math.max(
-                labelPos === 'left' ? TRACK_INFO_WIDTH : 0,
-                controlsPos === 'left' ? CONTROLS_WIDTH : 0
-            ) + GAP;
-        }
-        if (hasRight) {
-            width += Math.max(
-                labelPos === 'right' ? TRACK_INFO_WIDTH : 0,
-                controlsPos === 'right' ? CONTROLS_WIDTH : 0
-            ) + GAP;
-        }
-        if (hasBottom) {
-            height += BOTTOM_HEIGHT + GAP;
-        }
-
-        window.NepTunes.setSize(width, height);
+    function discSizeFor(settings) {
+        if (!settings) return DEFAULT_DISC;
+        return DISC_SIZES[String(settings.discSize)] || DEFAULT_DISC;
     }
 
     function getContainer(position) {
@@ -251,6 +283,11 @@
         if (!settings) return;
 
         spinDuration = spinDurationFor(settings);
+
+        // Before the panels are placed and before calculateAndSetSize below reads it: the
+        // stylesheet is written against --vinyl-size, so the record has to be the new size
+        // by the time anything measures the layout it sits in.
+        applyDiscSize(discSizeFor(settings));
 
         const labelPosition = settings.labelPosition || 'off';
         const controlsPosition = settings.controlsPosition || 'off';
@@ -482,6 +519,8 @@
 
     return {
         spinDurationFor: spinDurationFor,
+        discSizeFor: discSizeFor,
+        windowSizeFor: windowSizeFor,
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
         liveBadgeVisible: liveBadgeVisible,

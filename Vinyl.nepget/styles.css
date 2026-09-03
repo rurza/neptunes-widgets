@@ -6,6 +6,16 @@
     user-select: none;
 }
 
+/* The record's diameter, and the one number the rest of this stylesheet is written
+   against. script.js sets it on <html>; everything inside .vinyl is already expressed in
+   %, aspect-ratio and `closest-side` radials, so the disc scales without touching them.
+   The shadow GUTTER around it deliberately does not scale — a drop shadow's blur is a
+   fixed number of pixels, so a gutter that grew with the record would leave a fat
+   transparent margin at the large end and clip at the small one. */
+:root {
+    --vinyl-size: 136px;
+}
+
 html, body {
     background: transparent;
 }
@@ -59,7 +69,7 @@ body {
     gap: 6px;
     justify-content: center;
     align-items: center;
-    width: 136px;
+    width: var(--vinyl-size);
 }
 
 .bottom-row:empty {
@@ -67,8 +77,8 @@ body {
 }
 
 .vinyl-shadow {
-    width: 136px;
-    height: 136px;
+    width: var(--vinyl-size);
+    height: var(--vinyl-size);
     border-radius: 50%;
     position: relative;
     box-shadow:
@@ -172,9 +182,12 @@ body {
         #050507 100%
     );
     position: relative;
+    /* Proportional, not 26px: the inner darkening is part of how the record is lit, so it
+       has to stay the same fraction of the disc at every size or a large record reads flat
+       and a small one reads like a hole. 26/136, the ratio this was authored at. */
     box-shadow:
         0 0 0 1px rgba(255, 255, 255, 0.07),
-        inset 0 0 26px rgba(0, 0, 0, 0.6);
+        inset 0 0 calc(var(--vinyl-size) * 0.191) rgba(0, 0, 0, 0.6);
     will-change: transform;
 }
 
@@ -222,7 +235,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+    /* 10px against the label's own width (38% of the disc), same reasoning as .vinyl. */
+    box-shadow: inset 0 0 calc(var(--vinyl-size) * 0.0735) rgba(0, 0, 0, 0.3);
 }
 
 .label img {

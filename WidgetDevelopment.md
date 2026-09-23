@@ -48,11 +48,13 @@ every install and load — see [Updates & Signing](#updates--signing).
 
 Users install widgets by **double-clicking the `.nepget` file**. This triggers NepTunes to:
 
-1. Validate the manifest and check for required fields
-2. Verify `bundle.sig` — the signature, then every file's hash, then completeness
-3. Display a permission confirmation dialog showing what the widget can access
-4. Copy the widget bundle to NepTunes' App Group container
-5. Make the widget available in Settings > Widgets
+1. Check `minNepTunesVersion`: if the widget needs a newer app, stop with
+   "NepTunes Update Required" (see [Minimum NepTunes version](#minimum-neptunes-version))
+2. Validate the manifest and check for required fields
+3. Verify `bundle.sig` — the signature, then every file's hash, then completeness
+4. Display a permission confirmation dialog showing what the widget can access
+5. Copy the widget bundle to NepTunes' App Group container
+6. Make the widget available in Settings > Widgets
 
 The widget is **moved** (not linked) to the container, so the original file can be deleted after installation.
 
@@ -115,7 +117,10 @@ The `manifest.json` file defines your widget's metadata, permissions, and settin
     // License identifier (e.g., "MIT", "Apache-2.0")
     "license": "MIT",
 
-    // Minimum NepTunes version required (for compatibility checks)
+    // Minimum NepTunes version required, as major.minor.patch. Enforced when the
+    // widget is installed, when an installed widget is loaded, and for gallery
+    // updates. Set it whenever the widget uses a permission, setting type or API
+    // added in a later NepTunes (see "Minimum NepTunes version" below).
     "minNepTunesVersion": "4.0.0",
 
     // ============================================================
@@ -197,6 +202,39 @@ The `manifest.json` file defines your widget's metadata, permissions, and settin
 | `shuffleRepeatControl` | `toggleShuffle()`, `toggleRepeat()` | Mode toggling |
 | `playerActivation` | `activatePlayer()`, `switchPlayer()` | Window management |
 | `lastFm` | `lastFm.getUserInfo()`, `getTopAlbums()`, `getTopArtists()`, `getTopTracks()`, `getRecentTracks()`, `getTrackInfo()`, `getArtistInfo()`, `loveTrack()`, `unloveTrack()` | Proxied through the main app; `loveTrack`/`unloveTrack` also need `love` |
+
+### Minimum NepTunes version
+
+`minNepTunesVersion` is enforced everywhere a widget enters or runs in the app, not
+only for gallery updates:
+
+- **Install.** Opening a `.nepget` (double-click, drag onto the Dock icon) or a
+  `neptunes://install-widget` link for a widget whose minimum is newer than the
+  running app stops before anything is installed. The user sees "NepTunes Update
+  Required — This widget requires NepTunes 4.1.0 or later." (the deep-link sheet
+  says "That widget needs NepTunes 4.1.0 or later.").
+- **Already installed.** A widget on disk that needs a newer app — typically after
+  the user went back to an older NepTunes — is listed in Settings › Widgets as not
+  loading, under its own name, with the same message and a Remove button, and the
+  widget helper does not draw it. Its activation is kept, so it comes back once the
+  app is updated.
+- **Gallery updates.** A newer release that needs a newer app is shown as
+  **Requires NepTunes X.Y.Z** and cannot be applied (see
+  [Updates & Signing](#updates--signing)).
+
+The minimum is read on its own, before the rest of the manifest, so it works even
+when the rest of the manifest uses something an older app cannot parse. That is
+exactly why you should **set it whenever the widget uses a permission, a setting
+type or a JavaScript API that was added in a later NepTunes.** An older app that
+meets a value it does not know — say a permission it has never heard of — can only
+say "This widget needs a newer version of NepTunes." without naming a version; with
+`minNepTunesVersion` set it tells the user exactly which version to install.
+
+Write `major.minor.patch` (`4.1.0`). A two-part `4.1` is read as `4.1.0`, but
+compatibility has to be positively confirmed, so any other value the app cannot
+parse counts as "too new" and blocks the widget — and, because the value is not a
+version, the message does not quote it; the user only reads "This widget needs a
+newer version of NepTunes."
 
 ---
 
@@ -1563,12 +1601,17 @@ keep `defaultSize` the same and the window will look unchanged.
   (`SharedDefaults.widgetSize(for:manifestVersion:)`), so a bump resets a
   user's custom window size back to `defaultSize`. Bump for real content
   changes, not for edits to a file the widget never loads.
-- Set `minNepTunesVersion` in the manifest if the release needs a newer app. The
-  app shows a **Requires NepTunes X.Y** state and blocks the apply instead of
-  installing something it can't run. Use `major.minor.patch` here too — the app
-  can only positively confirm compatibility from a value it can parse, so a
-  malformed `minNepTunesVersion` blocks the update rather than letting it
-  through.
+- Set `minNepTunesVersion` in the manifest if the release needs a newer app —
+  in particular whenever it uses a permission, setting type or API added in a
+  later NepTunes. The app shows a **Requires NepTunes X.Y** state and blocks the
+  apply instead of installing something it can't run; the same minimum also
+  stops a manual install and flags an already-installed copy (see
+  [Minimum NepTunes version](#minimum-neptunes-version)). Use `major.minor.patch`
+  here too — the app can only positively confirm compatibility from a value it
+  can parse, so a malformed `minNepTunesVersion` blocks the update rather than
+  letting it through. An older app shows the blocked state even for a feed entry
+  it cannot otherwise read (a permission it does not know), as long as the entry
+  carries `id`, `version` and `minNepTunesVersion`.
 
 ### The gallery feed
 

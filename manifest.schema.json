@@ -47,7 +47,7 @@
     "minNepTunesVersion": {
       "type": "string",
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
-      "description": "If set and newer than the running app, the update is shown as blocked."
+      "description": "Minimum NepTunes version (major.minor.patch). If set and newer than the running app, the widget is refused at install time, flagged in Settings when already installed, and its gallery update is shown as blocked; an unparseable value counts as too new. Set it whenever the widget uses a permission, setting type or API added in a later NepTunes."
     },
     "authorPublicKey": {
       "type": "string",

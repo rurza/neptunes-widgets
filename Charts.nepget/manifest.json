@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.charts",
   "name": "Charts",
-    "version": "1.1.0",
+    "version": "1.1.1",
   "author": "Adam Różyński",
   "description": "Your Last.fm top albums, artists, or tracks as a clean numbered chart. Tinted by what's playing now.",
   "license": "MIT",

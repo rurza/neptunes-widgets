@@ -2,7 +2,7 @@
    "manifestVersion": 1,
    "id": "pl.micropixels.neptunes.widget.scrobbles",
    "name": "Scrobbles",
-   "version": "1.1.0",
+   "version": "1.1.1",
   "author": "Adam Różyński",
   "description": "Your lifetime scrobble count and a live feed of what you've been listening to.",
   "license": "MIT",

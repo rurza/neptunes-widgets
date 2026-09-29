@@ -33,10 +33,18 @@
         return !(track && track.isLiveStream);
     }
 
+    // The "Nothing playing" state is simply no track. With no player running the host sends
+    // no track, no playerType and playerState 0 (not 1); a player stopped at the end of its
+    // queue WITH its last track still shows that track.
+    function isEmpty(state) {
+        return !(state && state.track);
+    }
+
     const PURE = {
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
-        hasTimeline: hasTimeline
+        hasTimeline: hasTimeline,
+        isEmpty: isEmpty
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
     if (typeof window === 'undefined') return;
@@ -53,6 +61,7 @@
     const nextBtn = document.getElementById('nextBtn');
     const loveBtn = document.getElementById('loveBtn');
     const liveBadge = document.getElementById('liveBadge');
+    const emptyOpen = document.getElementById('emptyOpen');
 
     const prefersReducedMotion =
         window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -167,7 +176,7 @@
     function showEmpty() {
         stopLoop();
         root.classList.add('stopped');
-        setTrackText('Not Playing', '', lastTrackKey !== null);
+        setTrackText('Nothing playing', '', lastTrackKey !== null);
         lastTrackKey = null;
         clockFn = null;
         curDuration = 0;
@@ -200,7 +209,7 @@
 
     function onState(state) {
         applyDirection(state);
-        if (!state || !state.track) {
+        if (isEmpty(state)) {
             showEmpty();
             return;
         }
@@ -315,6 +324,10 @@
         loveBtn.addEventListener('click', () => {
             const caps = window.NepTunes.capabilities || {};
             if (caps.canLove) window.NepTunes.toggleLove();
+        });
+        // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+        emptyOpen.addEventListener('click', () => {
+            if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
         });
     }
 

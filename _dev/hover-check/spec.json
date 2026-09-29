@@ -80,6 +80,52 @@
    "expect": "hover-gated",
    "inert": true,
    "why": "the reference implementation: a full-cover panel gated on nt-hover, inert while hidden"
+  },
+  {
+   "widget": "V3",
+   "settings": {},
+   "empty": true,
+   "selector": ".row-empty",
+   "expect": "hover-gated",
+   "inert": true,
+   "why": "nothing playing: the panel offers only Open player, still gated on nt-hover"
+  },
+  {
+   "widget": "Glass",
+   "settings": {},
+   "empty": true,
+   "selector": "#emptyOpen",
+   "expect": "always-visible",
+   "why": "nothing playing, Controls: Always — the Open music player pill rides the pinned sheet"
+  },
+  {
+   "widget": "Glass",
+   "settings": {
+    "controls": "hover"
+   },
+   "empty": true,
+   "selector": "#emptyOpen",
+   "expect": "hover-gated",
+   "inert": true,
+   "why": "nothing playing, Controls: On hover — the pill waits with the rest of the sheet"
+  },
+  {
+   "widget": "Headline",
+   "settings": {},
+   "empty": true,
+   "selector": "#emptyOpen",
+   "expect": "always-visible",
+   "why": "nothing playing: the one action is not hidden behind the hover-revealed transport"
+  },
+  {
+   "widget": "Stack",
+   "settings": {
+    "controls": "hover"
+   },
+   "empty": true,
+   "selector": "#emptyOpen",
+   "expect": "always-visible",
+   "why": "nothing playing: the pill is not hover-gated even when the transport is"
   }
  ]
 }

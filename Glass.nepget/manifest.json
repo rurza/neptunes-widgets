@@ -1,71 +1,74 @@
 {
-    "manifestVersion": 1,
-    "id": "pl.micropixels.neptunes.widget.glass",
-    "name": "Glass",
-    "version": "1.2.0",
-    "author": "Adam Różyński",
-    "description": "Full-bleed album cover with a frosted-glass now-playing panel.",
-    "license": "MIT",
-    "entry": "index.html",
-    "defaultSize": {
-        "width": 308,
-        "height": 320
-    },
-    "minSize": {
-        "width": 272,
-        "height": 284
-    },
-    "resizable": false,
-    "preview": "preview.jpg",
-    "permissions": [
-        "artwork",
-        "playbackControl"
-    ],
-    "settings": {
-        "schema": [
-            {
-                "id": "theme",
-                "type": "radio",
-                "label": "Theme",
-                "default": "auto",
-                "options": [
-                    {
-                        "value": "auto",
-                        "label": "Auto"
-                    },
-                    {
-                        "value": "dark",
-                        "label": "Dark"
-                    },
-                    {
-                        "value": "light",
-                        "label": "Light"
-                    }
-                ]
-            },
-            {
-                "id": "controls",
-                "type": "radio",
-                "label": "Controls",
-                "default": "always",
-                "options": [
-                    {
-                        "value": "always",
-                        "label": "Always"
-                    },
-                    {
-                        "value": "hover",
-                        "label": "On hover"
-                    }
-                ]
-            },
-            {
-                "id": "textShadow",
-                "type": "checkbox",
-                "label": "Text shadow (white text only)",
-                "default": true
-            }
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.glass",
+  "name": "Glass",
+  "version": "1.3.1",
+  "author": "Adam Różyński",
+  "description": "Full-bleed album cover with a frosted-glass now-playing panel.",
+  "license": "MIT",
+  "entry": "index.html",
+  "defaultSize": {
+    "width": 308,
+    "height": 320
+  },
+  "minSize": {
+    "width": 272,
+    "height": 284
+  },
+  "resizable": false,
+  "preview": "preview.jpg",
+  "supportsNoPlayback": true,
+  "permissions": [
+    "artwork",
+    "playbackControl",
+    "playerActivation"
+  ],
+  "settings": {
+    "schema": [
+      {
+        "id": "theme",
+        "type": "radio",
+        "label": "Theme",
+        "default": "auto",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          }
         ]
-    },
-    "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+      },
+      {
+        "id": "controls",
+        "type": "radio",
+        "label": "Controls",
+        "default": "always",
+        "options": [
+          {
+            "value": "always",
+            "label": "Always"
+          },
+          {
+            "value": "hover",
+            "label": "On hover"
+          }
+        ]
+      },
+      {
+        "id": "textShadow",
+        "type": "checkbox",
+        "label": "Text shadow (white text only)",
+        "default": true
+      }
+    ]
+  },
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214=",
+  "minNepTunesVersion": "4.1.0"
 }

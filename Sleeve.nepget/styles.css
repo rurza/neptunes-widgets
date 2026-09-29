@@ -61,7 +61,7 @@ body {
 
     /* Empty / no-art sleeve fill + placeholder glyph. */
     --cover-bg: #26262b;
-    --cover-glyph: rgba(255, 255, 255, 0.4);
+    --cover-glyph-opacity: 0.4;
 
     /* Accent (overwritten at runtime by NTKit.applyAccent).
        --accent-ink is the contrast-safe, hue-preserving tint used on the title
@@ -77,7 +77,7 @@ html.theme-light {
     --sub: rgba(16, 16, 20, 0.78);
     /* Dark text needs a light halo to survive dark patches of wallpaper. */
     --cover-bg: #e9e9ee;
-    --cover-glyph: rgba(16, 16, 20, 0.32);
+    --cover-glyph-opacity: 0.32;
 }
 
 /* ---- Layout: cover left, text right, vertically centered. ---- */
@@ -115,6 +115,25 @@ html.theme-light {
     opacity: 1;
 }
 
+/* Motion artwork: a muted looping <video> (script.js creates one per loop) over the static
+   cover, clipped by the same rounded .cover — which stays the only shadowed element. It fades in
+   only once a frame is on screen, and out again before it is released; the static art underneath
+   is the fallback throughout. Inert, so a drag on it moves the window like the rest of the cover. */
+.motion {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+    pointer-events: none;
+}
+
+.motion.visible {
+    opacity: 1;
+}
+
 /* No-art placeholder — a centered music note on the empty sleeve. */
 .no-art {
     position: absolute;
@@ -122,7 +141,6 @@ html.theme-light {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--cover-glyph);
 }
 
 .no-art.hidden {
@@ -132,6 +150,11 @@ html.theme-light {
 .no-art img.sf-icon {
     width: 40px;
     height: 40px;
+    /* A watermark, not a solid note. The glyph is a PNG with its tint baked in from --ink
+       (sfsymbols.js), so neither `color:` nor a translucent --icon-color can fade it: the
+       native rasteriser composites an alpha tint over a black template, which comes out
+       opaque. Fade the image instead. */
+    opacity: var(--cover-glyph-opacity);
 }
 
 /* ---- Info column: title / album / artist, left-aligned, centered. ---- */
@@ -194,9 +217,72 @@ html.theme-light {
     color: var(--sub);
 }
 
+/* ---- Nothing playing ----
+   No track: the empty sleeve keeps its note, and the text column becomes two lines set exactly
+   like the title and the lines under it — "Nothing playing" in the dimmed ink, then the hint.
+   The pair is one chromeless button that opens the music player (NepTunes.activatePlayer); the
+   sleeve itself stays a drag handle. */
+.empty-open {
+    display: none;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: start;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+}
+
+.widget.stopped .info {
+    display: none;
+}
+
+.widget.stopped .empty-open {
+    display: flex;
+}
+
+.empty-title,
+.empty-hint {
+    --shadow-gutter: 4px;               /* the halo's reach, as for .title above */
+    padding: var(--shadow-gutter);
+    margin: calc(-1 * var(--shadow-gutter));
+    max-width: calc(100% + var(--shadow-gutter) * 2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-shadow: var(--halo);
+    color: var(--sub);
+}
+
+.empty-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+}
+
+.empty-hint {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.25;
+    opacity: 0.8;
+}
+
+.empty-open:active .empty-title,
+.empty-open:active .empty-hint {
+    color: var(--ink);
+}
+
 /* ---- Reduced motion: no crossfades / recolors. ---- */
 @media (prefers-reduced-motion: reduce) {
     .art,
+    .motion,
     .title {
         transition: none;
     }
@@ -205,9 +291,13 @@ html.theme-light {
 /* Optional text shadow (setting: textShadow) — off = none. */
 html.no-text-shadow .title,
 html.no-text-shadow .album,
-html.no-text-shadow .artist { text-shadow: none; }
+html.no-text-shadow .artist,
+html.no-text-shadow .empty-title,
+html.no-text-shadow .empty-hint { text-shadow: none; }
 
 /* Shadow only makes sense on WHITE text (dark theme). Light theme = dark text => none. */
 html.theme-light .title,
 html.theme-light .album,
-html.theme-light .artist { text-shadow: none; }
+html.theme-light .artist,
+html.theme-light .empty-title,
+html.theme-light .empty-hint { text-shadow: none; }

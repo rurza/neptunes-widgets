@@ -30,16 +30,25 @@
         return !(track && track.isLiveStream);
     }
 
+    // The "Nothing playing" state is simply no track. With no player running the host sends
+    // no track, no playerType and playerState 0 (not 1); a player stopped at the end of its
+    // queue WITH its last track still shows that track.
+    function isEmpty(state) {
+        return !(state && state.track);
+    }
+
     const PURE = {
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
-        hasTimeline: hasTimeline
+        hasTimeline: hasTimeline,
+        isEmpty: isEmpty
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
     if (typeof window === 'undefined') return;
 
     // DOM Elements
     const widget = document.getElementById('widget');
+    const emptyOpen = document.getElementById('emptyOpen');
     const bgArtwork = document.getElementById('bgArtwork');
     const artwork = document.getElementById('artwork');
     const noArtwork = document.getElementById('noArtwork');
@@ -118,10 +127,10 @@
     // Update UI with player state
     function updateUI(state) {
         applyDirection(state);
-        if (!state || !state.track) {
+        if (isEmpty(state)) {
             widget.classList.add('stopped');
             widget.classList.remove('live');
-            title.textContent = 'Not Playing';
+            title.textContent = 'Nothing playing';
             artist.textContent = '';
             playBtn.classList.remove('playing', 'live');
             playBtn.title = 'Play/Pause';
@@ -304,6 +313,11 @@
             if (window.NepTunes.capabilities?.canLove) {
                 window.NepTunes.toggleLove();
             }
+        });
+
+        // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+        emptyOpen.addEventListener('click', () => {
+            if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
         });
     }
 

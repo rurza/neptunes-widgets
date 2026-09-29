@@ -141,6 +141,43 @@ body {
     filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.05));
 }
 
+/* ---- Motion artwork ------------------------------------------------------------- */
+
+/* Apple Music motion artwork (NepTunes 4.1): script.js puts a muted, looping <video> per album
+   loop in here. Full-bleed on the card, so `.widget`'s 12px radius and `overflow: hidden` clip it
+   exactly as they clip `.cover`. It stacks over the static cover and the no-cover field (same
+   z-index as .nocover, later in the markup) and under the info strip (2), the hover panel (3),
+   the volume popover (4) and the resize handle (5). The frost behind the strip and the panel
+   stays a copy of the static cover.
+
+   Inert, so a drag moves the window, and a double-click or a scroll lands on the card, exactly
+   as over the static cover. An empty layer paints nothing: the static cover shows through until a
+   video has a frame, and again after it has faded out. */
+.motion-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Cropped like `.cover`, and faded like it: 0.22s ease-out is ARTWORK_FADE_MS. Revealed only once
+   a frame is on screen, faded out again before it is released. */
+.motion {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    opacity: 0;
+    transition: opacity 0.22s ease-out;
+    pointer-events: none;
+}
+
+.motion.visible {
+    opacity: 1;
+}
+
 /* ---- Info bar ------------------------------------------------------------------- */
 
 /* V1's `.ultraThinMaterial` strip. A centring flex container, which is what makes the
@@ -558,6 +595,44 @@ html.nt-hover .hover-rows,
     height: 20px;
     cursor: nwse-resize;
     -webkit-app-region: no-drag;
+}
+
+/* ---- Nothing playing ------------------------------------------------------------- */
+
+/* No track. The card stays V1's own no-cover field with its debossed note, and the strip
+   reads "Nothing playing". On hover the panel offers one thing instead of the two rows —
+   there is nothing to shuffle, rate or skip — a play glyph at full ink with a quiet
+   "Open player" under it, which opens the music player (NepTunes.activatePlayer).
+   Double-click still does the same, as it always has. */
+.row-empty {
+    display: none;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.widget.empty .row-empty {
+    display: flex;
+}
+
+.widget.empty .row-secondary,
+.widget.empty .row-transport {
+    display: none;
+}
+
+/* The panel's material is translucent and the field under it is black, so the debossed note
+   would show straight through behind the play glyph. Step it out while the panel is up. */
+.widget.empty .nocover img.sf-icon {
+    transition: opacity 0.15s linear;
+}
+
+html.nt-hover .widget.empty .nocover img.sf-icon {
+    opacity: 0;
+}
+
+.empty-hint {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-secondary);
 }
 
 /* ---- Shared ---------------------------------------------------------------------- */

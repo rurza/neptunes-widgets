@@ -35,6 +35,11 @@
 
             <!-- Interpolated current time, or LIVE when there is no timeline to read -->
             <div class="time" id="time">0:00</div>
+
+            <!-- Nothing playing: takes the readout's slot and brings the music player up.
+                 A real <button>, so the host's drag script leaves the click alone. -->
+            <button class="empty-open" id="emptyOpen" type="button" data-action="activate-player"
+                    aria-label="Nothing playing. Open music player">Open player</button>
         </div>
 
         <!-- Accent progress line pinned to the bottom edge -->

@@ -243,8 +243,15 @@
     return lo;
   }
 
+  /* "Nothing playing" is no track at all, whatever playerState says: a stopped
+     player can still carry its last track, and a track with no title (a local
+     file, a stream before its metadata lands) is still music playing. */
+  function isEmpty(state) {
+    return !(state && state.track);
+  }
+
   var PURE = {
-    TURN: TURN, EDGE_ON: EDGE_ON,
+    TURN: TURN, EDGE_ON: EDGE_ON, isEmpty: isEmpty,
     easeInOut: easeInOut, lapAngle: lapAngle, facesToPaint: facesToPaint,
     BACK_PANEL: BACK_PANEL, backStretch: backStretch,
     sleeveArrival: sleeveArrival, lidPoseOnState: lidPoseOnState,
@@ -260,7 +267,7 @@
 
   var errEl = document.getElementById('err');
   var emptyEl = document.getElementById('empty');
-  var emptyText = document.getElementById('emptyText');
+  var emptyOpen = document.getElementById('emptyOpen');
   var canvas = document.getElementById('gl');
 
   function guard(what, fn) {
@@ -1919,6 +1926,7 @@
   var artSeq = 0;
   var lastIdent = null;
   var lastSleeveId = null;
+  var showingEmpty = false;
 
   var applyState = guard('applyState failed', function (state) {
     if (!state) return;
@@ -1931,15 +1939,32 @@
     // DOMContentLoaded.
     if (state.layoutDirection) document.documentElement.dir = state.layoutDirection;
     var t = state.track;
-    var has = !!(t && t.title);
+    var has = !isEmpty(state);
     emptyEl.hidden = has;
     if (!has) {
-      emptyText.textContent = state.playerType ? 'Nothing playing' : 'No player';
       playing = false;
       lastPlaying = false;
+      // The empty sleeve, printed "Nothing playing". Without it the case would keep the
+      // last track's cover — or, from a cold start with nothing ever played, the model's
+      // ORIGINAL game artwork, which must never ship (see placeholderCover).
+      if (!showingEmpty) {
+        showingEmpty = true;
+        var wasPrinted = printedText();
+        meta.album = meta.artist = meta.title = meta.player = '';
+        meta.duration = 0;
+        if (printedText() !== wasPrinted) printSeq++;
+        // Forget what was showing, so whatever plays next — even the same track, with the
+        // same artwork — puts its own sleeve back on the case.
+        lastArtURL = null;
+        lastIdent = null;
+        lastSleeveId = null;
+        artSeq++;                        // and no decode still in flight lands over this
+        offerSleeve(placeholderCover('Nothing playing', ''));
+      }
       invalidate();
       return;
     }
+    showingEmpty = false;
 
     // Turning the case the instant the track changes spins the OLD cover,
     // because artwork lands later (up to a second, plus network for a lookup).
@@ -2027,6 +2052,11 @@
   var connect = guard('connect failed', function () {
     var N = window.NepTunes;
     if (!N) { fail('window.NepTunes missing'); return; }
+    // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+    emptyOpen.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (typeof N.activatePlayer === 'function') N.activatePlayer();
+    });
     N.on('statechange', function (s) { applyState(s); });
     N.on('settingschange', function () { readSettings(); invalidate(); });
     N.on('themechange', function () { invalidate(); });

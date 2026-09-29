@@ -10,7 +10,7 @@
 })(function () {
     'use strict';
 
-    let widget, title, artist, album, liveBadge, controls, playBtn, prevBtn, nextBtn;
+    let widget, title, artist, album, liveBadge, controls, playBtn, prevBtn, nextBtn, emptyOpen;
 
     const WIDTH = 280;
     const HEIGHT_LABELS = 100;  // title + artist + album, no controls
@@ -87,6 +87,15 @@
         return !(showControls && isLive);
     }
 
+    /*
+     * Whether the widget shows its "Nothing playing" state: there is no track. With no player
+     * running the host sends no track and no playerType, and playerState 0 (unknown) rather
+     * than 1 — so this reads the track alone. A player stopped WITH a track still shows it.
+     */
+    function isEmpty(state) {
+        return !(state && state.track);
+    }
+
     function applySettings(settings) {
         settings = settings || {};
 
@@ -158,7 +167,7 @@
 
     function updateUI(state) {
         applyDirection(state);
-        if (!state || !state.track) {
+        if (isEmpty(state)) {
             widget.classList.add('stopped');
             title.textContent = 'Not Playing';
             artist.textContent = '';
@@ -218,6 +227,11 @@
             e.stopPropagation();
             window.NepTunes.next();
         });
+        // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+        emptyOpen.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
+        });
     }
 
     function init() {
@@ -237,6 +251,7 @@
         playBtn = document.getElementById('playBtn');
         prevBtn = document.getElementById('prevBtn');
         nextBtn = document.getElementById('nextBtn');
+        emptyOpen = document.getElementById('emptyOpen');
 
         setupControls();
         applySettings(window.NepTunes.settings);
@@ -261,6 +276,7 @@
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
         liveBadgeHidden: liveBadgeHidden,
+        isEmpty: isEmpty,
         start: start
     };
 });

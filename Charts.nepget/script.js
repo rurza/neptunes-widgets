@@ -112,16 +112,16 @@
         rank.textContent = pad2(index + 1);
         row.appendChild(rank);
 
-        // Optional thumbnail — Last.fm imageURL is a REMOTE url, used ONLY
-        // as a plain <img src> (never canvas / never NTKit.accent).
-        if (showThumbnails && item.imageURL) {
+        const lf = window.NepTunes && window.NepTunes.lastFm;
+        if (wantsThumbnail(item, showThumbnails, lf)) {
             const img = document.createElement('img');
-            img.className = 'thumb';
-            img.loading = 'lazy';
+            img.className = 'thumb';   // the --thumb-bg square holds the slot while it loads
             img.alt = '';
-            img.src = item.imageURL;
-            img.addEventListener('error', () => { img.style.display = 'none'; });
             row.appendChild(img);
+            loadThumbnail(lf, item.imageURL).then((src) => {
+                if (src) img.src = src;
+                else img.style.display = 'none';
+            });
         }
 
         const meta = document.createElement('div');
@@ -161,7 +161,98 @@
         listEl.replaceChildren(frag);
     }
 
+    // ---- Last.fm passthrough ------------------------------------------------
+    // On an app with NepTunes.lastFm.call the chart is Last.fm's own JSON. The rows below were
+    // written against what the narrow getTop*() methods return — NepTunesKit's LastFmAlbum /
+    // LastFmArtist / LastFmTrack, encoded by the app with absent fields omitted — so these adapt
+    // the raw body to exactly that. LastFmWidgetAdapterParityTests holds them to the Swift decoders.
+    function asArray(value) { return Array.isArray(value) ? value : (value ? [value] : []); }
+    function str(value) { return typeof value === 'string' ? value : ''; }
+    function nonEmpty(value) { return typeof value === 'string' && value.length > 0 ? value : undefined; }
+    function toInt(value) {
+        if (typeof value === 'number') return Number.isInteger(value) ? value : undefined;
+        return typeof value === 'string' && /^[+-]?\d+$/.test(value) ? parseInt(value, 10) : undefined;
+    }
+    function put(object, key, value) { if (value !== undefined) object[key] = value; return object; }
+    // NepTunesKit's largestImage(): the first image of each size, largest first, if it is non-empty.
+    function largestImage(images) {
+        const list = asArray(images);
+        for (const size of ['extralarge', 'large', 'medium', 'small']) {
+            const image = list.find((candidate) => candidate && candidate.size === size);
+            if (image) { const url = nonEmpty(image['#text']); if (url) return url; }
+        }
+        return undefined;
+    }
+    function common(raw, item) {
+        put(item, 'url', nonEmpty(raw.url));
+        put(item, 'playcount', toInt(raw.playcount));
+        put(item, 'imageURL', largestImage(raw.image));
+        return item;
+    }
+    function adaptTopAlbums(raw) {
+        return asArray(raw && raw.topalbums && raw.topalbums.album)
+            .map((a) => common(a, { name: str(a.name), artist: str(a.artist && a.artist.name) }));
+    }
+    function adaptTopArtists(raw) {
+        return asArray(raw && raw.topartists && raw.topartists.artist)
+            .map((a) => common(a, { name: str(a.name) }));
+    }
+    function adaptTopTracks(raw) {
+        return asArray(raw && raw.toptracks && raw.toptracks.track)
+            .map((t) => common(t, { name: str(t.name), artist: str(t.artist && t.artist.name) }));
+    }
+
+    const CHART_METHODS = {
+        albums: ['user.getTopAlbums', adaptTopAlbums],
+        artists: ['user.getTopArtists', adaptTopArtists],
+        tracks: ['user.getTopTracks', adaptTopTracks],
+    };
+
+    function fetchChart(lf, kind, chartPeriod, rows) {
+        if (typeof lf.call === 'function') {
+            const [method, adapt] = CHART_METHODS[kind] || CHART_METHODS.albums;
+            return lf.call(method, { period: chartPeriod, limit: String(rows) }).then(adapt);
+        }
+        if (kind === 'artists') return lf.getTopArtists(chartPeriod, rows);
+        if (kind === 'tracks') return lf.getTopTracks(chartPeriod, rows);
+        return lf.getTopAlbums(chartPeriod, rows);
+    }
+
+    // ---- Thumbnails ------------------------------------------------------------
+    // A widget has no network: a remote <img> is blocked by the egress rules, which is why these
+    // never rendered. The app fetches Last.fm's images and hands back a data URL; an older app
+    // cannot, and gets today's behaviour — no thumbnail.
+    const LASTFM_PLACEHOLDER = '2a96cbd8b46e442fc41c2b86b821562f';
+    const THUMB_CACHE_LIMIT = 50;
+    const thumbCache = new Map();   // image URL -> Promise<data URL | null>
+
+    function wantsThumbnail(item, show, lf) {
+        return !!(show && item && item.imageURL && lf && typeof lf.image === 'function'
+            && item.imageURL.indexOf(LASTFM_PLACEHOLDER) === -1);
+    }
+
+    function loadThumbnail(lf, url) {
+        if (thumbCache.has(url)) return thumbCache.get(url);
+        const pending = Promise.resolve(lf.image(url)).then(
+            (dataURL) => (typeof dataURL === 'string' && dataURL.indexOf('data:image/') === 0 ? dataURL : null),
+            () => null
+        ).then((dataURL) => {
+            if (!dataURL) thumbCache.delete(url);   // a failure is retried on the next refresh
+            return dataURL;
+        });
+        thumbCache.set(url, pending);
+        if (thumbCache.size > THUMB_CACHE_LIMIT) thumbCache.delete(thumbCache.keys().next().value);
+        return pending;
+    }
+
     // ---- Loading ----------------------------------------------------------
+    // The passthrough says why a load failed. Only a signed-out account replaces the chart;
+    // a rate limit or network blip leaves the one on screen for the next refresh. The narrow
+    // methods carry no code, so an older app keeps today's behaviour.
+    function keepsChartOnFailure(error, onScreen) {
+        return !!(error && error.code && error.code !== 'notSignedIn' && onScreen);
+    }
+
     function loadChart() {
         const lf = window.NepTunes && window.NepTunes.lastFm;
         if (!lf) {
@@ -174,17 +265,12 @@
         const token = ++requestToken;
         inFlight = true;
 
-        let promise;
-        if (chart === 'artists') promise = lf.getTopArtists(period, limit);
-        else if (chart === 'tracks') promise = lf.getTopTracks(period, limit);
-        else promise = lf.getTopAlbums(period, limit);
-
-        promise.then((items) => {
+        fetchChart(lf, chart, period, limit).then((items) => {
             if (token !== requestToken) return; // stale — a newer load superseded us
             renderRows(items);
-        }).catch(() => {
+        }).catch((error) => {
             if (token !== requestToken) return;
-            // Rejection means signed out (or transient failure). Don't spam console.
+            if (keepsChartOnFailure(error, statusEl.hidden && listEl.childElementCount > 0)) return;
             showStatus('Sign in to Last.fm in NepTunes settings to see your charts.');
         }).finally(() => {
             if (token === requestToken) inFlight = false;
@@ -299,5 +385,5 @@
         else init();
     }
 
-    return { start: start, accentKey: accentKey };
+    return { start: start, accentKey: accentKey, adaptTopAlbums: adaptTopAlbums, adaptTopArtists: adaptTopArtists, adaptTopTracks: adaptTopTracks, fetchChart: fetchChart, keepsChartOnFailure: keepsChartOnFailure, wantsThumbnail: wantsThumbnail, loadThumbnail: loadThumbnail };
 });

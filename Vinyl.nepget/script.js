@@ -25,6 +25,8 @@
     let playBtn = null;
     let prevBtn = null;
     let nextBtn = null;
+    let widget = null;
+    let emptyOpen = null;
     let liveBadge = null; // lives inside .controls now — only exists while it does,
                           // which is the whole point: LIVE is transport state, gated
                           // on controlsPosition exactly like play/prev/next are.
@@ -215,7 +217,11 @@
         liveBadge = clone.querySelector('#liveBadge');
 
         // Click handlers for actions
-        playBtn.addEventListener('click', () => window.NepTunes.playPause());
+        // With nothing playing there is no player to send play/pause to — open one instead.
+        playBtn.addEventListener('click', () => {
+            if (widget && widget.classList.contains('empty')) activatePlayer();
+            else window.NepTunes.playPause();
+        });
         prevBtn.addEventListener('click', () => window.NepTunes.previous());
         nextBtn.addEventListener('click', () => window.NepTunes.next());
 
@@ -269,6 +275,20 @@
      */
     function liveBadgeVisible(controlsPosition, isLive) {
         return controlsPosition !== 'off' && !!isLive;
+    }
+
+    /*
+     * The "Nothing playing" state is simply no track. With no player running the host sends
+     * no track, no playerType and playerState 0 (not 1); a player stopped at the end of its
+     * queue WITH its last track still shows that track.
+     */
+    function isEmpty(state) {
+        return !(state && state.track);
+    }
+
+    // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+    function activatePlayer() {
+        if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
     }
 
     // Pure: the period one revolution should take, for whatever the host pushed.
@@ -393,14 +413,20 @@
 
     function updateUI(state) {
         applyDirection(state);
-        if (!state || !state.track) {
+        if (widget) widget.classList.toggle('empty', isEmpty(state));
+        if (isEmpty(state)) {
             stopSpinning();
             artwork.classList.remove('visible');
-            if (titleEl) titleEl.textContent = '';
+            // The artwork is gone; forget it, so the same cover coming back fades in again.
+            currentArtworkURL = null;
+            if (titleEl) titleEl.textContent = 'Nothing playing';
             if (artistEl) artistEl.textContent = '';
             if (liveBadge) liveBadge.hidden = true;
             isPlaying = false;
-            if (playBtn) playBtn.classList.remove('playing', 'live');
+            if (playBtn) {
+                playBtn.classList.remove('playing', 'live');
+                playBtn.setAttribute('aria-label', 'Open music player');
+            }
             // Nothing playing must not block transport — pressing next may start playback.
             if (prevBtn) { prevBtn.disabled = false; prevBtn.hidden = false; }
             if (nextBtn) { nextBtn.disabled = false; nextBtn.hidden = false; }
@@ -474,6 +500,8 @@
     function init() {
         console.log('Vinyl: init called');
 
+        widget = document.getElementById('widget');
+        emptyOpen = document.getElementById('emptyOpen');
         vinyl = document.getElementById('vinyl');
         artwork = document.getElementById('artwork');
         // liveBadge is looked up in createControls() — it lives inside the controls
@@ -488,6 +516,11 @@
             console.error('NepTunes API not available');
             return;
         }
+
+        emptyOpen.addEventListener('click', (e) => {
+            e.stopPropagation();
+            activatePlayer();
+        });
 
         // Register listeners - these will catch updates from native
         window.NepTunes.on('statechange', updateUI);
@@ -524,6 +557,7 @@
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
         liveBadgeVisible: liveBadgeVisible,
+        isEmpty: isEmpty,
         start: start
     };
 });

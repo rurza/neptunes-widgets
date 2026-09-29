@@ -13,7 +13,7 @@
     <div class="widget" id="widget">
         <!-- Oversized track title, auto-fit to its box -->
         <div class="title-box">
-            <div class="title" id="title">Not Playing</div>
+            <div class="title" id="title">Nothing playing</div>
         </div>
 
         <!-- artist · album -->
@@ -28,6 +28,13 @@
 
         <!-- Times + controls share a row -->
         <div class="footer">
+            <!-- Nothing playing: stands in for the times and transport while there is no
+                 track. A real <button>, so the host's drag script leaves the click alone. -->
+            <button class="empty-open" id="emptyOpen" type="button" data-action="activate-player"
+                    aria-label="Nothing playing. Open music player">
+                <img class="sf-icon" data-symbol="play.fill" data-size="10" alt="">
+                <span>Open music player</span>
+            </button>
             <div class="times">
                 <span id="elapsed">0:00</span>
             </div>

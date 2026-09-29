@@ -8,6 +8,13 @@
 </head>
 <body>
     <div class="widget stopped" id="widget">
+        <!-- Nothing playing: shown instead of the labels and controls while there is no track.
+             A real <button>, so the host's drag script leaves the click alone. -->
+        <button class="empty-open" id="emptyOpen" type="button" data-action="activate-player"
+                aria-label="Nothing playing. Open music player">
+            <span class="empty-title">Nothing playing</span>
+            <span class="empty-hint">Open music player</span>
+        </button>
         <div class="labels">
             <div class="title" id="title">Not Playing</div>
             <div class="artist" id="artist"></div>

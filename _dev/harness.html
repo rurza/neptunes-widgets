@@ -34,7 +34,15 @@
       <a class="widget" href="?widget=Strip"><button data-w="Strip">Strip</button></a>
       <a class="widget" href="?widget=Charts"><button data-w="Charts">Charts</button></a>
       <a class="widget" href="?widget=Scrobbles"><button data-w="Scrobbles">Scrobbles</button></a>
+      <a class="widget" href="?widget=Activity"><button data-w="Activity">Activity</button></a>
       <a class="widget" href="?widget=V3"><button data-w="V3">V3</button></a>
+      <select id="more" aria-label="Other widgets">
+        <option value="">More widgets…</option>
+        <option>Artwork</option><option>CDCase</option><option>FullPlayer</option>
+        <option>Glass</option><option>KitchenSink</option><option>Minimal</option>
+        <option>NowPlaying</option><option>Sleeve</option><option>Stack</option>
+        <option>Vinyl</option>
+      </select>
     </div>
 
     <h1>Player</h1>
@@ -44,12 +52,37 @@
         <button id="play">⏯ Play/Pause</button>
         <button id="next">Next ›</button>
       </div>
+      <button id="stop">■ Stop (end of queue, last track kept)</button>
+      <button id="quit">⏏ Quit player (none running)</button>
+      <span id="offstage" style="color:#9a9aa6" hidden>Hidden, as the app would: nothing is playing. Set Show to Always to keep it on screen.</span>
+      <span id="activations" style="color:#9a9aa6">activatePlayer(): not called</span>
+    </div>
+
+    <h1>Show</h1>
+    <div class="group">
+      <select id="show" aria-label="Show">
+        <option value="">Manifest default</option>
+        <option value="playback">While music is playing</option>
+        <option value="always">Always</option>
+      </select>
+      <span id="showstate" style="color:#9a9aa6"></span>
+    </div>
+
+    <h1>Motion artwork</h1>
+    <div class="group">
+      <button id="motion">Animated cover: on</button>
+      <span id="motionstate" style="color:#9a9aa6"></span>
     </div>
 
     <h1>Last.fm</h1>
     <div class="group">
       <button id="signout">Toggle signed-out</button>
       <span id="signstate" style="color:#9a9aa6">signed in</span>
+    </div>
+
+    <h1>History</h1>
+    <div class="group">
+      <button id="history">Toggle history unavailable</button>
     </div>
 
     <h1>Stage</h1>
@@ -77,6 +110,15 @@
       var stage = document.getElementById('stage');
       var stageWrap = document.getElementById('stageWrap');
       var controller = null;
+      var pointerTracking = false;
+      var manifestRef = null;
+      // The user's Show override for this widget: '' (none — the manifest default), 'playback'
+      // or 'always'. The app offers the picker only when offersShowSetting(manifest).
+      var showSetting = params.get('show') || '';
+      // The user's "Animated cover" choice for this widget; on by default, as in the app. The app
+      // offers the switch only when offersMotionArtwork(manifest).
+      var motionOn = params.get('motion') !== '0';
+      var activationCount = 0;
 
       // Highlight the active widget button.
       document.querySelectorAll('#picker button').forEach(function (b) {
@@ -84,7 +126,7 @@
       });
 
       // Default stage size per widget (matches each manifest's defaultSize).
-      var SIZES = { Headline: [360, 190], Strip: [560, 44], Charts: [300, 320], Scrobbles: [300, 340], V3: [260, 260] };
+      var SIZES = { Headline: [360, 190], Strip: [560, 44], Charts: [300, 320], Scrobbles: [300, 340], Activity: [180, 180], V3: [260, 260] };
       function setStageSize(w, h) { stage.style.width = w + 'px'; stage.style.height = h + 'px'; }
       setStageSize.apply(null, SIZES[widget] || [360, 200]);
 
@@ -104,17 +146,73 @@
       function bootIframe(html, manifest) {
         var doc = stage.contentWindow.document;
         // Install the mock onto the iframe window BEFORE the widget scripts run.
+        pointerTracking = !!(manifest && manifest.pointerTracking);
+        manifestRef = manifest;
         controller = installNepTunesMock(stage.contentWindow, {
           signedOut: signedOut,
           settings: defaultSettings(manifest),
-          onSetSize: function (w, h) { setStageSize(w, h); }
+          // Gate lastFm.call/image and history on the manifest, as the app does. A widget whose
+          // manifest could not be read is not gated.
+          permissions: manifest ? (manifest.permissions || []) : undefined,
+          // track.motionArtworkURL: a small sample loop, given as the app gives the real one.
+          supportsMotionArtwork: !!(manifest && manifest.supportsMotionArtwork === true),
+          motionArtwork: motionOn,
+          // The host resolves a requested size against the manifest's minSize/maxSize
+          // (WidgetManifest.windowSize); Strip asks for 44pt and gets its 64pt minimum.
+          onSetSize: function (w, h) {
+            var min = (manifest && manifest.minSize) || {}, max = (manifest && manifest.maxSize) || {};
+            w = Math.max(min.width || 0, Math.min(max.width || Infinity, w));
+            h = Math.max(min.height || 0, Math.min(max.height || Infinity, h));
+            setStageSize(w, h);
+          },
+          onActivatePlayer: function (launched) {
+            activationCount++;
+            document.getElementById('activations').textContent = 'activatePlayer() ×' + activationCount +
+              ' — ' + (launched ? 'launched Apple Music, paused' : 'brought the player forward');
+          }
         });
         // Inject <base> so the widget's relative src/href resolve to its bundle dir.
         var base = '<base href="../' + widget + '.nepget/">';
         var injected = html.replace(/<head([^>]*)>/i, '<head$1>' + base);
         if (injected === html) injected = base + html; // no <head> found
         doc.open(); doc.write(injected); doc.close();
+        // The host orders a widget out while nothing plays unless its effective Show setting is
+        // Always. Mirror that so Stop / Quit show what a user would see.
+        stage.contentWindow.NepTunes.on('statechange', applyVisibility);
+        applyVisibility();
+        // The host reports the pointer only to a widget whose manifest says "pointerTracking": true
+        // (WidgetWindowController.trackPointer), and never while a button is held. A browser does
+        // deliver mousemove to the iframe, so forward it through the mock, which coalesces exactly
+        // as the host does. document.open() dropped any earlier listener, so this is added after.
+        if (pointerTracking) {
+          stage.contentWindow.document.addEventListener('mousemove', function (e) {
+            if (!e.buttons) controller.pointerMove(e.clientX, e.clientY);
+          });
+        }
         updateSignState();
+        updateShowControl();
+        updateMotionControl();
+      }
+
+      function updateMotionControl() {
+        var offered = offersMotionArtwork(manifestRef);
+        var button = document.getElementById('motion');
+        button.disabled = !offered;
+        button.textContent = 'Animated cover: ' + (offered && motionOn ? 'on' : 'off');
+        button.classList.toggle('active', offered && motionOn);
+        document.getElementById('motionstate').textContent = offered
+          ? 'NepTunes.getMotionArtworkURL() is the sample loop while this is on and a track is loaded.'
+          : 'No switch: the manifest needs "supportsMotionArtwork": true and the artwork permission.';
+      }
+
+      function updateShowControl() {
+        var offered = offersShowSetting(manifestRef);
+        var select = document.getElementById('show');
+        select.disabled = !offered;
+        select.value = offered ? showSetting : '';
+        document.getElementById('showstate').textContent = offered
+          ? 'Effective: ' + (effectiveAlwaysVisible(manifestRef, showSetting || undefined) ? 'Always' : 'While music is playing')
+          : 'No picker: the manifest declares neither alwaysVisible nor supportsNoPlayback.';
       }
 
       function load() {
@@ -143,17 +241,49 @@
           });
       }
 
+      function applyVisibility() {
+        var visible = isWidgetVisible(manifestRef, controller && controller.state, showSetting || undefined);
+        stage.style.visibility = visible ? '' : 'hidden';
+        document.getElementById('offstage').hidden = visible;
+      }
+
       function updateSignState() {
         document.getElementById('signstate').textContent = signedOut ? 'signed out' : 'signed in';
       }
 
       document.getElementById('prev').onclick = function () { controller && controller.state && stage.contentWindow.NepTunes.previous(); };
       document.getElementById('next').onclick = function () { controller && controller.nextTrack(); };
-      document.getElementById('play').onclick = function () { controller && controller.togglePlay(); };
+      // With no player running, Play has nothing to talk to — launch one, as a user would.
+      document.getElementById('play').onclick = function () {
+        if (!controller) return;
+        if (controller.state.playerState === 0 && !controller.state.playerType) stage.contentWindow.NepTunes.activatePlayer();
+        else controller.togglePlay();
+      };
+      document.getElementById('stop').onclick = function () { controller && controller.stop(); };
+      document.getElementById('quit').onclick = function () { controller && controller.quitPlayer(); };
+      document.getElementById('show').onchange = function () {
+        showSetting = this.value;
+        updateShowControl();
+        applyVisibility();
+      };
+      document.getElementById('more').onchange = function () {
+        if (this.value) location.search = '?widget=' + encodeURIComponent(this.value);
+      };
+      document.getElementById('motion').onclick = function () {
+        motionOn = !motionOn;
+        if (controller) controller.setMotionArtwork(motionOn);
+        updateMotionControl();
+      };
       document.getElementById('signout').onclick = function () {
         signedOut = !signedOut;
         if (controller) controller.setSignedOut(signedOut);
         updateSignState();
+      };
+      var historyOff = false;
+      document.getElementById('history').onclick = function () {
+        historyOff = !historyOff;
+        if (controller) controller.setHistoryUnavailable(historyOff);
+        this.classList.toggle('active', historyOff);
       };
       document.getElementById('bg').onclick = function () { stageWrap.classList.toggle('light'); };
 
@@ -169,7 +299,10 @@
         if (doc && doc.documentElement) doc.documentElement.classList.toggle('nt-hover', on);
       }
       stage.addEventListener('mouseenter', function () { setHover(true); });
-      stage.addEventListener('mouseleave', function () { if (!hoverPinned) setHover(false); });
+      stage.addEventListener('mouseleave', function () {
+        if (!hoverPinned) setHover(false);
+        if (pointerTracking && controller) controller.pointerLeave();
+      });
       document.getElementById('hover').onclick = function () {
         hoverPinned = !hoverPinned;
         this.classList.toggle('active', hoverPinned);

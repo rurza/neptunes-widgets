@@ -99,6 +99,14 @@
   "why": "theme=auto must follow the desktop"
  },
  {
+  "widget": "Activity",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
   "widget": "Charts",
   "settings": {
    "theme": "dark"
@@ -195,6 +203,14 @@
   },
   "expect": "stable",
   "why": "explicit light must survive a flip untouched"
+ },
+ {
+  "widget": "Activity",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
  },
  {
   "widget": "Artwork",

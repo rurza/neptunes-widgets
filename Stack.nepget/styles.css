@@ -128,9 +128,14 @@ html.theme-light {
 }
 
 .no-artwork img.sf-icon {
-    width: 42%;
-    height: 42%;
-    color: rgba(255, 255, 255, 0.45);
+    /* Flat 64px, equal to its data-size in index.html — the PNG is rasterised at exactly that
+       many points, so the 42% box this used to have resampled a 36pt glyph into a soft note.
+       The cover is a fixed 156px, so this is the same framing. The fade is `opacity`: a plain
+       `color:` does nothing to a rendered PNG (sfsymbols.js bakes --text in), and a
+       translucent --icon-color comes out opaque from the native rasteriser. */
+    width: 64px;
+    height: 64px;
+    opacity: 0.45;
 }
 
 .no-artwork.hidden {
@@ -353,6 +358,63 @@ html.theme-light .play-btn {
 /* Keep dimmed controls dim even when "Always" is set. */
 .widget.stopped .controls.controls-always {
     opacity: 0.5;
+}
+
+/* ---- Nothing playing ----
+   No track. The cover keeps its empty sleeve and note, the title under it says "Nothing
+   playing", and the transport gives way to one pill in the play button's own material, moved
+   below the title so the column reads as a sentence and then its action. The pill opens the
+   music player (NepTunes.activatePlayer). It is not hover-gated: with nothing playing there is
+   nothing else on the widget to act on. */
+.widget.stopped .controls,
+.widget.stopped .artist {
+    display: none;
+}
+
+.widget.stopped .title {
+    order: 1;
+}
+
+.empty-open {
+    -webkit-app-region: no-drag;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    order: 2;
+    margin-top: 12px;
+    padding: 0 14px 0 12px;
+    border: none;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    color: rgba(18, 18, 20, 0.96);
+    --icon-color: #121214;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+
+.widget.stopped .empty-open {
+    display: flex;
+}
+
+.empty-open:active {
+    transform: scale(0.95);
+}
+
+html.theme-light .empty-open {
+    background: rgba(24, 24, 26, 0.9);
+    color: rgba(255, 255, 255, 0.96);
+    --icon-color: #ffffff;
+}
+
+.empty-open img.sf-icon {
+    width: 12px;
+    height: 12px;
+    display: block;
 }
 
 /* ---- Reduced motion ---- */

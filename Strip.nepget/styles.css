@@ -254,6 +254,30 @@ html[dir="rtl"] .label-wrap {
 
 .widget.empty .label { color: var(--fg-dim); font-weight: 500; }
 
+/* ---- Nothing playing ----
+   No track: the readout makes way for "Open player", set exactly like the time it replaces
+   (same size, weight and dimmed ink), so the strip keeps its rhythm. It, the glyph and the
+   strip itself all bring the music player up (NepTunes.activatePlayer). */
+.empty-open {
+    display: none;
+    flex: 0 0 auto;
+    /* The strip's full height as a hit area, not just the 12px line. */
+    align-self: stretch;
+    padding: 0 2px;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--fg-dim);
+    cursor: pointer;
+    transition: color 120ms ease;
+}
+.empty-open:active { color: var(--fg); }
+.widget.empty .empty-open { display: block; }
+.widget.empty .time { display: none; }
+
 /* ---- Time ---- */
 .time {
     flex: 0 0 auto;

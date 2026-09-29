@@ -58,7 +58,8 @@ body {
     --text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
     --placeholder-a: #3a3a3c;
     --placeholder-b: #191a1c;
-    --placeholder-glyph: rgba(255, 255, 255, 0.16);
+    /* The note on the empty cover: drawn in --title and faded to this. */
+    --placeholder-glyph-opacity: 0.16;
 
     /* Accent palette — overwritten at runtime by NTKit.applyAccent.
        --accent = raw album colour (play-button fill); --on = contrast icon. */
@@ -77,7 +78,6 @@ html.theme-light {
     --ctrl-hover: rgba(0, 0, 0, 0.08);
     --placeholder-a: #eaeaec;
     --placeholder-b: #c9c9cd;
-    --placeholder-glyph: rgba(0, 0, 0, 0.16);
 }
 
 /* ---- Cover (rounded square, holds the shadow, clips the art) ---- */
@@ -156,11 +156,15 @@ html.theme-light {
    framing, drawn 1:1. Keep it equal to the `data-size` in index.html.
    `--icon-color`, not `color`: the glyph is a rendered PNG with its tint baked in, and
    sfsymbols.js reads the variable. Through `color` this asked for a 16% watermark and got a
-   solid white note, because the resolver fell through to `--title`. */
+   solid white note, because the resolver fell through to `--title`.
+   And the fade is `opacity`, not a translucent `--icon-color`: the native rasteriser fills the
+   tint over a black template, so rgba(255,255,255,.16) came out an opaque near-black note and
+   rgba(0,0,0,.16) a solid black one on the light placeholder. */
 .no-artwork img.sf-icon {
     width: 80px;
     height: 80px;
-    --icon-color: var(--placeholder-glyph);
+    --icon-color: var(--title);
+    opacity: var(--placeholder-glyph-opacity);
 }
 
 /* ---- Frosted-glass control panel ---- */
@@ -416,6 +420,65 @@ html.theme-light .play-btn {
    cannot brighten a button greyed out for a Spotify ad. */
 .widget.stopped .control-btn {
     opacity: 0.6;
+}
+
+/* ---- Nothing playing ----
+   No track. The cover is the empty placeholder with its faint note; on the sheet, the title
+   says "Nothing playing" and the transport row gives way to one pill in the play button's own
+   material that opens the music player (NepTunes.activatePlayer). It rides the panel's
+   visibility like everything else on the sheet, so "On hover" still means a bare cover. */
+.widget.stopped .artist,
+.widget.stopped .controls {
+    display: none;
+}
+
+/* With the sheet always up, lift the note into the cover above it rather than leave it half
+   under the glass. In "On hover" the cover is bare until the pointer arrives, so the note stays
+   centred there. (10px inset + the empty sheet's height.) */
+.widget.stopped:has(.panel-always) .no-artwork {
+    padding-bottom: 104px;
+}
+
+.empty-open {
+    -webkit-app-region: no-drag;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 38px;
+    margin: 10px auto 0;
+    padding: 0 18px 0 15px;
+    border: none;
+    border-radius: 19px;
+    background: rgba(255, 255, 255, 0.95);
+    color: rgba(18, 18, 20, 0.96);
+    --icon-color: #121214;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s ease, filter 0.15s ease;
+}
+
+.widget.stopped .empty-open {
+    display: flex;
+}
+
+.empty-open:active {
+    transform: scale(0.96);
+}
+
+html.theme-light .empty-open {
+    background: rgba(24, 24, 26, 0.9);
+    color: rgba(255, 255, 255, 0.96);
+    --icon-color: #ffffff;
+}
+
+.empty-open img.sf-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
 }
 
 html.nt-hover .widget.stopped .control-btn {

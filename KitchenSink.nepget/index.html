@@ -32,6 +32,19 @@
             </div>
         </div>
 
+        <!-- Nothing playing: stands in for the track, timeline, transport, volume and rating
+             while there is no track. The pill is a real <button>, so the host's drag script
+             leaves the click alone. -->
+        <div class="empty-state">
+            <img class="sf-icon empty-glyph" data-symbol="music.note" data-size="36" alt="">
+            <div class="empty-title">Nothing playing</div>
+            <button class="empty-open" id="emptyOpen" type="button" data-action="activate-player"
+                    aria-label="Nothing playing. Open music player">
+                <img class="sf-icon" data-symbol="play.fill" data-size="14" alt="">
+                <span>Open music player</span>
+            </button>
+        </div>
+
         <!-- Track info with artwork -->
         <div class="track-section">
             <div class="artwork-container">
@@ -41,7 +54,7 @@
                 </div>
             </div>
             <div class="track-info">
-                <div class="title" id="title">Not Playing</div>
+                <div class="title" id="title">Nothing playing</div>
                 <div class="artist" id="artist"></div>
                 <div class="album" id="album"></div>
             </div>

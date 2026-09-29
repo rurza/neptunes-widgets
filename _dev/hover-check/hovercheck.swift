@@ -122,14 +122,24 @@ final class Renderer: NSObject, WKNavigationDelegate {
 
     /// Mirror the host: settings first, then a playing track, each announced the way the bridge
     /// announces them.
-    func push(settings: [String: Any], track: [String: Any]) async {
-        let state: [String: Any] = [
-            "track": track, "playerState": 2, "playerPosition": 10, "volume": 70, "isMuted": false,
+    func push(settings: [String: Any], track: [String: Any]?) async {
+        var state: [String: Any] = [
+            "track": track as Any, "playerState": 2, "playerPosition": 10, "volume": 70, "isMuted": false,
             "shuffleEnabled": false, "repeatMode": 1, "rating": 80, "isLoved": true,
             "playerType": "appleMusic", "layoutDirection": "ltr", "language": "en", "locale": "en-US",
             "capabilities": ["canLove": true, "canDislike": true, "canRate": true,
                              "canAddToLibrary": true, "hasThreeStateRepeat": true],
         ]
+        if track == nil {
+            // No player running, as WidgetJSBridge sends it: no track, no playerType, and
+            // playerState 0 (unknown), not 1.
+            state = [
+                "playerState": 0, "playerPosition": 0, "volume": 70, "isMuted": false,
+                "shuffleEnabled": false, "layoutDirection": "ltr", "language": "en", "locale": "en-US",
+                "capabilities": ["canLove": false, "canDislike": false, "canRate": false,
+                                 "canAddToLibrary": false, "hasThreeStateRepeat": false],
+            ]
+        }
         let s = String(data: try! JSONSerialization.data(withJSONObject: settings), encoding: .utf8)!
         let t = String(data: try! JSONSerialization.data(withJSONObject: state), encoding: .utf8)!
         await eval("window.NepTunes.settings = \(s); window.NepTunes._emit('settingschange', window.NepTunes.settings);")
@@ -188,7 +198,9 @@ func run() async -> Int {
         let why = c["why"] as! String
         let inert = c["inert"] as? Bool ?? false
         let overrides = c["settings"] as? [String: Any] ?? [:]
-        let label = "\(widget) \(selector) [\(overrides.map { "\($0)=\($1)" }.sorted().joined(separator: ","))]"
+        // `empty: true` pushes no track and no player — the widget's "Nothing playing" state.
+        let empty = c["empty"] as? Bool == true
+        let label = "\(widget) \(selector) [\(overrides.map { "\($0)=\($1)" }.sorted().joined(separator: ","))]\(empty ? " nothing playing" : "")"
 
         let bundle = widgetsDir.appendingPathComponent("\(widget).nepget")
         guard let manifestData = FileManager.default.contents(
@@ -215,7 +227,7 @@ func run() async -> Int {
 
         let r = Renderer()
         await r.load(bundle: bundle, width: width, height: height)
-        await r.push(settings: settings, track: track)
+        await r.push(settings: settings, track: empty ? nil : track)
         await settle(500)                       // the bundle's own settingschange/statechange work
         let idle = Sample(await r.eval(measureJS(selector)))
         await r.hover(true)

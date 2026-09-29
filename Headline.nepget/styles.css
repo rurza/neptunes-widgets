@@ -328,9 +328,60 @@ html.nt-hover .controls,
     display: none;
 }
 
-/* ---- Empty state ---- */
+/* ---- Empty state ----
+   No track: the headline itself says so — "Nothing playing", full size, in the dimmed ink —
+   and the footer's times and transport give way to a single quiet line that opens the music
+   player (NepTunes.activatePlayer). The hairline stays in the layout, invisibly, so the
+   headline sits exactly where a title would. */
 .widget.stopped .title {
     color: var(--text-dim);
+}
+
+.widget.stopped .bar {
+    visibility: hidden;
+}
+
+.widget.stopped .times,
+.widget.stopped .controls {
+    display: none;
+}
+
+.empty-open {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    /* A taller hit area than the 11px line, taken straight back so nothing moves. */
+    padding: 6px 0;
+    margin: -6px 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--text-dim);
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    transition: color 0.15s ease;
+}
+
+.widget.stopped .empty-open {
+    display: inline-flex;
+}
+
+.empty-open .sf-icon {
+    width: 10px;
+    height: 10px;
+    display: block;
+    /* The glyph's tint is baked into its PNG (sfsymbols.js), and a translucent tint comes out
+       opaque — the native rasteriser composites it over a black template. So draw it in the
+       full ink and fade the image to --text-dim's 0.62. */
+    --icon-color: var(--text);
+    opacity: 0.62;
+}
+
+.empty-open:active {
+    color: var(--text);
 }
 
 /* ---- Reduced motion: disable crossfades / transitions ---- */

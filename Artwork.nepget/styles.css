@@ -25,6 +25,9 @@
     --placeholder-glyph: rgba(255, 255, 255, 0.15);
     --text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     --press-fill: rgba(255, 255, 255, 0.2);
+    /* The empty sleeve shown with nothing playing (.empty-art). */
+    --empty-a: #3a3a3a;
+    --empty-b: #1a1a1a;
 }
 
 /* A light cover under a light overlay needs dark ink, and a black text-shadow under dark ink
@@ -37,6 +40,8 @@
     --placeholder-glyph: rgba(0, 0, 0, 0.18);
     --text-shadow: none;
     --press-fill: rgba(0, 0, 0, 0.12);
+    --empty-a: #f0f0f2;
+    --empty-b: #d3d3d8;
 }
 
 @media (prefers-color-scheme: light) {
@@ -48,6 +53,8 @@
         --placeholder-glyph: rgba(0, 0, 0, 0.18);
         --text-shadow: none;
         --press-fill: rgba(0, 0, 0, 0.12);
+        --empty-a: #f0f0f2;
+        --empty-b: #d3d3d8;
     }
 }
 
@@ -393,6 +400,85 @@ body {
 
 .live-badge[hidden] {
     display: none;
+}
+
+/* ---- Nothing playing ----
+   No track. The card becomes an empty sleeve in the theme's own ink — light in the light theme,
+   where the frost bar is light too — with a faint note set in the space above the bar. The bar
+   keeps its title line ("Nothing playing") and trades the transport row for one quiet button
+   of the same height that opens the music player (NepTunes.activatePlayer).
+
+   Its own glyph rather than the no-artwork one: that note's tint is a translucent colour, which
+   the native rasteriser composites into an opaque glyph, and an icon cannot re-tint when a class
+   changes. This one is drawn in --ink and faded with `opacity`, which holds everywhere. */
+.empty-art {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    /* Centred in the art above the bar, not in the whole card. */
+    padding-bottom: 76px;
+    background: linear-gradient(135deg, var(--empty-a), var(--empty-b));
+}
+
+.empty-art img.sf-icon {
+    width: 56px;
+    height: 56px;
+    --icon-color: var(--ink);
+    opacity: 0.28;
+}
+
+.widget.empty .empty-art {
+    display: flex;
+}
+
+.widget.empty .no-artwork {
+    display: none;
+}
+
+.widget.empty .artist,
+.widget.empty .controls {
+    display: none;
+}
+
+.empty-open {
+    position: relative;
+    z-index: 1;
+    display: none;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    margin: 0 auto;
+    padding: 0 12px;
+    border: none;
+    border-radius: 16px;
+    background: transparent;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-control);
+    --icon-color: var(--ink-control);
+    text-shadow: var(--text-shadow);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.widget.empty .empty-open {
+    display: flex;
+}
+
+/* Pressed like the transport buttons: :active, never :hover (see .control-btn above). */
+.empty-open:active {
+    background: var(--press-fill);
+    transition: none;
+}
+
+.empty-open img.sf-icon {
+    width: 12px;
+    height: 12px;
+    display: block;
 }
 
 .resize-handle {

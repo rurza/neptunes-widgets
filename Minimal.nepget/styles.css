@@ -269,7 +269,82 @@ body {
     color: var(--text-secondary);
 }
 
+/* Nothing playing — no track at all (no player running, or one with nothing loaded).
+   The labels and transport step aside for two quiet lines in the same type, the first in the
+   secondary ink, the hint below it in the tertiary one. The whole pair is one chromeless
+   button that brings the music player up (NepTunes.activatePlayer). */
+.empty-open {
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: inherit;
+    text-align: inherit;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+}
+
+.widget.stopped .empty-open {
+    display: flex;
+}
+
+.widget.stopped .labels,
 .widget.stopped .controls {
-    opacity: 0.4;
-    pointer-events: none;
+    display: none;
+}
+
+.widget.align-center .empty-open {
+    align-items: center;
+}
+
+.widget.align-right .empty-open {
+    align-items: flex-end;
+}
+
+/* Only as wide as its text, so the rest of the row still drags the window. */
+.empty-open {
+    align-self: flex-start;
+}
+
+.widget.align-center .empty-open {
+    align-self: center;
+}
+
+.widget.align-right .empty-open {
+    align-self: flex-end;
+}
+
+.empty-title,
+.empty-hint {
+    font-size: 14px;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    text-shadow: var(--text-shadow);
+}
+
+.empty-title {
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.empty-hint {
+    font-weight: 400;
+    color: var(--text-tertiary);
+}
+
+/* Pressed, like the transport buttons: :active, never :hover (see .control-btn above). */
+.empty-open:active .empty-title {
+    color: var(--text-primary);
+}
+
+.empty-open:active .empty-hint {
+    color: var(--text-secondary);
 }

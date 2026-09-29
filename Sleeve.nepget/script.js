@@ -9,20 +9,159 @@
 (function () {
     'use strict';
 
+    /*
+     * Motion artwork — the pure half, kept above every DOM lookup so `require`ing this file in
+     * Node gets these and stops (see _dev/sleeve.test.mjs).
+     *
+     * NepTunes 4.1 hands a widget that declares "supportsMotionArtwork" the album's animated cover
+     * as track.motionArtworkURL: a local URL for a <video src>, and nothing more (fetch() of it
+     * fails). It is absent on older apps, with the user's "Animated cover" off, for an album with
+     * no loop, until the loop has downloaded (a few seconds after the track change, via another
+     * statechange), under Reduce Motion or Low Power, and without Pro. Every one of those, and
+     * any failure, leaves the static cover — which is always underneath, and which the accent
+     * keeps coming from.
+     */
+
+    // What the cover should be doing: which loop, for which album, and whether it plays. A loop
+    // is shown only for a track that is playing or paused — not when stopped, not for an ad, and
+    // never under prefers-reduced-motion. Paused keeps the loop (and its current frame) without
+    // playing it.
+    function motionState(state, reducedMotion) {
+        var off = { src: null, album: null, play: false };
+        var track = state && state.track;
+        if (!track || track.isAdvertisement || reducedMotion) return off;
+        var src = typeof track.motionArtworkURL === 'string' ? track.motionArtworkURL : '';
+        var playerState = state.playerState;
+        if (!src || (playerState !== 2 && playerState !== 3)) return off;
+        return { src: src, album: track.album || '', play: playerState === 2 };
+    }
+
+    // A little longer than the 0.35 s opacity crossfade, so a video is let go only once it has
+    // faded out.
+    var MOTION_FADE_MS = 400;
+
+    /*
+     * The <video>s over the static cover. Each loop gets its own element: an outgoing one fades
+     * out and is then released (src removed + load(), so WebKit drops the decoder and the file)
+     * while its successor loads underneath it. A video is revealed only once a frame is actually
+     * on screen — requestVideoFrameCallback, or playback advancing past 0 with data in hand —
+     * never on "loaded", which can still paint black. A hidden widget window loads no media at
+     * all until it is shown, so until then it simply stays on the static art.
+     *
+     *   opts.container    element the videos go into (the rounded, clipped cover)
+     *   opts.createVideo  () => a new <video>
+     *   opts.later        (fn, ms) => schedule fn (setTimeout)
+     */
+    function createMotionLayer(opts) {
+        var current = null;     // { el, key, revealed, dead }
+        var failedKey = null;   // the loop that errored, not retried until the loop changes
+        var wantPlay = false;
+
+        function playIfWanted(entry) {
+            if (entry !== current || !wantPlay || !entry.el.paused) return;
+            var result = entry.el.play();
+            // A refused play() just leaves the static art up: nothing is revealed without a frame.
+            if (result && typeof result.catch === 'function') result.catch(function () {});
+        }
+
+        function reveal(entry) {
+            if (entry.dead || entry.revealed || entry.el.readyState < 2) return;
+            entry.revealed = true;
+            entry.el.classList.add('visible');
+        }
+
+        function release(entry) {
+            entry.dead = true;
+            var el = entry.el;
+            el.classList.remove('visible');
+            if (!el.paused) el.pause();
+            opts.later(function () {
+                el.removeAttribute('src');
+                el.load();
+                if (el.parentNode) el.parentNode.removeChild(el);
+            }, MOTION_FADE_MS);
+        }
+
+        function start(src, key) {
+            var el = opts.createVideo();
+            var entry = { el: el, key: key, revealed: false, dead: false };
+            el.muted = true;
+            el.defaultMuted = true;
+            el.loop = true;
+            el.playsInline = true;
+            el.setAttribute('muted', '');
+            el.setAttribute('loop', '');
+            el.setAttribute('playsinline', '');
+            el.setAttribute('disablepictureinpicture', '');
+            el.setAttribute('preload', 'auto');
+            el.setAttribute('aria-hidden', 'true');
+            el.classList.add('motion');
+
+            el.addEventListener('loadeddata', function () { playIfWanted(entry); });
+            el.addEventListener('canplay', function () { playIfWanted(entry); });
+            el.addEventListener('timeupdate', function () {
+                if (el.currentTime > 0) reveal(entry);
+            });
+            if (typeof el.requestVideoFrameCallback === 'function') {
+                el.requestVideoFrameCallback(function () { reveal(entry); });
+            }
+            el.addEventListener('error', function () {
+                if (entry !== current) return;
+                failedKey = entry.key;
+                current = null;
+                release(entry);
+            });
+
+            el.setAttribute('src', src);
+            opts.container.appendChild(el);
+            return entry;
+        }
+
+        function update(m) {
+            wantPlay = !!m.play;
+            var key = m.src ? m.src + '\n' + m.album : null;
+            if (key !== failedKey) failedKey = null;
+            if (key === failedKey) key = null;
+            if (key !== (current && current.key)) {
+                if (current) release(current);
+                current = key ? start(m.src, key) : null;
+            }
+            if (!current) return;
+            if (wantPlay) playIfWanted(current);
+            else if (!current.el.paused) current.el.pause();
+        }
+
+        return { update: update };
+    }
+
+    var PURE = { motionState: motionState, createMotionLayer: createMotionLayer };
+    if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
+    if (typeof window === 'undefined') return;
+
     // ---- DOM ----
     var root    = document.documentElement;
     var widget  = document.getElementById('widget');
     var info    = document.getElementById('info');
+    var cover   = document.getElementById('cover');
     var art     = document.getElementById('art');
     var noArt   = document.getElementById('noArt');
     var titleEl = document.getElementById('title');
     var albumEl = document.getElementById('album');
     var artistEl = document.getElementById('artist');
+    var emptyOpen = document.getElementById('emptyOpen');
 
     // ---- State ----
     var settings = {};
     var lastArtworkURL = null;   // cache so accent only re-extracts on change
     var currentArtSrc = null;    // what <img> currently shows (avoid reloads/flicker)
+    var lastState = null;        // re-evaluated when prefers-reduced-motion flips
+    var reducedMotionQuery = window.matchMedia
+        ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    var motion = createMotionLayer({
+        container: cover,
+        createVideo: function () { return document.createElement('video'); },
+        later: function (fn, ms) { setTimeout(fn, ms); }
+    });
 
     // ---------------------------------------------------------------- Theme ----
 
@@ -92,6 +231,13 @@
         }
     }
 
+    // ------------------------------------------------------- Motion artwork ----
+
+    function updateMotion() {
+        var reduced = !!(reducedMotionQuery && reducedMotionQuery.matches);
+        motion.update(motionState(lastState, reduced));
+    }
+
     // ---------------------------------------------------------------- Text ----
 
     function setLine(el, value) {
@@ -115,9 +261,11 @@
         var track = state && state.track;
 
         if (!track) {
-            // Stopped / no track.
+            // No track — "Nothing playing". With no player running the host sends no track,
+            // no playerType and playerState 0 (not 1); a player stopped at the end of its
+            // queue WITH its last track still shows that track (the branch below).
             widget.classList.add('stopped');
-            setLine(titleEl, 'Not Playing');
+            setLine(titleEl, 'Nothing playing');
             setLine(albumEl, '');
             setLine(artistEl, '');
         } else {
@@ -132,6 +280,9 @@
         var url = window.NepTunes.getArtworkDataURL();
         updateArtwork(url);
         updateAccent(url);
+
+        lastState = state;
+        updateMotion();
     }
 
     function onSettings(s) {
@@ -161,10 +312,18 @@
 
     function init() {
         if (!window.NepTunes) return;
+        // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+        emptyOpen.addEventListener('click', function () {
+            if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
+        });
         if (window.SFSymbols) SFSymbols.load();
         NepTunes.on('statechange', onState);
         NepTunes.on('settingschange', onSettings);
         NepTunes.on('themechange', onThemeChange);
+        if (reducedMotionQuery) {
+            if (reducedMotionQuery.addEventListener) reducedMotionQuery.addEventListener('change', updateMotion);
+            else if (reducedMotionQuery.addListener) reducedMotionQuery.addListener(updateMotion);
+        }
         onSettings(NepTunes.settings);
         onState(NepTunes.state);
         if (NepTunes._signalReady) NepTunes._signalReady();

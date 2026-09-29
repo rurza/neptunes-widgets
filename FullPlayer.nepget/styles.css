@@ -117,6 +117,7 @@ body {
 }
 
 .artwork-container {
+    position: relative;
     flex-shrink: 0;
     width: 120px;
     height: 120px;
@@ -147,9 +148,22 @@ body {
 }
 
 .no-artwork {
-    width: 48px;
-    height: 48px;
-    color: var(--text-secondary);
+    /* Over the (transparent, still full-size) cover rather than beside it: in the tile's flex
+       row the cover took the whole width and pushed the note out of the clip, so a track with
+       no artwork showed an empty tile. */
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Equal to its data-size. Faded with `opacity` — the glyph is a PNG tinted from
+   --text-primary by sfsymbols.js, so `color:` cannot dim it. */
+.no-artwork img.sf-icon {
+    width: 36px;
+    height: 36px;
+    opacity: 0.4;
 }
 
 .main {
@@ -550,4 +564,62 @@ body.light .play-btn {
 
 .widget.stopped .play-btn {
     opacity: 1;
+}
+
+/* Nothing playing — no track. The tile keeps its note and the title says so; the timeline,
+   transport and volume/love row step aside for one pill in the play button's own material that
+   opens the music player (NepTunes.activatePlayer). The column stays centred on the tile. */
+.widget.stopped .artist,
+.widget.stopped .progress-container,
+.widget.stopped .controls,
+.widget.stopped .bottom-row {
+    display: none;
+}
+
+.empty-open {
+    -webkit-app-region: no-drag;
+    display: none;
+    align-self: flex-start;
+    align-items: center;
+    gap: 7px;
+    height: 36px;
+    padding: 0 16px 0 14px;
+    border: none;
+    border-radius: 18px;
+    background: var(--text-primary);
+    color: #1a1a1a;
+    --icon-color: #1a1a1a;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.widget.stopped .empty-open {
+    display: inline-flex;
+}
+
+.empty-open:active {
+    transform: scale(0.97);
+}
+
+body.light .empty-open {
+    background: #1a1a1a;
+    color: #ffffff;
+    --icon-color: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+    body.auto .empty-open {
+        background: #1a1a1a;
+        color: #ffffff;
+        --icon-color: #ffffff;
+    }
+}
+
+.empty-open img.sf-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
 }

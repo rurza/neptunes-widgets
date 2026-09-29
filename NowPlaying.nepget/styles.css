@@ -68,6 +68,7 @@ body {
 }
 
 .artwork-container {
+    position: relative;
     flex-shrink: 0;
     width: 80px;
     height: 80px;
@@ -92,6 +93,10 @@ body {
 }
 
 .artwork-container .no-artwork {
+    /* Over the (transparent, still full-size) cover rather than beside it, or the note is
+       pushed off-centre into the tile's corner. */
+    position: absolute;
+    inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -255,7 +260,44 @@ body {
     color: var(--text-secondary);
 }
 
-.widget.stopped .controls {
-    opacity: 0.5;
+/* Nothing playing — no track. The tile keeps its note, the title says so, and the transport
+   gives way to one pill in the controls' own material that opens the music player
+   (NepTunes.activatePlayer). */
+.widget.stopped .controls,
+.widget.stopped .artist {
+    display: none;
+}
+
+.empty-open {
+    display: none;
+    align-self: flex-start;
+    align-items: center;
+    gap: 7px;
+    height: 32px;
+    padding: 0 14px 0 12px;
+    border: none;
+    border-radius: 16px;
+    background: var(--control-bg);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    -webkit-app-region: no-drag;
+}
+
+.widget.stopped .empty-open {
+    display: inline-flex;
+}
+
+.empty-open:active {
+    background: var(--control-active);
+}
+
+.empty-open .sf-icon {
+    width: 12px;
+    height: 12px;
+    display: block;
     pointer-events: none;
 }

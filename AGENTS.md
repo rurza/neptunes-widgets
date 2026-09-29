@@ -42,6 +42,15 @@ validate and test it.
    `version`, `entry`, `defaultSize`. Request the **minimum** `permissions`
    the widget actually needs — each one is shown to the user at install, and
    adding one later forces a re-consent prompt on update.
+   A widget is on screen only while a track is playing or paused. If what it
+   shows doesn't depend on the current track (stats, charts), add
+   `"alwaysVisible": true` so it stays up with nothing playing — and render an
+   empty state for `state.track` absent. NepTunes before 4.1 ignores the key.
+   See *Showing without playback* in `Docs/WidgetDevelopment.md`.
+   A widget that shows the album cover can add `"supportsMotionArtwork": true`
+   (with the `artwork` permission) to play Apple Music motion artwork over it —
+   see *Motion artwork* below. Older apps ignore the key and show static art, so
+   it needs no `minNepTunesVersion`.
 
    ```json
    {
@@ -191,7 +200,8 @@ _dev/hover-check/run.sh
 ```
 
 - `_dev/mock-neptunes.js` installs a fake `window.NepTunes`
-  (state, events, artwork, Last.fm) for `_dev/harness.html`. It
+  (state, events, artwork, Last.fm incl. `call`/`image`, listening history,
+  `firstWeekday`, pointer events) for `_dev/harness.html`. It
   is dev-only and never ships inside a bundle.
 - `_dev/neptunes-kit.js` (`NTKit`) is the shared helper library
   — `formatTime`, `formatCount`, `relativeTime`, `clock`, `paletteFromPixels`,
@@ -217,7 +227,10 @@ _dev/hover-check/run.sh
   the shadow gutter is not a hover target. Keep the card a child of `body`, and
   don't leave an invisible full-bleed layer in there — it would hand the whole
   window back. Details: `NepTunes Widget/README.md` → *`:hover` does not work in a
-  widget*.
+  widget*. To know *where* the pointer is, declare `"pointerTracking": true` and
+  listen for `pointermove`/`pointerleave`, registering them synchronously at load
+  (the host reports a resting pointer once when the page finishes loading); see
+  *Hover and pointer tracking* in `Docs/WidgetDevelopment.md`.
 
 ## The window.NepTunes API
 
@@ -240,6 +253,7 @@ That file is the source of truth; this list mirrors it.
   language: "ar",                 // host UI language, BCP-47 ("en", "pt-BR", "ar")
   locale: "ar-SA",                // host locale, BCP-47 — pass to toLocaleString/Intl
   layoutDirection: "rtl",         // "rtl" or "ltr" — the values `dir` takes
+  firstWeekday: 1,                // region's first weekday, 1…7 ISO (1 = Monday) — NepTunes 4.1+
   track: {                        // absent when nothing is playing
     title: "Song Title",
     artist: "Artist Name",
@@ -249,8 +263,11 @@ That file is the source of truth; this list mirrors it.
     isLoved: true,                // optional
     isAdvertisement: true,        // Spotify only; ABSENT (undefined) for a real track —
                                   // check truthily, never `=== false`
-    artworkData: "<base64 jpeg>"  // only with the artwork permission, and only
+    artworkData: "<base64 jpeg>", // only with the artwork permission, and only
                                   // when it CHANGED — keep your last value
+    motionArtworkURL: "neptunes-media://motion/…" // NepTunes 4.1+, only with
+                                  // "supportsMotionArtwork" + artwork: the album's
+                                  // motion artwork loop, for <video src> ONLY
   },
   playerType: "appleMusic",       // or "spotify"
   capabilities: { canLove: true, canDislike: true, canRate: true,
@@ -269,12 +286,46 @@ raise `RangeError` on the underscore form (`"ar_SA"`), so the host converts befo
 publishing. Read the locale off state rather than hard-coding a tag — `NTKit.formatCount`
 does, and takes an explicit one as its second argument. `layoutDirection` is how you
 opt into mirroring; the host sets `lang` on the document but never `dir`, because
-mirroring a bundle written against physical CSS would break it. All three arrive with
-the first push, which lands *after* `DOMContentLoaded` — read them in your
-`statechange` handler, not in `init()`, where `state` is still `null`.
+mirroring a bundle written against physical CSS would break it. `language`, `locale`,
+`layoutDirection` and `firstWeekday` all arrive with the first push, which lands
+*after* `DOMContentLoaded` — read them in your `statechange` handler, not in
+`init()`, where `state` is still `null`.
 
 Convenience getters: `track`, `isPlaying`, `isPaused`, `isStopped`, `volume`,
 `isMuted`, `playerType`, `capabilities`.
+
+### Motion artwork
+
+`"supportsMotionArtwork": true` plus the `artwork` permission gets the album's
+Apple Music motion artwork as `track.motionArtworkURL` / `getMotionArtworkURL()`.
+Rules for using it:
+
+- **`<video src>` only.** It is a local `neptunes-media://` URL the helper serves
+  from the loop the main app downloaded; the widget still has no network, and a
+  `fetch()` of it fails.
+- **It is often absent — keep the static cover underneath.** Absent without the
+  key or the permission, when the user turned the widget's **Animated cover**
+  switch off (on by default), for an album with no loop in the Apple Music
+  catalog (matched by artist and album whatever the player, so a Spotify track
+  can get one too), until the loop has downloaded (a few seconds after the track
+  change, via another `statechange`), under Reduce Motion or Low Power Mode,
+  without Pro, after an explicit Stop, and during an ad.
+- **Its presence doesn't mean "playing".** At the end of the queue the state
+  says `stopped` but can keep the last track and its URL: key play/pause/drop
+  off `playerState`, never off the URL being there.
+- **Same album, same URL** — featured-artist and compilation tracks included.
+  Don't reload on a track change within the album.
+- **Energy.** `muted loop playsinline`; play only while `playerState === 2`,
+  pause while paused (the frame stays), drop it when stopped; nothing under
+  `prefers-reduced-motion: reduce` (check `matchMedia` and its `change` event).
+- **Never show an empty frame.** Reveal on `loadeddata`/`canplay` at the
+  earliest — better on the first `requestVideoFrameCallback` — and fade in. On
+  `error` or when the URL goes away, fade back and release it
+  (`removeAttribute('src')`, then `load()`). A hidden widget window loads no
+  media until it is shown.
+- `Sleeve.nepget` is the reference implementation (pure decision logic
+  exported and tested in `_dev/sleeve.test.mjs`). In the harness, the **Animated
+  cover** button hands out a small sample loop.
 
 ### Events
 
@@ -282,6 +333,8 @@ Convenience getters: `track`, `isPlaying`, `isPaused`, `isStopped`, `volume`,
 window.NepTunes.on('statechange', fn);     // player state pushed
 window.NepTunes.on('settingschange', fn);  // user changed this widget's settings
 window.NepTunes.on('themechange', fn);     // fn({dark: true|false}) on a system light/dark flip
+window.NepTunes.on('pointermove', fn);     // fn({x, y}) viewport CSS px — only with "pointerTracking": true
+window.NepTunes.on('pointerleave', fn);    // the pointer left the widget window
 window.NepTunes.off('statechange', fn);
 ```
 
@@ -295,6 +348,7 @@ it in `themechange`, and `reload()` your symbols rather than `load()`.
 window.NepTunes.getState();          // Promise<state>
 window.NepTunes.getSettings();       // Promise<settings>
 window.NepTunes.getArtworkDataURL(); // "data:image/jpeg;base64,…" or null (needs artwork)
+window.NepTunes.getMotionArtworkURL(); // "neptunes-media://motion/…" or null — <video src> only
 window.NepTunes.setSize(w, h);       // request a window resize, clamped to minSize
 window.NepTunes._signalReady();      // call once wired up, so the first state push lands
 
@@ -324,11 +378,31 @@ window.NepTunes.lastFm.getTrackInfo(track, artist);
 window.NepTunes.lastFm.getArtistInfo(artist);
 window.NepTunes.lastFm.loveTrack(track, artist);    // also needs the love permission
 window.NepTunes.lastFm.unloveTrack(track, artist);  // also needs the love permission
+
+// NepTunes 4.1+: feature-detect with typeof … === 'function'
+window.NepTunes.lastFm.call('user.getRecentTracks', { limit: '200', page: '1' }); // Last.fm's raw JSON (lastFm)
+window.NepTunes.lastFm.image(url);            // Last.fm image URL -> "data:image/…"; remote <img> never loads
+window.NepTunes.history.info();               // { since, plays }                 (listeningHistory)
+window.NepTunes.history.query({ from, to, groupBy: 'day' }); // { rows: [{ date, plays, seconds }] }
+window.NepTunes.history.recent({ limit: 20 }); // { plays: [...] }, newest first
 ```
 
+`call()` accepts `<user|library|album|artist|track|tag|chart|geo>.get*` only (never `auth.*`);
+values are strings (numbers and booleans are converted); errors carry `e.code`
+(`permissionDenied`, `methodNotAllowed`, `notSignedIn`, `rateLimited`, `lastFm:<n>`, `network`,
+`timeout`, `tooLarge`; `image()` adds `urlNotAllowed`); 5 req/s shared by every widget, 60 s cache;
+treat `timeout` like `rateLimited` and back off. `history.*` errors are `permissionDenied`,
+`unavailable`, `invalidQuery`, `timeout`; `from`/`to`/`before` are ISO 8601 instants with a zone
+(or `Date`s), and `limit` must be a whole number ≥ 1 (a number, not a string). For a week
+layout, resolve the first weekday with the copyable `firstWeekday(settingValue, state)`
+function in the guide — `NTKit` does not have one. Full contract: `Docs/WidgetDevelopment.md` → *Last.fm*, *Listening history*,
+*First day of the week*.
+
 Calls without the matching permission are dropped by the native side — silently
-for actions, as a rejected Promise for `lastFm.*`. Every `lastFm.*` request times
-out after 15 s, `symbol()` after 5 s.
+for actions, as a rejected Promise for `lastFm.*` (at once, with `permissionDenied`,
+for `call()` and `image()`). `history.*` without `listeningHistory` also rejects at
+once with `permissionDenied`. Every `lastFm.*` request times out after 15 s,
+`symbol()` after 5 s.
 
 ### Dragging
 
@@ -344,9 +418,10 @@ escalation and is highlighted to the user in the update consent sheet.
 
 | Permission | Unlocks |
 |------------|---------|
-| `artwork` | `state.track.artworkData`, `getArtworkDataURL()` |
+| `artwork` | `state.track.artworkData`, `getArtworkDataURL()`; with `"supportsMotionArtwork": true`, `state.track.motionArtworkURL` and `getMotionArtworkURL()` |
 | `love` | `toggleLove()`, `toggleDislike()`, `lastFm.loveTrack()`, `lastFm.unloveTrack()` |
-| `lastFm` | the whole `lastFm.*` namespace |
+| `lastFm` | the whole `lastFm.*` namespace, including `call()` and `image()` |
+| `listeningHistory` | `history.info()`, `history.query()`, `history.recent()` — NepTunes 4.1+; older apps refuse a bundle declaring it |
 | `playbackControl` | `playPause()`, `next()`, `previous()` |
 | `playerActivation` | `activatePlayer()`, `switchPlayer()` |
 | `ratingControl` | `setRating()`, `increaseRating()`, `decreaseRating()`, `removeRating()` (Apple Music only) |
@@ -370,10 +445,11 @@ node widget-tools.mjs embed-sign MyWidget.nepget \
   --key .keys/my-widget-author.pem
 node widget-tools.mjs embed-verify MyWidget.nepget
 
-# 3. Package: enforce the id -> author-key registry, embed-sign, zip rooted at
-#    "MyWidget.nepget/", copy preview.jpg to the site, sync the manifest version
-#    into the gallery entry, regenerate + re-sign the feed
-node Scripts/package-widgets.mjs MyWidget
+# 3. Stage the approved 4.1 release channel. It packages a temporary copy of all
+#    16 checkout-local bundles and writes only immutable versioned archives,
+#    screenshots, release metadata and the signed 4.1 feed. The frozen legacy
+#    gallery paths are never touched.
+NEPTUNES_KEYS_DIR=/path/to/private-keys node Scripts/stage-widget-releases.mjs
 
 # 4. Step 3 already signed the zip AND the feed. There is nothing to do by hand.
 #
@@ -393,7 +469,7 @@ node Scripts/package-widgets.mjs MyWidget
 #          readFileSync('.keys/my-widget-author.pem', 'utf8')));
 #      "
 
-# 5. Guards: shipped zips/gallery/feed vs the bundles, and the CLI round-trip
+# 5. Guards: release feed/archive/source parity, frozen legacy bytes, and the CLI round-trip
 cd website && node --test test/*.test.js
 ```
 
@@ -470,8 +546,9 @@ then `pkill -f "NepTunes Widget"` — the helper respawns on the next play/pause
 - Never fetch from a URL you invented — the app downloads only from its hardcoded
   host, reconstructed from the widget slug.
 - Bump `manifest.version`, or the change reaches nobody.
-- Re-run `node Scripts/package-widgets.mjs` after every bundle edit, or the
-  website ships stale bytes and `website/test/widgetPackaging.test.js` fails.
+- Re-run `NEPTUNES_KEYS_DIR=/path/to/private-keys node Scripts/stage-widget-releases.mjs`
+  after an approved bundle edit. `node Scripts/package-widgets.mjs` writes legacy paths
+  and refuses 4.1 sources; never bypass that guard.
 - Size `img.sf-icon` explicitly, **to exactly its `data-size`** — the PNG is a
   retina raster of that many points, so an unsized `<img>` renders at double size
   and *any* other box resamples it into a soft, mushy glyph. The two halves of the

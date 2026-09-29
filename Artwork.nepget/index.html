@@ -10,17 +10,21 @@
     <!-- Carries the panel's drop shadow. Empty and inert on purpose — see styles.css. -->
     <div class="panel-shadow" aria-hidden="true"></div>
 
-    <div class="widget" id="widget">
+    <div class="widget empty" id="widget">
         <div class="artwork-bg" id="artworkBg"></div>
         <div class="no-artwork" id="noArtwork">
             <img class="sf-icon" data-symbol="music.note" data-size="36" alt="">
+        </div>
+        <!-- Nothing playing: an empty sleeve in the theme's own ink, over the placeholder. -->
+        <div class="empty-art" aria-hidden="true">
+            <img class="sf-icon" data-symbol="music.note" data-size="56" alt="">
         </div>
         <div class="controls-area">
             <!-- Blurred copy of the cover; the frost. See styles.css for why this is not
                  a backdrop-filter. -->
             <div class="controls-frost" id="controlsFrost" aria-hidden="true"></div>
             <div class="info">
-                <div class="title" id="title">Not Playing</div>
+                <div class="title" id="title">Nothing playing</div>
                 <div class="artist" id="artist"></div>
             </div>
             <div class="controls">
@@ -37,6 +41,13 @@
                 </button>
                 <span class="live-badge" id="liveBadge" hidden>LIVE</span>
             </div>
+            <!-- Nothing playing: takes the transport row's place while there is no track.
+                 A real <button>, so the host's drag script leaves the click alone. -->
+            <button class="empty-open" id="emptyOpen" type="button" data-action="activate-player"
+                    aria-label="Nothing playing. Open music player">
+                <img class="sf-icon" data-symbol="play.fill" data-size="12" alt="">
+                <span>Open music player</span>
+            </button>
         </div>
         <div class="resize-handle" id="resizeHandle"></div>
     </div>

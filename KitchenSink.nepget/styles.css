@@ -515,6 +515,75 @@ body {
     word-break: break-all;
 }
 
+/* Nothing playing — no track. Everything that needs one (the track row, timeline, transport,
+   volume and rating) steps aside for a centred block: a faint note, "Nothing playing", and a
+   pill in the play button's own material that opens the music player
+   (NepTunes.activatePlayer). The header stays: its badge reads "No Player" with none running,
+   and its Switch/Open buttons still work. */
+.empty-state {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.widget.stopped .empty-state {
+    display: flex;
+}
+
+.widget.stopped .track-section,
+.widget.stopped .progress-section,
+.widget.stopped .controls-section,
+.widget.stopped .volume-section,
+.widget.stopped .rating-section {
+    display: none;
+}
+
+/* Equal to its data-size; faded with `opacity`, since the PNG's tint is baked in. */
+.empty-glyph {
+    width: 36px;
+    height: 36px;
+    opacity: 0.3;
+}
+
+.empty-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.empty-open {
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    margin-top: 4px;
+    padding: 0 16px 0 14px;
+    border: none;
+    border-radius: 17px;
+    background: var(--text-primary);
+    color: #1c1c20;
+    --icon-color: #1c1c20;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.empty-open:active {
+    transform: scale(0.97);
+}
+
+.empty-open img.sf-icon {
+    width: 14px;
+    height: 14px;
+    display: block;
+}
+
 /* States */
 .widget.stopped .title { color: var(--text-secondary); }
 .widget.stopped .controls-section { opacity: 0.6; }

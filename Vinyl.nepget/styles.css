@@ -266,6 +266,65 @@ body {
     background: rgba(0, 0, 0, 0.6);
 }
 
+/* --- Nothing playing ------------------------------------------------------
+   No track: the record stops on its plain label, and the spindle gives way to a play
+   mark — press it and the music player opens (NepTunes.activatePlayer). The mark is a
+   button the size of the label, laid over the disc from .vinyl-shadow rather than
+   inside .vinyl, because .vinyl stays turned at whatever angle it stopped. Above the
+   rim glint (z-index 11), which takes no pointer events anyway. */
+.empty-open {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 38%;
+    aspect-ratio: 1;
+    z-index: 12;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    -webkit-app-region: no-drag;
+    --icon-color: #ffffff;
+    transition: background-color 0.15s ease;
+}
+
+.widget.empty .empty-open {
+    display: flex;
+}
+
+.widget.empty .label-center {
+    display: none;
+}
+
+/* Pressed: the label darkens under the finger, like the transport buttons' own press. */
+.empty-open:active {
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.empty-open img.sf-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+    /* Optically centred: a play triangle's mass sits left of its box. */
+    margin-left: 2px;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
+}
+
+/* With nothing to skip between, only the play button stays in the transport — and it
+   opens the player too (script.js). */
+.widget.empty .control-btn:not(.play-btn) {
+    visibility: hidden;
+}
+
+.widget.empty .title {
+    opacity: 0.75;
+}
+
 /* Track info */
 .track-info {
     display: flex;

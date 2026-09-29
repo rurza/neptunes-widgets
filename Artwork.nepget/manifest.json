@@ -1,50 +1,53 @@
 {
-    "manifestVersion": 1,
-    "id": "pl.micropixels.neptunes.widget.artwork",
-    "name": "Artwork",
-    "version": "1.4.1",
-    "author": "Adam R\u00f3\u017cy\u0144ski",
-    "description": "Album artwork with frosted glass controls",
-    "license": "MIT",
-    "homepage": "https://neptunesmac.app",
-    "entry": "index.html",
-    "preview": "preview.jpg",
-    "defaultSize": {
-        "width": 300,
-        "height": 300
-    },
-    "minSize": {
-        "width": 180,
-        "height": 180
-    },
-    "resizable": true,
-    "permissions": [
-        "artwork",
-        "playbackControl"
-    ],
-    "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214=",
-    "settings": {
-        "schema": [
-            {
-                "id": "theme",
-                "type": "radio",
-                "label": "Theme",
-                "options": [
-                    {
-                        "value": "auto",
-                        "label": "Auto"
-                    },
-                    {
-                        "value": "dark",
-                        "label": "Dark"
-                    },
-                    {
-                        "value": "light",
-                        "label": "Light"
-                    }
-                ],
-                "default": "auto"
-            }
-        ]
-    }
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.artwork",
+  "name": "Artwork",
+  "version": "1.5.1",
+  "author": "Adam Różyński",
+  "description": "Album artwork with frosted glass controls",
+  "license": "MIT",
+  "homepage": "https://neptunesmac.app",
+  "entry": "index.html",
+  "preview": "preview.jpg",
+  "defaultSize": {
+    "width": 300,
+    "height": 300
+  },
+  "minSize": {
+    "width": 180,
+    "height": 180
+  },
+  "resizable": true,
+  "supportsNoPlayback": true,
+  "permissions": [
+    "artwork",
+    "playbackControl",
+    "playerActivation"
+  ],
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214=",
+  "settings": {
+    "schema": [
+      {
+        "id": "theme",
+        "type": "radio",
+        "label": "Theme",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          }
+        ],
+        "default": "auto"
+      }
+    ]
+  },
+  "minNepTunesVersion": "4.1.0"
 }

@@ -1,0 +1,140 @@
+{
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.activity",
+  "name": "Listening Activity",
+  "version": "1.0.6",
+  "author": "Adam Różyński",
+  "description": "Your last seven weeks of listening as a grid of days. Hover a day for its count.",
+  "license": "MIT",
+  "homepage": "https://neptunesmac.app",
+  "minNepTunesVersion": "4.1.0",
+  "entry": "index.html",
+  "preview": "preview.jpg",
+  "defaultSize": {
+    "width": 180,
+    "height": 180
+  },
+  "minSize": {
+    "width": 120,
+    "height": 120
+  },
+  "maxSize": {
+    "width": 400,
+    "height": 400
+  },
+  "resizable": true,
+  "pointerTracking": true,
+  "alwaysVisible": true,
+  "permissions": [
+    "artwork",
+    "lastFm",
+    "listeningHistory"
+  ],
+  "settings": {
+    "schema": [
+      {
+        "id": "source",
+        "type": "select",
+        "label": "Data",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Automatic"
+          },
+          {
+            "value": "lastfm",
+            "label": "Last.fm scrobbles"
+          },
+          {
+            "value": "history",
+            "label": "NepTunes listening history"
+          }
+        ],
+        "default": "auto"
+      },
+      {
+        "id": "accentSource",
+        "type": "radio",
+        "label": "Accent",
+        "options": [
+          {
+            "value": "album",
+            "label": "From album art"
+          },
+          {
+            "value": "fixed",
+            "label": "Fixed color"
+          }
+        ],
+        "default": "album"
+      },
+      {
+        "id": "fixedColor",
+        "type": "color",
+        "label": "Fixed accent color",
+        "default": "#5B92EA"
+      },
+      {
+        "id": "theme",
+        "type": "radio",
+        "label": "Theme",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          }
+        ],
+        "default": "auto"
+      },
+      {
+        "id": "firstWeekday",
+        "type": "select",
+        "label": "Weeks start on",
+        "options": [
+          {
+            "value": "system",
+            "label": "System setting"
+          },
+          {
+            "value": "monday",
+            "label": "Monday"
+          },
+          {
+            "value": "sunday",
+            "label": "Sunday"
+          },
+          {
+            "value": "saturday",
+            "label": "Saturday"
+          }
+        ],
+        "default": "system"
+      },
+      {
+        "id": "background",
+        "type": "radio",
+        "label": "Background",
+        "options": [
+          {
+            "value": "card",
+            "label": "Card"
+          },
+          {
+            "value": "none",
+            "label": "None"
+          }
+        ],
+        "default": "card"
+      }
+    ]
+  },
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

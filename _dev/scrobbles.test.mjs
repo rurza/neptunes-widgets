@@ -52,3 +52,63 @@ test('losing the cover repaints, so the accent falls back to neutral', () => {
     assert.notEqual(Scrobbles.accentKey('album', 'data:cover-a', '#FF375F', true),
                     Scrobbles.accentKey('album', null, '#FF375F', true));
 });
+
+// ---- Last.fm passthrough (NepTunes 4.1+) ----------------------------------------------
+// The shape the adapters must reproduce is pinned against NepTunesKit's own decoders by
+// LastFmWidgetAdapterParityTests; these cover the edges and the feature detection.
+
+const nowPlaying = { artist: { name: 'Robyn', mbid: '' }, name: 'Honey', image: [], album: { mbid: '', '#text': 'Honey' },
+  url: 'https://www.last.fm/music/Robyn/_/Honey', '@attr': { nowplaying: 'true' }, loved: '0' };
+const played = { artist: { '#text': 'Low', mbid: '' }, date: { uts: '1790000000', '#text': '' }, name: 'Days Like These',
+  image: [{ size: 'extralarge', '#text': 'https://lastfm.freetls.fastly.net/i/u/300x300/c.png' }], album: { mbid: '', '#text': '' }, loved: '1' };
+
+test('recent tracks adapt to what the old getRecentTracks returned', () => {
+  assert.deepStrictEqual(Scrobbles.adaptRecentTracks({ recenttracks: { track: [nowPlaying, played] } }), [
+    { name: 'Honey', artist: 'Robyn', album: 'Honey', url: 'https://www.last.fm/music/Robyn/_/Honey', isNowPlaying: true, isLoved: false },
+    { name: 'Days Like These', artist: 'Low', album: '', imageURL: 'https://lastfm.freetls.fastly.net/i/u/300x300/c.png',
+      date: '2026-09-21T14:13:20Z', isNowPlaying: false, isLoved: true },
+  ]);
+});
+
+test('user info keeps the lifetime playcount and drops empty fields', () => {
+  const info = Scrobbles.adaptUserInfo({ user: { name: 'rj', realname: '', playcount: '123456', registered: { unixtime: '1037793040' } } });
+  assert.deepStrictEqual(info, { name: 'rj', playcount: 123456, registeredDate: '2002-11-20T11:50:40Z' });
+  assert.equal(Scrobbles.adaptUserInfo({}).playcount, 0);
+});
+
+test('with the passthrough, the counter and the feed are two raw calls, extended', async () => {
+  const calls = [];
+  const lfm = {
+    call: async (method, params) => { calls.push([method, params]); return method === 'user.getInfo' ? { user: { playcount: '5' } } : { recenttracks: { track: [played] } }; },
+    getUserInfo: () => assert.fail('the narrow method was used'),
+  };
+  const [info, tracks] = await Scrobbles.fetchStats(lfm, 8);
+  assert.deepStrictEqual(calls, [['user.getInfo', undefined], ['user.getRecentTracks', { limit: '8', extended: '1' }]]);
+  assert.equal(info.playcount, 5);
+  assert.equal(tracks[0].isLoved, true);
+});
+
+test('an app without the passthrough gets the narrow methods, exactly as before', async () => {
+  const lfm = { getUserInfo: async () => ({ playcount: 1 }), getRecentTracks: async (n) => [{ name: 'x', n }] };
+  assert.deepStrictEqual(await Scrobbles.fetchStats(lfm, 12), [{ playcount: 1 }, [{ name: 'x', n: 12 }]]);
+});
+
+// ---- A failed refresh --------------------------------------------------------------------
+// The passthrough says why a load failed. Only a signed-out account replaces the feed with the
+// sign-in message; a rate limit, timeout or network blip keeps what is on screen until the next
+// refresh. The narrow methods reject without a code, so an older app keeps today's behaviour.
+
+test('a coded failure other than signed-out keeps the feed on screen', () => {
+  for (const code of ['rateLimited', 'timeout', 'network', 'lastFm:8', 'tooLarge']) {
+    const error = Object.assign(new Error(code), { code });
+    assert.equal(Scrobbles.keepsFeedOnFailure(error, true), true, code);
+  }
+});
+
+test('signing out, an uncoded failure, or nothing on screen shows the sign-in message', () => {
+  const coded = (code) => Object.assign(new Error(code), { code });
+  assert.equal(Scrobbles.keepsFeedOnFailure(coded('notSignedIn'), true), false);
+  assert.equal(Scrobbles.keepsFeedOnFailure(new Error('older app'), true), false);
+  assert.equal(Scrobbles.keepsFeedOnFailure(undefined, true), false);
+  assert.equal(Scrobbles.keepsFeedOnFailure(coded('rateLimited'), false), false);   // first load: nothing to keep
+});

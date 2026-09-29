@@ -34,10 +34,18 @@
         return !(track && track.isLiveStream);
     }
 
+    // The "Nothing playing" state is simply no track. With no player running the host sends
+    // no track, no playerType and playerState 0 (not 1); a player stopped at the end of its
+    // queue WITH its last track still shows that track.
+    function isEmpty(state) {
+        return !(state && state.track);
+    }
+
     const PURE = {
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
-        hasTimeline: hasTimeline
+        hasTimeline: hasTimeline,
+        isEmpty: isEmpty
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
     if (typeof window === 'undefined') return;
@@ -51,6 +59,7 @@
     const label = document.getElementById('label');
     const timeEl = document.getElementById('time');
     const underline = document.getElementById('underline');
+    const emptyOpen = document.getElementById('emptyOpen');
 
     // Must mirror the ::after padding-left in styles.css (the marquee gap).
     const MARQUEE_GAP = 48;
@@ -151,12 +160,13 @@
         applyDirection(state);
         const track = state && state.track;
 
-        if (!track) {
-            // Empty: neutral, no progress, no scroll.
+        if (isEmpty(state)) {
+            // Empty: neutral, no progress, no scroll. The glyph opens the player rather than
+            // sending play/pause to one that may not be running.
             widget.classList.add('empty');
             widget.classList.remove('playing', 'live');
             timeEl.classList.remove('live');
-            glyph.setAttribute('aria-label', 'Play');
+            glyph.setAttribute('aria-label', 'Open music player');
             prevBtn.hidden = false;
             nextBtn.hidden = false;
             setLabel('Nothing playing', false);
@@ -276,10 +286,20 @@
 
     // ---- Controls --------------------------------------------------------
 
+    // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+    function activatePlayer() {
+        if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
+    }
+
     function setupControls() {
         glyph.addEventListener('click', (e) => {
             e.stopPropagation();
-            window.NepTunes.playPause();
+            if (widget.classList.contains('empty')) activatePlayer();
+            else window.NepTunes.playPause();
+        });
+        emptyOpen.addEventListener('click', (e) => {
+            e.stopPropagation();
+            activatePlayer();
         });
         prevBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -289,9 +309,11 @@
             e.stopPropagation();
             window.NepTunes.next();
         });
-        // Clicking the strip background (not a button) toggles playback.
+        // Clicking the strip background (not a button) toggles playback — or, with nothing
+        // playing, opens the player. A drag never gets here: the host swallows its click.
         strip.addEventListener('click', () => {
-            if (!widget.classList.contains('empty')) window.NepTunes.playPause();
+            if (widget.classList.contains('empty')) activatePlayer();
+            else window.NepTunes.playPause();
         });
     }
 

@@ -19,7 +19,10 @@ So this loads each `.nepget` in a `WKWebView` configured exactly like the widget
 (non-persistent store, `drawsBackground = false`, the API injected at document start), pushes
 state and settings the way `WidgetJSBridge` does, flips `NSApp.appearance`, and diffs what the
 page renders. The injected API is extracted verbatim from `WidgetJSBridge.swift` by
-`extract-api.py`, so the check cannot drift from the JS that actually ships.
+`extract-api.py`, so the check cannot drift from the JS that actually ships. The literal
+splices in NepTunesKit literals with `\(TypeName.member)` (the listening-history namespace, the
+Last.fm passthrough); the extractor resolves those by Swift's own string rules and fails
+outright on any interpolation it can't resolve.
 
 `NSApp.appearance` is used instead of really toggling System Settings: it drives the same
 `effectiveAppearance` → WebKit `prefers-color-scheme` path a genuine system switch does, and

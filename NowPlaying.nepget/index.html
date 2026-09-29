@@ -17,7 +17,7 @@
 
         <div class="info">
             <div class="track-info">
-                <div class="title" id="title">Not Playing</div>
+                <div class="title" id="title">Nothing playing</div>
                 <div class="artist" id="artist">—</div>
             </div>
 
@@ -35,6 +35,14 @@
                 </button>
                 <span class="live-badge" id="liveBadge" hidden>LIVE</span>
             </div>
+
+            <!-- Nothing playing: takes the transport's place while there is no track.
+                 A real <button>, so the host's drag script leaves the click alone. -->
+            <button class="empty-open" id="emptyOpen" type="button" data-action="activate-player"
+                    aria-label="Nothing playing. Open music player">
+                <img class="sf-icon" data-symbol="play.fill" data-size="12" alt="">
+                <span>Open music player</span>
+            </button>
         </div>
     </div>
 

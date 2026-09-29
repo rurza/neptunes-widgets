@@ -154,6 +154,31 @@ The `manifest.json` file defines your widget's metadata, permissions, and settin
     // Leaving it resizable requires your widget to handle dynamic sizing.
     "resizable": true,
 
+    // Report the pointer to this widget as `pointermove` / `pointerleave` events
+    // (default: false). Opt in only if you use them — see "Hover and pointer
+    // tracking". Needs NepTunes 4.1; older versions ignore the key.
+    "pointerTracking": false,
+
+    // Keep the widget on screen when nothing is playing, by default
+    // (default: false). Without it a widget is shown only while a track is
+    // playing or paused. Implies the widget draws its own "nothing playing"
+    // state, so the user gets a Show setting (While music is playing / Always)
+    // that starts at Always. See "Showing without playback". Needs NepTunes
+    // 4.1; older versions ignore the key and hide the widget with playback.
+    "alwaysVisible": false,
+
+    // The widget draws its own "nothing playing" state, so the user may choose
+    // to keep it on screen with nothing playing (default: false). The Show
+    // setting is offered but starts at "While music is playing". See "Showing
+    // without playback". Needs NepTunes 4.1; older versions ignore the key.
+    "supportsNoPlayback": false,
+
+    // The widget can show Apple Music motion (animated) artwork (default:
+    // false). Counts only with the "artwork" permission; the user can turn it
+    // off per widget ("Animated cover", on by default). Needs NepTunes 4.1;
+    // older versions ignore the key and the widget shows static artwork.
+    "supportsMotionArtwork": false,
+
     // Preview image shown in settings (relative path)
     "preview": "preview.jpg",
 
@@ -174,7 +199,8 @@ The `manifest.json` file defines your widget's metadata, permissions, and settin
         "ratingControl",      // Star ratings (Apple Music only)
         "shuffleRepeatControl", // Toggle shuffle/repeat
         "playerActivation",   // Bring player to front, switch players
-        "lastFm"              // Last.fm data (user stats, charts, track info)
+        "lastFm",             // Last.fm read API and images, through the app
+        "listeningHistory"    // NepTunes' own listening history (NepTunes 4.1+)
     ],
 
     // ============================================================
@@ -194,14 +220,15 @@ The `manifest.json` file defines your widget's metadata, permissions, and settin
 
 | Permission | Grants Access To | Notes |
 |------------|------------------|-------|
-| `artwork` | `state.track.artworkData`, `getArtworkDataURL()` | Base64 encoded JPEG |
+| `artwork` | `state.track.artworkData`, `getArtworkDataURL()`; with `"supportsMotionArtwork": true` also `state.track.motionArtworkURL`, `getMotionArtworkURL()` | Base64 encoded JPEG; the motion loop is a local video URL. See [Motion artwork](#motion-artwork) |
 | `playbackControl` | `playPause()`, `next()`, `previous()` | Basic playback |
 | `volumeControl` | `setVolume()`, `increaseVolume()`, `decreaseVolume()`, `toggleMute()` | 0-100 range |
 | `love` | `toggleLove()`, `toggleDislike()` | Apple Music only |
 | `ratingControl` | `setRating()`, `increaseRating()`, `decreaseRating()`, `removeRating()` | Apple Music only |
 | `shuffleRepeatControl` | `toggleShuffle()`, `toggleRepeat()` | Mode toggling |
 | `playerActivation` | `activatePlayer()`, `switchPlayer()` | Window management |
-| `lastFm` | `lastFm.getUserInfo()`, `getTopAlbums()`, `getTopArtists()`, `getTopTracks()`, `getRecentTracks()`, `getTrackInfo()`, `getArtistInfo()`, `loveTrack()`, `unloveTrack()` | Proxied through the main app; `loveTrack`/`unloveTrack` also need `love` |
+| `lastFm` | `lastFm.call()`, `lastFm.image()`, and the narrow `lastFm.getUserInfo()`, `getTopAlbums()`, `getTopArtists()`, `getTopTracks()`, `getRecentTracks()`, `getTrackInfo()`, `getArtistInfo()`, `loveTrack()`, `unloveTrack()` | Proxied through the main app, which keeps the API key and session; `loveTrack`/`unloveTrack` also need `love`. See [Last.fm](#lastfm) |
+| `listeningHistory` | `history.info()`, `history.query()`, `history.recent()` | NepTunes 4.1+. The most private data a widget can read; older versions refuse to install a widget that declares it, so declare `"minNepTunesVersion": "4.1.0"` or later (`widget-tools.mjs validate` fails without it). See [Listening history](#listening-history) |
 
 ### Minimum NepTunes version
 
@@ -238,6 +265,164 @@ newer version of NepTunes."
 
 ---
 
+### Showing without playback
+
+By default a widget follows playback. It is on screen while a music app is running with a track
+loaded, playing or paused, and ordered out when playback stops or the player quits. It comes back
+when a track plays again. A player that stops at the end of its queue counts as stopped even
+though it still reports the last track. That suits a widget about the current track, and is wrong for one that
+isn't: a chart, a scrobble count or a calendar of listening has as much to show with the music off.
+
+Two manifest keys let a widget stay on screen with nothing playing, including when no music app
+is running at all. Either one tells NepTunes the widget draws its own "nothing playing" state,
+and in return the user gets a **Show** setting in the widget's settings: *While music is playing*
+or *Always*. The keys differ only in where that setting starts:
+
+```json
+"alwaysVisible": true
+```
+
+for a widget whose content does not depend on the current track (stats, charts): Show starts at
+**Always**, and the user may switch it to *While music is playing*;
+
+```json
+"supportsNoPlayback": true
+```
+
+for a now-playing widget that has a good empty state: Show starts at **While music is playing**,
+and the user may switch it to *Always*.
+
+A widget that declares neither gets no Show setting and always follows playback, as every widget
+did before NepTunes 4.1. The user's choice is stored per widget and survives updates; it is
+cleared when the user resets the widget. If an update drops both keys, the stored choice is
+ignored and the widget follows playback again.
+
+- **Everything else still applies.** NepTunes must be running, desktop widgets must be turned on,
+  the widget must be active, and widgets need NepTunes Pro. Show only lifts the playback rule.
+- **Only your widget is affected.** Other widgets keep following playback, window by window,
+  while yours stays up.
+- **Render your own empty state.** NepTunes draws no placeholder over your widget. With nothing
+  playing your widget still gets `statechange`, with `state.track` absent (`NepTunes.track` is
+  `null`) and, when no player is running, `state.playerType` absent too (`NepTunes.playerType`
+  is `null`). `getArtworkDataURL()` returns `null`. **Show your empty state when `track` is
+  null**; don't assume a track ever arrived. `playerState` is informational here — usually `0`
+  (unknown) with no player, not `1` — so don't key the empty state off it. A player stopped at
+  the end of its queue still carries its last track with `playerState` `1` (stopped): that is not
+  empty, so keep showing the track (check `playerState` only if you want to style it as stopped).
+- **Make the empty state start the music.** Clicking it should call `NepTunes.activatePlayer()`,
+  which brings the current player to the front or, when none is running, launches the
+  preferred player if the user set one in Settings, otherwise the one they last listened in
+  (and Apple Music when there is neither). It needs the `playerActivation` permission.
+- **NepTunes 4.1 and later.** Earlier versions ignore both keys, the way they ignore any key they
+  don't know, and hide the widget with playback as before. So declaring them needs no
+  `minNepTunesVersion`.
+- **Changing either key rebuilds the window** (see *What a change actually triggers*), so bump
+  `version` as for any manifest change. Changing the Show setting does not: the widget is shown
+  or hidden in place.
+
+In the browser harness (`_dev/harness.html`), **Stop** pushes that nothing-playing
+state and hides the stage the way the app would, unless the manifest has `alwaysVisible`.
+
+---
+
+### Motion artwork
+
+Many Apple Music albums have motion artwork: a short, silent video loop of the cover. NepTunes
+4.1 can hand that loop to a widget, which plays it in a `<video>` over its static cover.
+
+```json
+"supportsMotionArtwork": true,
+"permissions": ["artwork"]
+```
+
+- **It rides on the `artwork` permission.** No new permission, no new consent on update. Without
+  `artwork` the key does nothing (`widget-tools.mjs validate` fails on the pair).
+- **The user can turn it off per widget.** Declaring the key adds an **Animated cover** switch to
+  the widget's settings, on by default. Off means your widget gets no loop, and NepTunes downloads
+  nothing on its behalf.
+- **Older apps ignore the key**, as they ignore any key they don't know, and your widget simply
+  shows static artwork. So declaring it needs no `minNepTunesVersion`.
+- **Changing the key rebuilds the window** (see *What a change actually triggers*); bump `version`.
+
+The loop arrives on the track as `NepTunes.track.motionArtworkURL`, and
+`NepTunes.getMotionArtworkURL()` returns the same value or `null`. It is a local
+`neptunes-media://` URL, and it is meant for **`<video src>` only**: NepTunes downloads the loop in
+the main app and serves only that file to your widget, and the widget itself still has no network.
+A `fetch()` of the URL fails.
+
+**It is `null` (the key is absent) whenever there is nothing to play**, so always keep the static
+cover underneath and treat the video as an enhancement:
+- the manifest doesn't declare `supportsMotionArtwork`, or lacks the `artwork` permission;
+- the user turned **Animated cover** off for this widget;
+- the album has no motion artwork in the Apple Music catalog (most albums don't). The loop is
+  matched by artist and album whatever the player, so a Spotify track from an album that has one
+  gets it too;
+- the loop hasn't downloaded yet. It arrives a few seconds after the track change, through
+  another `statechange`, so a new album starts on its static cover;
+- Reduce Motion or Low Power Mode is on;
+- the user doesn't have NepTunes Pro;
+- playback was stopped with Stop, or an advertisement is playing.
+
+**Don't read "the URL is there" as "music is playing".** When the queue simply runs out, the player
+reports `stopped` with its last track still on the state, and that track's `motionArtworkURL` can
+stay with it. Decide whether to play, pause or drop the video from `playerState`, as the example
+below does.
+
+The URL is per album: the next track on the same album carries the same URL — a featured artist's
+track and each track of a compilation included — so keep the video playing rather than reloading it.
+A different album brings a different URL, or none. (A player that reports no album artist, as
+Spotify doesn't, can't tell a featured artist from another album: the URL may drop for a moment on
+such a track and come back the same.)
+
+**Be kind to the battery.** A looping video costs a few percent of CPU and GPU for as long as it
+runs; a paused one costs nothing.
+- Keep it `muted` (it has no sound anyway), `loop` and `playsinline`.
+- **Play only while music is playing** (`playerState === 2`); pause on pause — the current frame
+  stays — and drop the video when playback stops.
+- **Honour `prefers-reduced-motion: reduce`.** NepTunes already sends no loop under the system's
+  Reduce Motion, but check `matchMedia('(prefers-reduced-motion: reduce)')` and react to its
+  `change` event too.
+- **Reveal the video only once it can show a frame** — on `loadeddata`/`canplay`, better still on
+  the first `requestVideoFrameCallback` or once playback advances — and fade it in over the static
+  cover. Revealing it on `src` alone flashes an empty or black box.
+- On `error`, or when the URL goes `null`, fade back to the static cover and release the video:
+  `video.removeAttribute('src'); video.load();`.
+- A widget window that is hidden (nothing playing, or the widget ordered out) loads no media at
+  all until it is shown again. Don't count on `loadeddata` arriving while you are off screen.
+
+```javascript
+const video = document.querySelector('video.motion'); // <video class="motion" muted loop playsinline>
+const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+let shown = null;
+let failed = null;                                   // don't retry a loop that errored
+
+function updateMotion(state) {
+    const url = reduced.matches ? null : NepTunes.getMotionArtworkURL();
+    const active = state && (state.playerState === 2 || state.playerState === 3);
+    const src = active && url !== failed ? url : null;
+    if (src !== shown) {
+        shown = src;
+        video.classList.remove('visible');           // fade back to the static cover
+        if (src) video.src = src;
+        else { video.removeAttribute('src'); video.load(); }
+    }
+    if (src && state.playerState === 2) video.play().catch(() => {});
+    else if (src) video.pause();                     // keep the current frame
+}
+
+video.addEventListener('loadeddata', () => video.classList.add('visible'));
+video.addEventListener('error', () => { failed = shown; updateMotion(NepTunes.state); });
+NepTunes.on('statechange', updateMotion);
+reduced.addEventListener('change', () => updateMotion(NepTunes.state));
+updateMotion(NepTunes.state);
+```
+
+`Sleeve.nepget` is a complete example: a fresh `<video>` per loop, crossfaded in on
+its first presented frame and released after fading out.
+
+In the browser harness, **Animated cover** switches a small sample loop on and off for any widget
+that declares the key; with it on, a playing track carries `motionArtworkURL`.
+
 ## JavaScript API
 
 NepTunes injects a global `window.NepTunes` object into every widget.
@@ -247,7 +432,8 @@ NepTunes injects a global `window.NepTunes` object into every widget.
 ```javascript
 // The current player state (automatically updated)
 window.NepTunes.state = {
-    // Player state: 1=stopped, 2=playing, 3=paused
+    // Player state: 0=unknown (usually: no player running), 1=stopped,
+    // 2=playing, 3=paused
     playerState: 2,
 
     // Volume level (0-100)
@@ -269,6 +455,8 @@ window.NepTunes.state = {
     language: "ar",           // BCP-47 tag, e.g. "en", "pt-BR", "ar"
     locale: "ar-SA",          // full BCP-47 tag, drives number formatting
     layoutDirection: "rtl",   // "rtl" or "ltr" — same values as the HTML dir attribute
+    firstWeekday: 1,          // the region's first day of the week, 1…7, ISO (1 = Monday,
+                              // 7 = Sunday). NepTunes 4.1+. See "First day of the week".
 
     // Current track information (null if nothing playing)
     track: {
@@ -296,10 +484,17 @@ window.NepTunes.state = {
         isLiveStream: true,            // Optional, Apple Music only
 
         // Base64-encoded artwork (only if artwork permission granted)
-        artworkData: "..."
+        artworkData: "...",
+
+        // Local URL of the album's motion artwork loop, for <video src> only (fetch() fails).
+        // NepTunes 4.1+. Present only for a widget with "supportsMotionArtwork": true and the
+        // artwork permission, with the user's "Animated cover" on, once the loop has downloaded.
+        // See "Motion artwork".
+        motionArtworkURL: "neptunes-media://motion/…"
     },
 
-    // Which player is active: "appleMusic" or "spotify"
+    // Which player is active: "appleMusic" or "spotify". Absent when no
+    // player is running (NepTunes.playerType is then null)
     playerType: "appleMusic",
 
     // Player capabilities (varies by player and track)
@@ -333,7 +528,7 @@ window.NepTunes.isPaused     // true if playerState === 3
 window.NepTunes.isStopped    // true if playerState === 1
 window.NepTunes.volume       // Current volume (0-100)
 window.NepTunes.isMuted      // Whether muted
-window.NepTunes.playerType   // "appleMusic" or "spotify"
+window.NepTunes.playerType   // "appleMusic", "spotify", or null with no player running
 window.NepTunes.capabilities // Capabilities object
 ```
 
@@ -341,16 +536,17 @@ window.NepTunes.capabilities // Capabilities object
 
 ```javascript
 // Listen for state changes (called whenever player state updates)
-window.NepTunes.on('statechange', function(state) {
-    console.log('New state:', state);
-    updateUI(state);
-});
+window.NepTunes.on('statechange', function(state) { updateUI(state); });
 
 // Listen for settings changes (called when user modifies settings)
-window.NepTunes.on('settingschange', function(settings) {
-    console.log('Settings changed:', settings);
-    applySettings(settings);
-});
+window.NepTunes.on('settingschange', function(settings) { applySettings(settings); });
+
+// Automatic system light/dark switches: fn({ dark: true|false })
+window.NepTunes.on('themechange', function(e) { retheme(e.dark); });
+
+// Pointer position — only for a manifest with "pointerTracking": true (NepTunes 4.1+)
+window.NepTunes.on('pointermove', function(p) { /* p.x, p.y: viewport CSS pixels */ });
+window.NepTunes.on('pointerleave', function() { /* the pointer left the widget window */ });
 
 // Remove a specific listener
 window.NepTunes.off('statechange', myHandler);
@@ -414,7 +610,9 @@ window.NepTunes.toggleRepeat()     // Cycle repeat: off -> all -> one
 // PLAYER ACTIVATION (requires: playerActivation)
 // ============================================================
 
-window.NepTunes.activatePlayer()   // Bring player window to front
+window.NepTunes.activatePlayer()   // Bring player window to front; with no player
+                                   // running, launch the preferred player if one
+                                   // is set, otherwise the last-used one
 window.NepTunes.switchPlayer()     // Switch between Apple Music/Spotify
 ```
 
@@ -431,7 +629,334 @@ window.NepTunes.getSettings().then(settings => { ... });
 // Returns null if no artwork or no permission
 const dataURL = window.NepTunes.getArtworkDataURL();
 // Returns: "data:image/jpeg;base64,/9j/4AAQ..."
+
+// Get the album's motion artwork loop (for use in <video src=""> only — fetch() fails)
+// Returns null without "supportsMotionArtwork" + artwork, with Animated cover off,
+// or when this album has no loop (yet). See "Motion artwork". NepTunes 4.1+.
+const loopURL = window.NepTunes.getMotionArtworkURL();
+// Returns: "neptunes-media://motion/…"
 ```
+
+### Last.fm
+
+With the `lastFm` permission, `NepTunes.lastFm` reads Last.fm **through the app**. The app keeps
+the API key and the user's session, and never gives either to a widget. The widget still has no
+network of its own.
+
+#### `lastFm.call(method, params)`: the read API
+
+`call()` sends any read-only Last.fm API method and resolves to Last.fm's JSON body, exactly as
+Last.fm returned it, in Last.fm's own shape rather than a NepTunes one:
+
+```javascript
+const body = await NepTunes.lastFm.call('user.getRecentTracks', {
+    from: String(Math.floor(start.getTime() / 1000)),
+    to: String(Math.floor(end.getTime() / 1000)),
+    limit: '200',
+    page: '1'
+});
+const scrobbles = body.recenttracks.track.filter((t) => !(t['@attr'] && t['@attr'].nowplaying));
+const pages = Number(body.recenttracks['@attr'].totalPages);
+```
+
+**Which methods.** One rule decides, not a list:
+- The method is `<package>.<verb>`.
+- The package is `user`, `library`, `album`, `artist`, `track`, `tag`, `chart` or `geo`.
+- The verb starts with `get`.
+
+`user.getWeeklyAlbumChart`, `artist.getSimilar` and `chart.getTopTracks` pass. These are refused
+with `methodNotAllowed`:
+- every `auth.*` method (their verbs start with `get` too)
+- every write: `track.love`, `track.scrobble`, `album.addTags` and the rest
+
+Loving and unloving stay on `loveTrack()` / `unloveTrack()` below, behind the `love` permission.
+
+**Parameters.**
+- Last.fm parameters are strings. Numbers are converted for you (`200` becomes `"200"`), and so
+  are booleans (`true` becomes `"1"`, `false` `"0"`). Any other value is dropped.
+- A key must look like a Last.fm parameter name: lowercase letters, digits and `_`, starting
+  with a letter, at most 32 characters. Values are at most 1024 characters, and at most 20
+  parameters are kept. Anything else is dropped, not refused.
+- The app removes `api_key`, `api_sig`, `sk`, `format`, `callback` and `method` if you pass them.
+- The app adds `api_key` and `format=json` itself.
+- For `user.*` and `library.*` methods with no `user` parameter (or an empty one), the app adds the signed-in user's name.
+- To read another user's public data, pass `user` explicitly. That works even when nobody is signed in.
+- Requests are never signed and never carry a session key, so only public data can be read.
+
+**Errors.** A failure rejects with an `Error` whose `code` says what happened:
+
+| `code` | Meaning |
+|---|---|
+| `permissionDenied` | the manifest does not declare `lastFm`. Rejected at once, without asking the app |
+| `methodNotAllowed` | the method fails the rule above, or is not a non-empty string |
+| `notSignedIn` | a `user.*` / `library.*` method without `user`, and nobody is signed in to Last.fm |
+| `rateLimited` | too many requests are already queued in the app, across all widgets; wait and retry |
+| `lastFm:<n>` | Last.fm answered with its own error `n` (for example `lastFm:6`, user not found); `message` is Last.fm's |
+| `network` | the request could not be made, Last.fm answered with an HTTP error or a body that is not JSON, or NepTunes is not running |
+| `timeout` | no answer in time (see below) |
+| `tooLarge` | the response was over the size limit, 2 MB |
+
+**Timing.** The app answers every call within about 9 seconds of receiving it, with `timeout` if
+Last.fm has not answered by then. The promise itself gives up after 15 seconds, also with
+`timeout`, counted from your call rather than from when the app received it. Requests wait their
+turn in the widget host before they reach the app, up to 5 seconds, and sending one and waiting
+for its answer take time of their own, so under load the promise can time out even though the
+app was about to answer. When many requests are queued, a widget usually hears `timeout` rather
+than `rateLimited`: a request that has waited in the widget host for more than 5 seconds is not
+sent, because the widget has most likely given up on it. Treat the two codes alike: back off,
+then retry.
+
+**Budget.**
+- Every widget on the Mac shares one limiter of 5 requests a second (Last.fm's own guidance), with a short queue behind it.
+- Identical calls (same method, same parameters, after the rules above) are answered from a cache for 60 seconds. Re-reading on every `statechange` is free, but polling faster than once a minute returns the same answer.
+- Two reads that change with every scrobble are cached for only 10 seconds: `user.getInfo` (the scrobble count) and `user.getRecentTracks` without a `to` parameter (the feed up to now). Re-read a few seconds after a track change and you see the new scrobble. `user.getRecentTracks` with a `to` asks for history that is already settled, so it keeps the 60-second cache.
+- Page through big results a few requests at a time, not all at once.
+
+**Feature detection.** `call()` needs NepTunes 4.1. Widget updates reach people on older
+versions too, so check before you use it:
+
+```javascript
+if (typeof NepTunes.lastFm.call === 'function') {
+    // the passthrough
+} else {
+    // the narrow methods below
+}
+```
+
+#### The narrow methods
+
+The original methods remain supported and are not going away. They return simplified NepTunes
+shapes and reject when nobody is signed in to Last.fm. Each request times out after 15 s. New
+code should prefer `call()`, which reaches the whole read API.
+
+```javascript
+NepTunes.lastFm.getUserInfo()                // { name, realName, country, playcount, artistCount, trackCount, albumCount, registeredDate }
+NepTunes.lastFm.getTopAlbums(period, limit)  // [{ name, artist, playcount, imageURL, url }]
+NepTunes.lastFm.getTopArtists(period, limit) // [{ name, playcount, match, imageURL, url }]
+NepTunes.lastFm.getTopTracks(period, limit)  // [{ name, artist, playcount, imageURL, url }]
+NepTunes.lastFm.getRecentTracks(limit)       // [{ name, artist, album, imageURL, date, isNowPlaying, isLoved, url }]
+NepTunes.lastFm.getArtistInfo(artist)        // { name, imageURL, listeners, playcount, userPlaycount, tags, bio, similar }
+NepTunes.lastFm.getTrackInfo(track, artist)  // { name, artist, album, listeners, playcount, userPlaycount, userLoved, tags }
+NepTunes.lastFm.loveTrack(track, artist)     // also requires the `love` permission
+NepTunes.lastFm.unloveTrack(track, artist)   // also requires the `love` permission
+```
+
+`period` is one of `overall`, `7day`, `1month`, `3month`, `6month`, `12month`.
+
+#### `lastFm.image(url)`: Last.fm artwork
+
+A widget has no network, and that includes `<img src="https://…">`: a Last.fm image URL
+never loads in a widget, whether it came from `call()` or from an `imageURL` above. Ask the app
+for it instead:
+
+```javascript
+const album = body.topalbums.album[0];
+const art = (album.image || []).find((i) => i.size === 'extralarge');
+if (art && art['#text']) img.src = await NepTunes.lastFm.image(art['#text']);  // "data:image/…"
+```
+
+- Only `https` URLs on Last.fm's image hosts (`lastfm.freetls.fastly.net`, `lastfm-img2.akamaized.net`) are fetched. Anything else, including a redirect off those hosts, rejects with `urlNotAllowed`.
+- A download over 1 MB rejects with `tooLarge`; one that is not a JPEG, PNG, GIF or WebP image (an SVG included) rejects with `network`.
+- The other codes match `call()`: `permissionDenied`, `rateLimited`, `network` and `timeout`. Images have their own limiter (10 a second), so artwork never spends the API budget.
+- The app keeps recently fetched images in memory.
+- The result is a `data:` URL, so unlike a remote image it can be drawn to a `<canvas>` and sampled for colour.
+- Needs `lastFm` and NepTunes 4.1. Feature-detect it the same way as `call()`.
+
+### Listening history
+
+Since version 4.0, NepTunes keeps its own record of what the user listened to, independent of
+Last.fm scrobbling. With the `listeningHistory` permission a widget reads it through
+`NepTunes.history`. Queries run in the main app. A widget never touches the database, and
+nothing here exposes its schema.
+
+This is the most private data a widget can get, so the user sees the permission at install. It
+needs **NepTunes 4.1**: older versions do not recognise `listeningHistory` and will not install
+or update to a bundle that declares it. Feature-detect anyway, since the object only exists on
+4.1 and later:
+
+```javascript
+if (NepTunes.history && typeof NepTunes.history.query === 'function') { /* … */ }
+```
+
+```javascript
+const { since, plays } = await NepTunes.history.info();
+// since: ISO 8601 instant of the first recorded play, or null if there is none yet
+// plays: total listened plays
+
+const { rows } = await NepTunes.history.query({
+    from: '2026-08-01T00:00:00Z',   // ISO 8601 instants or Date objects, half-open: from ≤ start < to
+    to:   '2026-09-01T00:00:00Z',
+    groupBy: 'day',                  // day | hour | weekday | artist | album | track | genre | none
+    sort: 'key',                     // optional: plays | seconds | key
+    limit: 50                        // optional, entity groups only
+});
+// → [{ date: '2026-08-01', plays: 14, seconds: 3120 }, …]
+
+const { plays: recent } = await NepTunes.history.recent({ limit: 20 });
+const { plays: older } = await NepTunes.history.recent({ limit: 20, before: recent[recent.length - 1].startedAt });
+```
+
+**Rows.** Each `groupBy` gives its rows these keys:
+
+| `groupBy` | Row keys |
+|---|---|
+| `day` | `date`: `"YYYY-MM-DD"` |
+| `hour` | `hour`: 0…23 |
+| `weekday` | `weekday`: 1…7, ISO (1 = Monday, 7 = Sunday) |
+| `artist` | `artist` |
+| `album` | `album`, `artist` (the album artist; `null` when unknown) |
+| `track` | `title`, `artist`, `album` (the album it was last played from in the range; `null` when none) |
+| `genre` | `genre` |
+| `none` | no key; exactly one row of totals for the range, zeros included |
+
+Every row also carries:
+
+- `plays`: **listened** plays. A play counts once the user heard half of the track or four
+  minutes of it, whichever comes first, the threshold Last.fm uses for scrobbles, so these
+  numbers compare with Last.fm's. A play whose length the player did not report (a live radio
+  stream, say) never counts as listened.
+- `seconds`: time actually heard, counting every music play, including ones skipped early.
+
+**What to rely on.**
+- `from`/`to` filter on when a play *started*.
+- Time buckets use the local wall-clock time **where the play happened**. A play at 23:30 in Lisbon stays on that date and in hour 23 after the user flies to Tokyo.
+- Only music counts.
+- A play carrying several genres counts once under each, so `genre` rows can add up to more than the total.
+- A play with no album is left out of `album` rows, but still counts everywhere else.
+- `sort` defaults to `key` for time groups (chronological) and to `plays` for entities. `key` sorts entities by name, ignoring case. Ties fall back to the other measure, then the key.
+- `limit` applies to entity groups: default 50, at most 1000 (a larger value is capped). Time groups always cover the whole range.
+- Don't rely on buckets with no plays being present. Treat a missing row as zero.
+- **Before `info().since` there is no data.** Recording began with NepTunes 4.0, so show earlier days as *unknown*, not as silent.
+
+**`recent({ limit, before })`.**
+- Returns music plays newest first. `limit` defaults to 50; up to 200 (a larger value is capped).
+- `before` is an ISO 8601 instant or a `Date`. Pass the last play's `startedAt` to get the next page: only plays that started strictly before it are returned. Two plays that started in the very same millisecond could therefore be split across a page boundary, with the second one skipped. This practically never happens.
+- Each play has `startedAt` (ISO 8601, with milliseconds), `title`, `artist`, `album` (or `null`), `seconds` (heard), `duration` (or `null`), `player` (`appleMusic` | `spotify` | `unknown`), `listened` and `skipped`.
+
+**Errors** reject with an `Error` whose `code` is:
+
+| `code` | Meaning |
+|---|---|
+| `permissionDenied` | the manifest does not declare `listeningHistory`. Rejected at once, without asking the app |
+| `unavailable` | the history database could not be opened or read, or NepTunes is not running |
+| `invalidQuery` | a missing or malformed argument: see below |
+| `timeout` | the query took too long. The app gives up after about 8 seconds; the promise itself after 15 |
+
+`invalidQuery` covers:
+- `from`, `to` or `before` that is not an ISO 8601 instant with a time zone (`Z` or an offset). A bare date such as `'2026-08-01'` is not an instant.
+- an invalid `Date` (`new Date('nonsense')`) anywhere
+- `to` that is not later than `from`
+- an unknown `groupBy` or `sort`
+- a `limit` that is not a whole number of at least 1, for any `groupBy` (time groups ignore a valid one) and for `recent()`
+- a `limit` passed as a string: it must be a number (`limit: 50`, not `'50'`), unlike `lastFm.call()` parameters
+- an argument that cannot be sent at all, such as a function
+
+### First day of the week
+
+`state.firstWeekday` is the first day of the week in the user's region: 1…7 in ISO numbering
+(1 = Monday, 7 = Sunday). It follows the "First day of week" choice in the Mac's Language &
+Region settings. It arrives with `language`, `locale` and `layoutDirection`, so read it in
+`statechange`, not in `init()`. It is absent before NepTunes 4.1. JavaScript's `Date.getDay()`
+numbers Sunday 0; `(date.getDay() + 6) % 7 + 1` converts it to ISO.
+
+A widget that lays out weeks should follow the region by default and may offer an override. The
+recommended pattern is a `select` setting with the id `firstWeekday`:
+
+```json
+{
+    "id": "firstWeekday",
+    "type": "select",
+    "label": "Week starts on",
+    "options": [
+        { "value": "system", "label": "System" },
+        { "value": "monday", "label": "Monday" },
+        { "value": "sunday", "label": "Sunday" },
+        { "value": "saturday", "label": "Saturday" }
+    ],
+    "default": "system"
+}
+```
+
+Resolve it with this function. Copy it into your widget; NepTunes does not provide it. It returns
+1…7: the explicit choice if there is one, otherwise `state.firstWeekday`, otherwise the week data
+of `state.locale` where the browser engine has it (for NepTunes before 4.1), otherwise Monday:
+
+```javascript
+function firstWeekday(settingValue, state) {
+    var explicit = { monday: 1, sunday: 7, saturday: 6 };
+    if (Object.prototype.hasOwnProperty.call(explicit, settingValue)) return explicit[settingValue];
+    var fromHost = state && state.firstWeekday;
+    if (Number.isInteger(fromHost) && fromHost >= 1 && fromHost <= 7) return fromHost;
+    try {
+        var locale = new Intl.Locale(state.locale);
+        var week = typeof locale.getWeekInfo === 'function' ? locale.getWeekInfo() : locale.weekInfo;
+        if (week && Number.isInteger(week.firstDay) && week.firstDay >= 1 && week.firstDay <= 7) return week.firstDay;
+    } catch (e) {}
+    return 1;
+}
+
+function weekStart() {
+    return firstWeekday(NepTunes.settings && NepTunes.settings.firstWeekday, NepTunes.state);
+}
+NepTunes.on('statechange', render);
+NepTunes.on('settingschange', render);
+```
+
+### Hover and pointer tracking
+
+Widget windows never become the key window, so WebKit receives no mouse-moved events. CSS
+`:hover` does not follow the pointer: after a click it latches onto the clicked element and
+stays there. `mousemove` fires only while a button is held. Mouse down, mouse up and click are
+delivered normally, so style per-control press feedback with `:active`. The host gives you two
+replacements:
+
+- **`nt-hover`**: a class on `<html>` while the pointer is over your widget's visible content.
+  "Visible content" means the union of `body`'s visible children, so the transparent shadow
+  gutter does not count. Use it to reveal controls, e.g. `html.nt-hover .controls { opacity: 1; }`.
+  Every widget gets it.
+- **Pointer tracking**: coordinates, for a widget that needs to know *where* the pointer is (a
+  per-cell callout in a grid, a scrubber preview). Opt in from the manifest:
+
+  ```json
+  "pointerTracking": true
+  ```
+
+  Register the listeners synchronously while your script loads, not after an `await` or a
+  timer: when the page finishes loading, the host reports a pointer that is already resting on
+  the widget once, and a listener added later misses it.
+
+  ```javascript
+  NepTunes.on('pointermove', ({ x, y }) => {
+      const cell = document.elementFromPoint(x, y)?.closest('.cell');
+      cell ? showCallout(cell) : hideCallout();
+  });
+  NepTunes.on('pointerleave', hideCallout);
+  ```
+
+How pointer tracking behaves:
+
+- `x` and `y` are whole CSS pixels from the top-left of the viewport. That is the same space as
+  `MouseEvent.clientX/clientY`, `getBoundingClientRect()` and `elementFromPoint()`, on any
+  display. `x` grows to the right even in a `dir="rtl"` document.
+- Events arrive while the pointer is anywhere over the widget's window, **including the
+  transparent shadow gutter**. Hit-test against your own elements instead of assuming every event
+  is over the card. `pointerleave` fires once, when the pointer leaves the window, and carries no
+  data. Until the first `pointermove`, assume the pointer is elsewhere: a page that loads with
+  the pointer outside gets no event at all.
+- Events are coalesced: at most about 30 `pointermove` a second, and only when the position
+  changed. A pointer that stops still has its final position delivered.
+- Nothing arrives while a mouse button is held. Clicks and window dragging behave exactly as
+  without tracking.
+- These are NepTunes events on `NepTunes.on`, not DOM events: `document.addEventListener('pointermove', …)`
+  receives nothing from the host.
+- Opt in only if you use it. Every event is a message into your widget's web process, which is
+  why widgets that don't ask never receive them.
+- NepTunes before 4.1 ignores the key and sends nothing. The widget must still work without it:
+  a grid that stays readable without its callout, not one that hides everything behind hover.
+
+`_dev/harness.html` forwards the browser's pointer to widgets that declare
+`pointerTracking`, through the same coalescing, and `_dev/mock-neptunes.js` mocks
+`lastFm.call`, `lastFm.image`, `history.*` and `state.firstWeekday`.
 
 ### Right-to-left
 
@@ -1066,12 +1591,25 @@ Always check for null/undefined state:
 ```javascript
 function updateUI(state) {
     if (!state || !state.track) {
-        // Show "not playing" state
+        // Show "not playing" state. With no player running, state.playerType is
+        // absent too, and playerState is usually 0 (unknown) rather than 1.
         return;
     }
     // Normal update
 }
+
+// Clicking the empty state starts the music (needs "playerActivation"):
+// the current player comes forward, or the preferred player (if one is set,
+// otherwise the last-used one) is launched.
+emptyState.addEventListener('click', () => NepTunes.activatePlayer());
 ```
+
+Key the empty state off `track` alone. `playerState` is informational: a player stopped at the
+end of its queue still sends its last track with `playerState` `1`, and that is not empty.
+
+A widget that declares [`alwaysVisible` or `supportsNoPlayback`](#showing-without-playback) can
+be set to stay on screen, so it spends much of its life in this state, often with no player
+running at all.
 
 ### Interactive Elements
 
@@ -1320,14 +1858,15 @@ SHOW_WIDGET: … - shown at frame=(259, 294, 200x200)
 #### What a change actually triggers
 
 `WidgetBundleReloadPlan` decides how far the change has to reach, because reloading the page
-picks up new HTML, CSS and JS and nothing else — window size limits, resizability, the entry
-file and the permission set were all read from `manifest.json` when the window was built:
+picks up new HTML, CSS and JS and nothing else — window size limits, resizability, pointer
+tracking, whether it stays visible without playback, the entry file and the permission set were
+all read from `manifest.json` when the window was built:
 
 | what changed | plan |
 | --- | --- |
 | manifest unreadable (mid-copy) | `.none` |
 | page content only | `.reloadContent` — `reloadFromOrigin()`, since WebKit's memory cache will otherwise serve the previous `styles.css` for a `file://` load |
-| `version`, `entry`, sizes, `resizable`, `permissions`, `settings` | `.recreate` — tear the window down and rebuild |
+| `version`, `entry`, sizes, `resizable`, `pointerTracking`, `alwaysVisible`, `supportsNoPlayback`, `supportsMotionArtwork`, `permissions`, `settings` | `.recreate` — tear the window down and rebuild |
 
 `.recreate` waits for the bundle to become loadable **before** closing the window. It used to
 close first and then call `showWidget`, which gives up silently when the package will not

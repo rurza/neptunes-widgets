@@ -37,36 +37,58 @@ html, body {
 
 /* ---- empty state ------------------------------------------------------- */
 
+/* No track. The case wears an empty sleeve printed "Nothing playing" (placeholderCover in
+   script.js) — which is also what keeps the model's original game artwork off it — and this
+   layer adds a single dark pill under the case that opens the music player
+   (NepTunes.activatePlayer). Only the pill takes the pointer: everything else still reaches
+   the canvas, so the case drags the window as it always does. */
 #empty {
     position: fixed;
-    inset: 0;
+    inset: auto 0 4px 0;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    gap: 14px;
-    color: rgba(255, 255, 255, 0.55);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+    pointer-events: none;
 }
 
 #empty[hidden] { display: none; }
 
-#empty .disc {
-    width: 76px;
-    height: 76px;
-    border-radius: 50%;
-    background:
-        radial-gradient(circle at 50% 50%, transparent 0 12%, rgba(255,255,255,.10) 12.5% 13.5%, transparent 14%),
-        conic-gradient(from 210deg,
-            rgba(255,255,255,.14), rgba(255,255,255,.04),
-            rgba(255,255,255,.16), rgba(255,255,255,.04), rgba(255,255,255,.14));
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+#emptyOpen {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 11px 0 10px;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(20, 22, 28, 0.82);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 0 0 0.5px rgba(255, 255, 255, 0.14) inset, 0 2px 8px rgba(0, 0, 0, 0.14);
+    color: rgba(255, 255, 255, 0.9);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: transform 0.12s ease;
 }
 
-#empty p {
-    font-size: 12px;
-    font-weight: 500;
-    letter-spacing: 0.01em;
+#emptyOpen:active {
+    transform: scale(0.96);
+}
+
+#emptyOpen svg {
+    display: block;
+    fill: currentColor;
+}
+
+/* The case always fills its window, leaving about a tenth of the height beneath it. At the
+   smallest Case Size that is ~22px, so the pill gets smaller rather than lap the case. */
+@media (max-height: 240px) {
+    #empty { bottom: 2px; }
+    #emptyOpen { height: 19px; padding: 0 9px 0 8px; gap: 5px; font-size: 10px; }
+    #emptyOpen svg { width: 7px; height: 8px; }
 }
 
 /* ---- failure surface --------------------------------------------------- */

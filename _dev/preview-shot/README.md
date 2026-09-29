@@ -15,7 +15,7 @@ it is covered by `bundle.sig`, and the site serves a copy of it as the widget's 
 
 ```bash
 node Scripts/widget-tools.mjs embed-sign SampleWidgets/Glass.nepget --key Scripts/.keys/first-party-author.pem
-node Scripts/package-widgets.mjs Glass
+NEPTUNES_KEYS_DIR=/path/to/private-keys node Scripts/stage-widget-releases.mjs
 ```
 
 ## Why this exists
@@ -65,10 +65,28 @@ This renders the widget instead, so what you see in the picker is what installs.
   This harness has to accept everything that one does, or it is not previewing the widget the
   user gets.
 
-## What it cannot render yet
+## Widgets whose content comes from the app: `stub`
 
-The fake native side answers `symbol` and nothing else, so a widget whose content comes from
-Last.fm (`Charts`, `Scrobbles`) renders empty and is not in `spec.json`. Those need canned
-`lastFm.*` responses in the bridge before they can be shot. Everything else is a matter of adding
-a `{ "name": "…" }` entry — and once a widget is listed here, its drawn twin in
-`make-previews.py` is dead code for that widget.
+The fake native side answers `symbol` and nothing else, so a widget whose content comes from the
+app (Last.fm, listening history) would render empty. A spec entry may name a `stub`: a JS file,
+relative to `spec.json`, installed at document start right after the injected API. It stands in
+for the app with a fixed, believable set of data, and it may pin whatever the render depends on —
+the clock, the data sources, a hovered element — so the preview comes out the same on every run.
+
+```json
+{ "name": "Activity", "stub": "stubs/activity.js", "settings": { "source": "history" } }
+```
+
+A stub whose page settles asynchronously sets `window.__previewReady = false` when it installs
+and `true` once the page shows what the preview is of; the shot waits for it (five seconds, then
+the widget fails rather than shipping a half-drawn preview). A stub that finds the page wrong sets
+`window.__previewError` to the reason instead, which fails the widget at once with that message.
+`stubs/activity.js` pins the clock to a Saturday, the last day of an en-US week, so the grid is a
+full square, answers `NepTunes.history` with seven weeks of plays, and hovers one day so the
+callout is in the shot. It checks the square before it says ready: all 49 cells must be days with
+a count, so a clock that drifts off the week's last day fails the shot instead of shipping a grid
+with a hole in it.
+
+`Charts` and `Scrobbles` could be shot the same way, with a stub that answers `lastFm.call` with
+canned response bodies. Everything else is a matter of adding a `{ "name": "…" }` entry — and once
+a widget is listed here, its drawn twin in `make-previews.py` is dead code for that widget.

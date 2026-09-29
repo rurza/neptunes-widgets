@@ -106,14 +106,24 @@ final class Renderer: NSObject, WKNavigationDelegate {
         await settle(400)
     }
 
-    func push(settings: [String: Any], track: [String: Any], hover: Bool) async {
-        let state: [String: Any] = [
-            "track": track, "playerState": 2, "playerPosition": 10, "volume": 70, "isMuted": false,
+    func push(settings: [String: Any], track: [String: Any]?, hover: Bool) async {
+        var state: [String: Any] = [
+            "track": track as Any, "playerState": 2, "playerPosition": 10, "volume": 70, "isMuted": false,
             "shuffleEnabled": false, "repeatMode": 1, "rating": 80, "isLoved": true,
             "playerType": "appleMusic", "layoutDirection": "ltr", "language": "en", "locale": "en-US",
             "capabilities": ["canLove": true, "canDislike": true, "canRate": true,
                              "canAddToLibrary": true, "hasThreeStateRepeat": true],
         ]
+        if track == nil {
+            // No player running, as WidgetJSBridge sends it: no track, no playerType, and
+            // playerState 0 (unknown), not 1.
+            state = [
+                "playerState": 0, "playerPosition": 0, "volume": 70, "isMuted": false,
+                "shuffleEnabled": false, "layoutDirection": "ltr", "language": "en", "locale": "en-US",
+                "capabilities": ["canLove": false, "canDislike": false, "canRate": false,
+                                 "canAddToLibrary": false, "hasThreeStateRepeat": false],
+            ]
+        }
         let s = String(data: try! JSONSerialization.data(withJSONObject: settings), encoding: .utf8)!
         let t = String(data: try! JSONSerialization.data(withJSONObject: state), encoding: .utf8)!
         await eval("window.NepTunes.settings = \(s); window.NepTunes._emit('settingschange', window.NepTunes.settings);")
@@ -220,10 +230,13 @@ func run() async -> Int {
         // and skipped icons are not checked.
         var caseTrack = track
         if c["artwork"] as? Bool == false { caseTrack["artworkData"] = nil }
+        // `empty: true` sends no track and no player at all — the "Nothing playing" state a
+        // widget draws for itself when its Show setting is Always.
+        let empty = c["empty"] as? Bool == true
 
         let r = Renderer()
         await r.load(bundle: bundle, width: width, height: height)
-        await r.push(settings: settings, track: caseTrack, hover: c["hover"] as? Bool ?? false)
+        await r.push(settings: settings, track: empty ? nil : caseTrack, hover: c["hover"] as? Bool ?? false)
         let raw = await r.eval(ICONS_JS)
         let unknown = r.bridge.unknownSymbols
         r.close()

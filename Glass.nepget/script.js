@@ -31,7 +31,16 @@
         return isLiveStream ? 'stop' : 'pause';
     }
 
-    const PURE = { transportHidden: transportHidden, transportGlyph: transportGlyph };
+    /*
+     * The "Nothing playing" state is simply no track. With no player running the host sends
+     * no track, no playerType and playerState 0 (not 1); a player stopped at the end of its
+     * queue WITH its last track still shows that track.
+     */
+    function isEmpty(state) {
+        return !(state && state.track);
+    }
+
+    const PURE = { transportHidden: transportHidden, transportGlyph: transportGlyph, isEmpty: isEmpty };
     if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
     if (typeof window === 'undefined') return;
 
@@ -42,6 +51,7 @@
     const titleEl = document.getElementById('title');
     const artistEl = document.getElementById('artist');
     const panel = document.getElementById('panel');
+    const emptyOpen = document.getElementById('emptyOpen');
     const prevBtn = document.getElementById('prevBtn');
     const playBtn = document.getElementById('playBtn');
     const nextBtn = document.getElementById('nextBtn');
@@ -131,10 +141,10 @@
     // ---- State handling ----
     function onState(state) {
         applyDirection(state);
-        if (!state || !state.track) {
+        if (isEmpty(state)) {
             widget.classList.add('stopped');
             widget.classList.remove('playing', 'live');
-            titleEl.textContent = 'Not Playing';
+            titleEl.textContent = 'Nothing playing';
             artistEl.textContent = '';
             updateArtwork(null);
             refreshAccent(false); // no art -> neutral accent
@@ -206,6 +216,10 @@
         prevBtn.addEventListener('click', function () { window.NepTunes.previous(); });
         playBtn.addEventListener('click', function () { window.NepTunes.playPause(); });
         nextBtn.addEventListener('click', function () { window.NepTunes.next(); });
+        // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+        emptyOpen.addEventListener('click', function () {
+            if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
+        });
     }
 
     // The desktop switched between light and dark. Only 'auto' resolves against the

@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const V3 = require('../V3.nepget/script.js');
@@ -35,7 +36,8 @@ const V3 = require('../V3.nepget/script.js');
 test('script.js exports exactly the contract surface, all callable', () => {
   for (const name of [
     'volumeStep', 'clampVolume', 'speakerSymbol', 'repeatSymbol', 'repeatIsOn',
-    'wheelAxis', 'swipeDecision', 'infoBarState', 'transportHidden', 'transportGlyph', 'start',
+    'wheelAxis', 'swipeDecision', 'infoBarState', 'transportHidden', 'transportGlyph',
+    'motionState', 'createMotionLayer', 'start',
   ]) {
     assert.equal(typeof V3[name], 'function', `V3.${name} is missing or not a function`);
   }
@@ -717,4 +719,389 @@ test('liveBadgeHidden is false for a live stream', () => {
 
 test('liveBadgeHidden is true for an ordinary track', () => {
   assert.equal(V3.liveBadgeHidden(false), true);
+});
+
+// ---------------------------------------------------------------------------
+// Motion artwork (NepTunes 4.1) — the album's animated cover as a muted, looping
+// <video> laid over the static cover, under the info bar and the hover panel.
+//
+// Mirrors _dev/sleeve.test.mjs, the reference implementation: the decisions —
+// when there is a loop to show, when it plays, when a <video> is loaded, revealed
+// and let go — are pinned here without a browser. Where it sits in V3's stack
+// (over the cover and the no-cover field, under the frosted strip and the hover
+// panel, clipped by the card's rounded corners) is pinned from the markup and CSS
+// below, and was checked in a real WKWebView.
+// ---------------------------------------------------------------------------
+
+const { motionState, createMotionLayer } = V3;
+
+const readV3 = (file) => readFileSync(new URL(`../V3.nepget/${file}`, import.meta.url), 'utf8');
+const v3Manifest = JSON.parse(readV3('manifest.json'));
+
+const LOOP = 'neptunes-media://motion/0123456789abcdef0123456789abcdef.mp4';
+const OTHER = 'neptunes-media://motion/fedcba9876543210fedcba9876543210.mp4';
+const motionTrack = (extra) =>
+  Object.assign({ title: 'T', artist: 'A', album: 'L', motionArtworkURL: LOOP }, extra);
+const PLAYING = { playerState: 2, playerType: 'appleMusic', track: motionTrack() };
+const PAUSED = { playerState: 3, playerType: 'appleMusic', track: motionTrack() };
+const OFF = { src: null, album: null, play: false };
+
+// -- manifest ------------------------------------------------------------------
+
+test('motion: the manifest declares motion artwork, with the artwork permission it rides on', () => {
+  assert.equal(v3Manifest.supportsMotionArtwork, true);
+  assert.ok(v3Manifest.permissions.includes('artwork'));
+});
+
+test('motion: the signed 4.1 release requires NepTunes 4.1.0 and is version 1.3.1', () => {
+  assert.equal(v3Manifest.minNepTunesVersion, '4.1.0');
+  assert.equal(v3Manifest.version, '1.3.1');
+});
+
+// -- motionState -----------------------------------------------------------------
+
+test('motionState: a playing track with a loop plays it', () => {
+  assert.deepEqual(motionState(PLAYING, false), { src: LOOP, album: 'L', play: true });
+});
+
+test('motionState: a paused track keeps its loop loaded but not playing (the frame stays)', () => {
+  assert.deepEqual(motionState(PAUSED, false), { src: LOOP, album: 'L', play: false });
+});
+
+test('motionState: no loop — an older app, support off, not downloaded yet, not Pro — is no video', () => {
+  assert.deepEqual(motionState({ playerState: 2, track: motionTrack({ motionArtworkURL: undefined }) }, false), OFF);
+  assert.deepEqual(motionState({ playerState: 2, track: motionTrack({ motionArtworkURL: null }) }, false), OFF);
+  assert.deepEqual(motionState({ playerState: 2, track: motionTrack({ motionArtworkURL: '' }) }, false), OFF);
+});
+
+test('motionState: prefers-reduced-motion means no video at all', () => {
+  assert.deepEqual(motionState(PLAYING, true), OFF);
+  assert.deepEqual(motionState(PAUSED, true), OFF);
+});
+
+test('motionState: nothing playing, stopped, or no player — no video', () => {
+  assert.deepEqual(motionState(null, false), OFF);
+  assert.deepEqual(motionState(undefined, false), OFF);
+  assert.deepEqual(motionState({ playerState: 0, volume: 50 }, false), OFF);
+  assert.deepEqual(motionState({ playerState: 1, playerType: 'appleMusic' }, false), OFF);
+  assert.deepEqual(motionState({ playerState: 1, playerType: 'appleMusic', track: motionTrack() }, false), OFF,
+    'stopped at the end of the queue with the last track and its URL kept');
+});
+
+test('motionState: an advertisement never shows a loop', () => {
+  assert.deepEqual(motionState({ playerState: 2, track: motionTrack({ isAdvertisement: true }) }, false), OFF);
+});
+
+test('motionState: a track without an album still keys its loop', () => {
+  assert.deepEqual(motionState({ playerState: 2, track: motionTrack({ album: undefined }) }, false),
+    { src: LOOP, album: '', play: true });
+});
+
+// -- motion layer ----------------------------------------------------------------
+
+// Just enough of HTMLVideoElement for the layer: attributes, events, play/pause, the
+// readiness the reveal waits on, and requestVideoFrameCallback when `withFrameCallback`.
+function fakeVideo({ withFrameCallback = true } = {}) {
+  const listeners = {};
+  const classes = new Set();
+  const v = {
+    attrs: {}, paused: true, readyState: 0, currentTime: 0, loads: 0, plays: 0, pauses: 0,
+    frameCallbacks: [], parentNode: null, playResult: undefined,
+    classList: {
+      add: (c) => classes.add(c), remove: (c) => classes.delete(c),
+      contains: (c) => classes.has(c), toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)),
+    },
+    setAttribute(k, val) { this.attrs[k] = String(val); },
+    removeAttribute(k) { delete this.attrs[k]; },
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+    emit(type) { (listeners[type] || []).forEach((fn) => fn({ type })); },
+    load() { this.loads++; },
+    play() { this.plays++; this.paused = false; return this.playResult; },
+    pause() { this.pauses++; this.paused = true; },
+    get visible() { return classes.has('visible'); },
+    // Media data arrived and a frame was presented.
+    becomeReady() { this.readyState = 4; this.emit('loadeddata'); this.emit('canplay'); },
+    presentFrame() {
+      this.currentTime += 0.033;
+      const cbs = this.frameCallbacks; this.frameCallbacks = [];
+      cbs.forEach((fn) => fn(0, {}));
+      this.emit('timeupdate');
+    },
+  };
+  if (withFrameCallback) v.requestVideoFrameCallback = function (fn) { this.frameCallbacks.push(fn); return 1; };
+  return v;
+}
+
+function motionHarness(opts = {}) {
+  const made = [];
+  const timers = [];
+  const container = {
+    children: [],
+    appendChild(el) { this.children.push(el); el.parentNode = this; },
+    removeChild(el) { this.children = this.children.filter((c) => c !== el); el.parentNode = null; },
+  };
+  const layer = createMotionLayer({
+    container,
+    createVideo: () => { const v = fakeVideo(opts); made.push(v); return v; },
+    later: (fn, ms) => { timers.push({ fn, ms }); },
+  });
+  const flush = () => { while (timers.length) timers.shift().fn(); };
+  return { layer, made, container, flush, timers };
+}
+
+const RELEASED = (v) => v.getAttribute('src') === null && v.loads >= 1 && v.parentNode === null;
+
+test('motion layer: a loop is loaded muted, looping and inline, and only revealed once a frame is on screen', () => {
+  const { layer, made, container } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  assert.equal(made.length, 1);
+  const v = made[0];
+  assert.equal(v.getAttribute('src'), LOOP);
+  assert.equal(v.muted, true);
+  assert.equal(v.loop, true);
+  assert.notEqual(v.getAttribute('muted'), null);
+  assert.notEqual(v.getAttribute('loop'), null);
+  assert.notEqual(v.getAttribute('playsinline'), null);
+  assert.ok(v.classList.contains('motion'));
+  assert.deepEqual(container.children, [v]);
+  assert.equal(v.visible, false, 'nothing to show yet: never a black or empty frame');
+  v.becomeReady();
+  assert.equal(v.paused, false, 'playing');
+  assert.equal(v.visible, false, 'ready is not yet a frame on screen');
+  v.presentFrame();
+  assert.equal(v.visible, true);
+});
+
+test('motion layer: without requestVideoFrameCallback, playback actually advancing reveals it', () => {
+  const { layer, made } = motionHarness({ withFrameCallback: false });
+  layer.update({ src: LOOP, album: 'L', play: true });
+  const v = made[0];
+  v.emit('timeupdate');
+  assert.equal(v.visible, false, 'a timeupdate at 0 with no data is not a frame');
+  v.becomeReady();
+  v.presentFrame();
+  assert.equal(v.visible, true);
+});
+
+test('motion layer: the same loop again (the next track on the album) keeps playing without a reload', () => {
+  const { layer, made } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  const v = made[0];
+  v.becomeReady(); v.presentFrame();
+  const plays = v.plays;
+  layer.update({ src: LOOP, album: 'L', play: true });
+  layer.update({ src: LOOP, album: 'L', play: true });
+  assert.equal(made.length, 1, 'no second <video>');
+  assert.equal(v.loads, 0, 'not reloaded');
+  assert.equal(v.plays, plays, 'play() is not called again on a video that is playing');
+  assert.equal(v.visible, true);
+});
+
+test('motion layer: pause keeps the frame on screen; play resumes the same video', () => {
+  const { layer, made } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  const v = made[0];
+  v.becomeReady(); v.presentFrame();
+  layer.update({ src: LOOP, album: 'L', play: false });
+  assert.equal(v.paused, true);
+  assert.equal(v.visible, true, 'the paused frame stays');
+  assert.equal(v.getAttribute('src'), LOOP);
+  layer.update({ src: LOOP, album: 'L', play: true });
+  assert.equal(v.paused, false);
+  assert.equal(made.length, 1);
+});
+
+test('motion layer: loaded while paused, it does not play, and is not revealed before it has a frame', () => {
+  const { layer, made } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: false });
+  const v = made[0];
+  v.readyState = 4; v.emit('loadeddata'); v.emit('canplay');
+  assert.equal(v.plays, 0);
+  assert.equal(v.visible, false);
+  layer.update({ src: LOOP, album: 'L', play: true });
+  assert.equal(v.paused, false);
+  v.presentFrame();
+  assert.equal(v.visible, true);
+});
+
+test('motion layer: the URL going away fades back to the static art, then releases the video', () => {
+  const { layer, made, flush } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  const v = made[0];
+  v.becomeReady(); v.presentFrame();
+  layer.update({ src: null, album: null, play: false });
+  assert.equal(v.visible, false, 'fading out');
+  assert.equal(v.paused, true);
+  assert.equal(v.getAttribute('src'), LOOP, 'kept until the fade is over');
+  flush();
+  assert.ok(RELEASED(v), 'src removed, load() called, element gone');
+});
+
+test('motion layer: a video is let go only after its fade-out, which matches the cover\'s 220 ms fade', () => {
+  const { layer, timers } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  layer.update({ src: null, album: null, play: false });
+  assert.equal(timers.length, 1);
+  assert.ok(timers[0].ms >= 220, `released after ${timers[0].ms} ms, before the 0.22 s fade is over`);
+});
+
+test('motion layer: an album change takes the old loop away with the old cover, even on the same URL', () => {
+  const { layer, made, container, flush } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  const a = made[0];
+  a.becomeReady(); a.presentFrame();
+  layer.update({ src: LOOP, album: 'Other album', play: true });
+  assert.equal(made.length, 2);
+  const b = made[1];
+  assert.equal(a.visible, false, 'the old album\'s loop fades out at once');
+  assert.equal(b.visible, false, 'the new one waits for its own frame');
+  flush();
+  assert.ok(RELEASED(a));
+  assert.deepEqual(container.children, [b]);
+  b.becomeReady(); b.presentFrame();
+  assert.equal(b.visible, true);
+});
+
+test('motion layer: a new album whose loop has not downloaded yet leaves only its static cover', () => {
+  const { layer, made, container, flush } = motionHarness();
+  layer.update(motionState(PLAYING, false));
+  made[0].becomeReady(); made[0].presentFrame();
+  // The track change lands first with no URL; the loop follows in a later statechange.
+  layer.update(motionState({ playerState: 2, track: motionTrack({ album: 'M', motionArtworkURL: undefined }) }, false));
+  assert.equal(made[0].visible, false);
+  flush();
+  assert.ok(RELEASED(made[0]));
+  assert.deepEqual(container.children, []);
+  layer.update(motionState({ playerState: 2, track: motionTrack({ album: 'M', motionArtworkURL: OTHER }) }, false));
+  assert.equal(made.length, 2);
+  assert.equal(made[1].getAttribute('src'), OTHER);
+});
+
+test('motion layer: a new URL swaps the video', () => {
+  const { layer, made, flush } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  layer.update({ src: OTHER, album: 'L', play: true });
+  assert.equal(made.length, 2);
+  assert.equal(made[1].getAttribute('src'), OTHER);
+  flush();
+  assert.ok(RELEASED(made[0]));
+});
+
+test('motion layer: a stop drops the video', () => {
+  const { layer, made, flush } = motionHarness();
+  layer.update(motionState(PLAYING, false));
+  made[0].becomeReady(); made[0].presentFrame();
+  layer.update(motionState({ playerState: 1, track: motionTrack() }, false));
+  assert.equal(made[0].visible, false);
+  flush();
+  assert.ok(RELEASED(made[0]));
+});
+
+test('motion layer: a released video that reports a frame late is never revealed', () => {
+  const { layer, made } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  const v = made[0];
+  layer.update({ src: null, album: null, play: false });
+  v.becomeReady(); v.presentFrame();
+  assert.equal(v.visible, false);
+});
+
+test('motion layer: an error falls back to the static art, and the same loop is not retried in a loop', () => {
+  const { layer, made, flush } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  const v = made[0];
+  v.becomeReady(); v.presentFrame();
+  v.emit('error');
+  assert.equal(v.visible, false);
+  flush();
+  assert.ok(RELEASED(v));
+  layer.update({ src: LOOP, album: 'L', play: true });
+  assert.equal(made.length, 1, 'the failed loop is not reloaded on every statechange');
+  // Once it goes away and comes back (a later album change, a new download), it is tried again.
+  layer.update({ src: null, album: null, play: false });
+  layer.update({ src: LOOP, album: 'L', play: true });
+  assert.equal(made.length, 2);
+});
+
+test('motion layer: a rejected play() leaves the static art up', async () => {
+  const { layer, made } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: false });
+  const v = made[0];
+  v.playResult = Promise.reject(new Error('NotAllowedError'));
+  layer.update({ src: LOOP, album: 'L', play: true });
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(v.visible, false);
+});
+
+test('motion layer: an error on a video already let go does not disturb the current one', () => {
+  const { layer, made } = motionHarness();
+  layer.update({ src: LOOP, album: 'L', play: true });
+  layer.update({ src: OTHER, album: 'L', play: true });
+  made[0].emit('error');
+  const b = made[1];
+  b.becomeReady(); b.presentFrame();
+  assert.equal(b.visible, true);
+});
+
+// -- page wiring -----------------------------------------------------------------
+
+const v3Css = readV3('styles.css');
+const v3Html = readV3('index.html');
+const v3Js = readV3('script.js');
+
+function cssRule(selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const m = v3Css.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`));
+  assert.ok(m, `a ${selector} rule`);
+  return m[1];
+}
+const zIndex = (selector) => Number(cssRule(selector).match(/z-index:\s*(-?\d+)/)[1]);
+
+test('motion page: the videos live in their own layer inside the card, between the no-cover field and the info bar', () => {
+  const widgetAt = v3Html.indexOf('id="widget"');
+  const cover = v3Html.indexOf('id="cover"');
+  const nocover = v3Html.indexOf('id="nocover"');
+  const layer = v3Html.indexOf('id="motionLayer"');
+  const infoBar = v3Html.indexOf('id="infoBar"');
+  assert.ok(layer > widgetAt, 'inside the rounded, clipped card');
+  assert.ok(cover < layer && nocover < layer, 'painted after the cover and the no-cover field');
+  assert.ok(layer < infoBar, 'and before the info bar');
+});
+
+test('motion page: the layer stacks over the cover and under the frosted strip, the hover panel and the popover', () => {
+  const layer = zIndex('.motion-layer');
+  assert.ok(layer > zIndex('.cover'));
+  assert.ok(layer >= zIndex('.nocover'), 'over the no-cover field too (it comes later in the markup)');
+  assert.ok(layer < zIndex('.info-bar'));
+  assert.ok(layer < zIndex('.hover'));
+  assert.ok(layer < zIndex('.volume-popover'));
+  assert.ok(layer < zIndex('.resize-handle'));
+});
+
+test('motion page: the layer is full-bleed on the card and never takes the pointer', () => {
+  const rule = cssRule('.motion-layer');
+  assert.match(rule, /position:\s*absolute/);
+  assert.match(rule, /inset:\s*0/);
+  assert.match(rule, /pointer-events:\s*none/,
+    'so drag, double-click and scroll-to-volume reach the card as they do over the static cover');
+});
+
+test('motion page: the video is cropped like the cover, and fades like it', () => {
+  const rule = cssRule('.motion');
+  assert.match(rule, /position:\s*absolute/);
+  assert.match(rule, /object-fit:\s*cover/);
+  assert.match(rule, /object-position:\s*center/);
+  assert.match(rule, /opacity:\s*0/);
+  assert.match(rule, /transition:\s*opacity 0\.22s ease-out/, 'the same 220 ms ease-out as ARTWORK_FADE_MS');
+  assert.match(rule, /pointer-events:\s*none/);
+  assert.match(v3Css, /\.motion\.visible\s*\{[^}]*opacity:\s*1/);
+  assert.match(v3Js, /ARTWORK_FADE_MS = 220;/);
+});
+
+test('motion page: the page reads the loop from the track and watches prefers-reduced-motion, change included', () => {
+  assert.match(v3Js, /matchMedia\('\(prefers-reduced-motion: reduce\)'\)/);
+  assert.match(v3Js, /addEventListener\('change'/);
+  assert.match(v3Js, /motionArtworkURL/);
+  assert.match(v3Js, /getElementById\('motionLayer'\)/);
 });

@@ -11,10 +11,16 @@
      gutter arithmetic does not apply here. -->
 <canvas id="gl"></canvas>
 
-<!-- Shown until the first artwork arrives, and whenever there is no track. -->
+<!-- Nothing playing: shown whenever there is no track. The case itself wears an empty
+     sleeve that says so (script.js); this is the one thing to do about it. A real
+     <button>, so the host's drag script leaves the click alone — the case around it
+     still drags the window. -->
 <div id="empty" hidden>
-  <div class="disc"></div>
-  <p id="emptyText">Nothing playing</p>
+  <button id="emptyOpen" type="button" data-action="activate-player"
+          aria-label="Nothing playing. Open music player">
+    <svg viewBox="0 0 10 12" width="8" height="10" aria-hidden="true"><path d="M1 1.2v9.6c0 .6.6.9 1.1.6l7.3-4.8c.4-.3.4-.9 0-1.2L2.1.6C1.6.3 1 .6 1 1.2z"/></svg>
+    <span id="emptyText">Open music player</span>
+  </button>
 </div>
 
 <!-- The host gives a widget no console and no Web Inspector, so failures have

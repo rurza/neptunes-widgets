@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="widget" id="widget">
+    <div class="widget empty" id="widget">
         <div class="vinyl-row">
             <div class="side left" id="leftSide"></div>
             <div class="vinyl-shadow">
@@ -18,6 +18,14 @@
                         <div class="label-center"></div>
                     </div>
                 </div>
+                <!-- Nothing playing: a play mark on the stopped record's label that opens the
+                     music player. Outside .vinyl, which turns, so the mark stays upright.
+                     A real <button>, so the host's drag script leaves the click alone; the
+                     rest of the disc still drags the window. -->
+                <button class="empty-open" id="emptyOpen" type="button" data-action="activate-player"
+                        aria-label="Nothing playing. Open music player">
+                    <img class="sf-icon" data-symbol="play.fill" data-size="18" alt="">
+                </button>
             </div>
             <div class="side right" id="rightSide"></div>
         </div>

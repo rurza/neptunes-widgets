@@ -49,6 +49,22 @@
       "pattern": "^\\d+\\.\\d+\\.\\d+$",
       "description": "Minimum NepTunes version (major.minor.patch). If set and newer than the running app, the widget is refused at install time, flagged in Settings when already installed, and its gallery update is shown as blocked; an unparseable value counts as too new. Set it whenever the widget uses a permission, setting type or API added in a later NepTunes."
     },
+    "pointerTracking": {
+      "type": "boolean",
+      "description": "Whether the widget receives pointer movement while the pointer is over its window."
+    },
+    "alwaysVisible": {
+      "type": "boolean",
+      "description": "Whether the widget remains visible when there is no active track."
+    },
+    "supportsNoPlayback": {
+      "type": "boolean",
+      "description": "Whether the widget can render meaningfully without active playback."
+    },
+    "supportsMotionArtwork": {
+      "type": "boolean",
+      "description": "Whether the widget supports motion artwork when available."
+    },
     "authorPublicKey": {
       "type": "string",
       "pattern": "^[A-Za-z0-9+/]{43}=$",
@@ -72,6 +88,22 @@
       "type": "boolean",
       "description": "Whether the user may resize the window, by dragging its edges or a resize handle the widget draws itself. Defaults to true when omitted. Does not affect NepTunes.setSize, which a fixed widget may still call to size itself to its own content."
     },
+    "pointerTracking": {
+      "type": "boolean",
+      "description": "Report the pointer to this widget as pointermove {x, y} (viewport CSS pixels) and pointerleave events on NepTunes.on. Defaults to false. Needs NepTunes 4.1; older versions ignore the key."
+    },
+    "alwaysVisible": {
+      "type": "boolean",
+      "description": "Keep the widget on screen when nothing is playing, including when no music app is running, by default. Defaults to false: a widget is shown only while a track is playing or paused. For widgets whose content does not depend on the current track, such as listening stats or charts. Implies the widget handles nothing playing, so its settings offer Show: While music is playing / Always, set to Always until the user changes it. Still needs NepTunes running, Pro and desktop widgets turned on. Needs NepTunes 4.1; older versions ignore the key and hide the widget with playback."
+    },
+    "supportsNoPlayback": {
+      "type": "boolean",
+      "description": "The widget draws its own nothing-playing state (track is null), so its settings offer Show: While music is playing / Always. Unlike alwaysVisible it does not change the default, which stays While music is playing. Defaults to false: no choice is offered and the widget follows playback. Needs NepTunes 4.1; older versions ignore the key."
+    },
+    "supportsMotionArtwork": {
+      "type": "boolean",
+      "description": "The widget can show Apple Music motion (animated) artwork: NepTunes then exposes track.motionArtworkURL, a local video URL for a <video> element, and the widget's settings offer an Animated cover toggle, on by default. Needs the artwork permission. Defaults to false: the widget gets static artwork only. Needs NepTunes 4.1; older versions ignore the key and the widget shows static artwork."
+    },
     "defaultSize": {
       "$ref": "#/$defs/size"
     },
@@ -92,7 +124,8 @@
           "ratingControl",
           "shuffleRepeatControl",
           "playerActivation",
-          "lastFm"
+          "lastFm",
+          "listeningHistory"
         ]
       }
     },

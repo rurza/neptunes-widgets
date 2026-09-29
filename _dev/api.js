@@ -6,6 +6,14 @@ window.NepTunes = {
     // Event listeners
     _listeners: {},
 
+    // Request ids are `<kind>_<document>_<n>`. This helper outlives a page reload, so a
+    // late answer for the previous document's `lfm_1` must not settle this one's.
+    _documentToken: (function() {
+        var token = '';
+        while (token.length < 8) token += Math.floor(Math.random() * 36).toString(36);
+        return token;
+    })(),
+
     // Register event listener
     on: function(event, callback) {
         if (!this._listeners[event]) {
@@ -117,6 +125,13 @@ window.NepTunes = {
         return 'data:image/jpeg;base64,' + this.state.track.artworkData;
     },
 
+    // The current album's motion artwork loop, for a <video src>, or null. Given only to a
+    // widget declaring "supportsMotionArtwork" with the "artwork" permission, while the
+    // user has not turned "Animated cover" off, once the app has the loop on disk.
+    getMotionArtworkURL: function() {
+        return this.state?.track?.motionArtworkURL || null;
+    },
+
     // Last.fm API (requires "lastfm" permission)
     lastFm: {
         _nextId: 1,
@@ -124,7 +139,7 @@ window.NepTunes = {
 
         _request: function(method, params) {
             return new Promise(function(resolve, reject) {
-                var id = 'lfm_' + (NepTunes.lastFm._nextId++);
+                var id = 'lfm_' + NepTunes._documentToken + '_' + (NepTunes.lastFm._nextId++);
                 NepTunes.lastFm._pending[id] = { resolve: resolve, reject: reject };
                 window.webkit.messageHandlers.neptunes.postMessage({
                     type: 'lastFmQuery',
@@ -182,13 +197,106 @@ window.NepTunes = {
         }
     },
 
+    // Listening history (requires the "listeningHistory" permission). Rejects with an
+    // Error whose `code` is unavailable | invalidQuery | timeout | permissionDenied.
+    history: {
+    _nextId: 1,
+    // Ids are `hist_<document>_<n>`. The helper outlives a reload, so a late answer for
+    // the previous document's `hist_1` must not settle this document's.
+    _idPrefix: (function() {
+        var token = '';
+        while (token.length < 8) token += Math.floor(Math.random() * 36).toString(36);
+        return 'hist_' + token + '_';
+    })(),
+    _pending: {},
+    _timeoutMs: 15000,
+
+    _error: function(code, message) {
+        var error = new Error(message || code);
+        error.code = code;
+        return error;
+    },
+
+    // An invalid Date is sent as "Invalid Date", which the app refuses as invalidQuery in
+    // every position. Not null: an optional `before` of null means "no cursor", and a bad
+    // cursor would silently answer the newest page again. Not toISOString(), which throws
+    // a RangeError out of the call.
+    _iso: function(value) {
+        if (!(value instanceof Date)) return value;
+        return isNaN(value.getTime()) ? String(value) : value.toISOString();
+    },
+
+    _request: function(kind, args) {
+        var history = NepTunes.history;
+        return new Promise(function(resolve, reject) {
+            var id = history._idPrefix + (history._nextId++);
+            history._pending[id] = { resolve: resolve, reject: reject };
+            var handler = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.neptunes;
+            if (!handler) {
+                delete history._pending[id];
+                reject(history._error('unavailable', 'The NepTunes bridge is unavailable'));
+                return;
+            }
+            try {
+                handler.postMessage({
+                    type: 'historyQuery',
+                    kind: kind,
+                    requestId: id,
+                    args: args
+                });
+            } catch (e) {
+                // A DataCloneError: an argument (a function, a DOM node) cannot be sent.
+                delete history._pending[id];
+                reject(history._error('invalidQuery', 'Arguments must be strings, numbers or Dates'));
+                return;
+            }
+            setTimeout(function() {
+                var pending = history._pending[id];
+                if (!pending) return;
+                delete history._pending[id];
+                pending.reject(history._error('timeout', 'Listening history request timed out'));
+            }, history._timeoutMs);
+        });
+    },
+
+    _resolve: function(requestId, data, code, message) {
+        var pending = this._pending[requestId];
+        if (!pending) return;
+        delete this._pending[requestId];
+        if (code) pending.reject(this._error(code, message));
+        else pending.resolve(data);
+    },
+
+    info: function() {
+        return NepTunes.history._request('info', {});
+    },
+
+    query: function(options) {
+        var o = options || {};
+        var history = NepTunes.history;
+        var args = { from: history._iso(o.from), to: history._iso(o.to), groupBy: o.groupBy };
+        if (o.sort !== undefined) args.sort = o.sort;
+        if (o.limit !== undefined) args.limit = o.limit;
+        return history._request('query', args);
+    },
+
+    recent: function(options) {
+        var o = options || {};
+        var history = NepTunes.history;
+        var args = {};
+        if (o.limit !== undefined) args.limit = o.limit;
+        if (o.before !== undefined && o.before !== null) args.before = history._iso(o.before);
+        return history._request('recent', args);
+    }
+},
+
     _symbolNextId: 1,
     _symbolPending: {},
 
     symbol: function(name, opts) {
         opts = opts || {};
         return new Promise(function(resolve, reject) {
-            var id = 'sym_' + (NepTunes._symbolNextId++);
+            var id = 'sym_' + NepTunes._documentToken + '_' + (NepTunes._symbolNextId++);
             NepTunes._symbolPending[id] = { resolve: resolve, reject: reject };
             window.webkit.messageHandlers.neptunes.postMessage({
                 type: 'symbol',
@@ -223,6 +331,91 @@ window.NepTunes = {
         }
     }
 };
+
+// Generic read-only Last.fm passthrough and image proxy (NepTunes.lastFm.call / .image).
+// Lives in NepTunesKit so a package test runs it in a real WKWebView.
+(function (lastFm) {
+    if (!lastFm) { return; }
+    // Ids are `<prefix><document>_<n>`. The helper outlives a reload, so a late answer
+    // for the previous document's `lfc_1` must not settle this document's.
+    var documentToken = '';
+    while (documentToken.length < 8) { documentToken += Math.floor(Math.random() * 36).toString(36); }
+    var nextId = 1;
+    var pending = {};
+
+    function passthroughError(code, message) {
+        var error = new Error(message || code);
+        error.code = code;
+        return error;
+    }
+
+    // Last.fm params are strings. Numbers and booleans are converted, as `extended: true`
+    // means "1"; anything else is dropped.
+    function stringParams(params) {
+        var out = {};
+        if (!params || typeof params !== 'object' || Array.isArray(params)) { return out; }
+        Object.keys(params).forEach(function (key) {
+            var value = params[key];
+            if (typeof value === 'string') { out[key] = value; }
+            else if (typeof value === 'number' && isFinite(value)) { out[key] = String(value); }
+            else if (typeof value === 'boolean') { out[key] = value ? '1' : '0'; }
+        });
+        return out;
+    }
+
+    function send(type, prefix, message) {
+        return new Promise(function (resolve, reject) {
+            var id = prefix + documentToken + '_' + (nextId++);
+            pending[id] = { resolve: resolve, reject: reject };
+            message.type = type;
+            message.requestId = id;
+            try {
+                window.webkit.messageHandlers.neptunes.postMessage(message);
+            } catch (e) {
+                delete pending[id];
+                reject(passthroughError('network', 'The NepTunes bridge is unavailable'));
+                return;
+            }
+            // Backstop. The helper settles every request, with `timeout`/`network` when the
+            // app doesn't answer, but its queue (up to 5 s) plus the send and receive
+            // windows can outlast this, so a slow request can end here first.
+            setTimeout(function () {
+                if (pending[id]) {
+                    delete pending[id];
+                    reject(passthroughError('timeout', 'Last.fm request timed out'));
+                }
+            }, lastFm._passthroughTimeoutMs);
+        });
+    }
+
+    lastFm._passthroughTimeoutMs = 15000;
+
+    lastFm.call = function (method, params) {
+        if (typeof method !== 'string' || method.length === 0) {
+            return Promise.reject(passthroughError('methodNotAllowed', 'method must be a non-empty string'));
+        }
+        return send('lastFmCall', 'lfc_', { method: method, params: stringParams(params) });
+    };
+
+    lastFm.image = function (url) {
+        if (typeof url !== 'string' || url.length === 0) {
+            return Promise.reject(passthroughError('urlNotAllowed', 'url must be a non-empty string'));
+        }
+        return send('lastFmImage', 'lfi_', { url: url });
+    };
+
+    lastFm._settlePassthrough = function (requestId, ok, payload, code, message, parseJSON) {
+        var entry = pending[requestId];
+        if (!entry) { return; }
+        delete pending[requestId];
+        if (!ok) { entry.reject(passthroughError(code || 'network', message)); return; }
+        if (!parseJSON) { entry.resolve(payload); return; }
+        var value;
+        try { value = JSON.parse(payload); }
+        catch (e) { entry.reject(passthroughError('network', 'Last.fm sent a response that is not JSON')); return; }
+        entry.resolve(value);
+    };
+})(window.NepTunes && window.NepTunes.lastFm);
 
 // Re-broadcast automatic system light/dark switches as a `themechange` event, so a
 // widget can re-run its theming the same way it does for `settingschange`. WebKit

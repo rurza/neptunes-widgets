@@ -171,12 +171,18 @@ final class Shooter: NSObject, WKNavigationDelegate {
     var panel: NSPanel!
     let bridge = Bridge()
 
-    func load(bundle: URL, size: NSSize) async {
+    func load(bundle: URL, size: NSSize, stub: String?) async {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         let ucc = WKUserContentController()
         ucc.add(bridge, name: "neptunes")
         ucc.addUserScript(WKUserScript(source: apiJS, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        // A widget whose content comes from the app (Last.fm, listening history) renders empty
+        // against a bridge that only answers `symbol`. A stub, installed right after the API,
+        // stands in for that data with a fixed, believable set — see stubs/.
+        if let stub {
+            ucc.addUserScript(WKUserScript(source: stub, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
         config.userContentController = ucc
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
 
@@ -237,6 +243,21 @@ final class Shooter: NSObject, WKNavigationDelegate {
             previous = n
         }
         await settle(200)
+    }
+
+    /// A stub that loads data asynchronously sets `window.__previewReady = false` when it installs
+    /// and `true` once the page shows what the preview is of. Anything else is ready already.
+    /// False after five seconds means the page never got there, and the preview is not written.
+    /// A stub that finds the page wrong sets `window.__previewError` to why, which fails it at once.
+    /// Returns nil when ready, otherwise the reason it is not.
+    func waitUntilReady() async -> String? {
+        for _ in 0..<50 {
+            let error = await eval("String(window.__previewError || '')")
+            if !error.isEmpty { return error }
+            if await eval("String(window.__previewReady !== false)") == "true" { return nil }
+            await settle(100)
+        }
+        return "the stub never set window.__previewReady"
     }
 
     func snapshot(size: NSSize) async -> NSImage? {
@@ -322,10 +343,28 @@ func run() async -> Int {
                              "canAddToLibrary": true, "hasThreeStateRepeat": true],
         ]
 
+        var stub: String?
+        if let name = entry["stub"] as? String {
+            let url = URL(fileURLWithPath: args[3]).deletingLastPathComponent().appendingPathComponent(name)
+            guard let source = try? String(contentsOf: url, encoding: .utf8) else {
+                failures.append(name)
+                print("❌ \(name): no stub at \(url.path)")
+                continue
+            }
+            stub = source
+        }
+
         let shooter = Shooter()
         let windowSize = NSSize(width: width, height: height)
-        await shooter.load(bundle: bundle, size: windowSize)
+        await shooter.load(bundle: bundle, size: windowSize, stub: stub)
         await shooter.push(settings: settings, state: state)
+        if let notReady = await shooter.waitUntilReady() {
+            shooter.close()
+            failures.append(name)
+            print("❌ \(name): \(notReady)")
+            continue
+        }
+        await settle(200)
         let shot = await shooter.snapshot(size: windowSize)
         let unknown = shooter.bridge.unknownSymbols
         shooter.close()

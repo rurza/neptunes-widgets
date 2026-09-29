@@ -190,6 +190,82 @@
         });
     }
 
+    // ---- Last.fm passthrough -----------------------------------------------------
+    // On an app with NepTunes.lastFm.call the widget gets Last.fm's own JSON. The feed was
+    // written against what the narrow methods return — NepTunesKit's LastFmUserInfo and
+    // LastFmRecentTrack, encoded by the app: absent fields omitted, dates ISO 8601 without
+    // fractions. These produce exactly that; LastFmWidgetAdapterParityTests holds them to it.
+    function asArray(v) { return Array.isArray(v) ? v : (v ? [v] : []); }
+    function nonEmpty(v) { return typeof v === 'string' && v.length > 0 ? v : undefined; }
+    function toInt(v) {
+        if (typeof v === 'number') return Number.isInteger(v) ? v : undefined;
+        return typeof v === 'string' && /^[+-]?\d+$/.test(v) ? parseInt(v, 10) : undefined;
+    }
+    function put(obj, key, value) { if (value !== undefined) obj[key] = value; return obj; }
+    function isoSeconds(seconds) { return new Date(seconds * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z'); }
+    function largestImage(images) {
+        var list = asArray(images), sizes = ['extralarge', 'large', 'medium', 'small'];
+        for (var i = 0; i < sizes.length; i++) {
+            for (var j = 0; j < list.length; j++) {
+                if (list[j] && list[j].size === sizes[i]) {
+                    var url = nonEmpty(list[j]['#text']);
+                    if (url) return url;
+                    break;   // NepTunesKit looks at the first image of each size only
+                }
+            }
+        }
+        return undefined;
+    }
+
+    function adaptUserInfo(raw) {
+        var u = (raw && raw.user) || {};
+        var info = { name: typeof u.name === 'string' ? u.name : '', playcount: toInt(u.playcount) || 0 };
+        put(info, 'realName', nonEmpty(u.realname));
+        put(info, 'url', nonEmpty(u.url));
+        put(info, 'imageURL', largestImage(u.image));
+        put(info, 'country', nonEmpty(u.country));
+        put(info, 'artistCount', toInt(u.artist_count));
+        put(info, 'trackCount', toInt(u.track_count));
+        put(info, 'albumCount', toInt(u.album_count));
+        var registered = u.registered ? toInt(u.registered.unixtime) : undefined;
+        put(info, 'registeredDate', registered === undefined ? undefined : isoSeconds(registered));
+        return info;
+    }
+
+    function artistName(artist) {
+        if (!artist) return '';
+        if (typeof artist.name === 'string') return artist.name;
+        return typeof artist['#text'] === 'string' ? artist['#text'] : '';
+    }
+
+    function adaptRecentTracks(raw) {
+        var body = (raw && raw.recenttracks) || {};
+        return asArray(body.track).map(function (t) {
+            var track = {
+                name: typeof t.name === 'string' ? t.name : '',
+                artist: artistName(t.artist),
+                isNowPlaying: !!(t['@attr'] && t['@attr'].nowplaying === 'true'),
+                isLoved: t.loved === '1'
+            };
+            put(track, 'album', t.album && typeof t.album['#text'] === 'string' ? t.album['#text'] : undefined);
+            put(track, 'url', nonEmpty(t.url));
+            put(track, 'imageURL', largestImage(t.image));
+            var uts = t.date ? toInt(t.date.uts) : undefined;
+            put(track, 'date', uts === undefined ? undefined : isoSeconds(uts));
+            return track;
+        });
+    }
+
+    function fetchStats(lfm, limit) {
+        if (typeof lfm.call === 'function') {
+            return Promise.all([
+                lfm.call('user.getInfo').then(adaptUserInfo),
+                lfm.call('user.getRecentTracks', { limit: String(limit), extended: '1' }).then(adaptRecentTracks)
+            ]);
+        }
+        return Promise.all([lfm.getUserInfo(), lfm.getRecentTracks(limit)]);
+    }
+
     // ------------------------------------------------------------- Last.fm ----
 
     function showError() {
@@ -203,6 +279,13 @@
         status.hidden = true;
     }
 
+    // The passthrough says why a load failed. Only a signed-out account replaces the feed;
+    // a rate limit or network blip leaves the one on screen for the next refresh. The narrow
+    // methods carry no code, so an older app keeps today's behaviour.
+    function keepsFeedOnFailure(error, onScreen) {
+        return !!(error && error.code && error.code !== 'notSignedIn' && onScreen);
+    }
+
     // Fetch user info + recent tracks. Guarded against overlap.
     function loadStats() {
         if (inFlight || !window.NepTunes || !window.NepTunes.lastFm) return;
@@ -211,7 +294,7 @@
         var limit = parseInt(settings.count, 10) || 8;
         var lfm = window.NepTunes.lastFm;
 
-        Promise.all([lfm.getUserInfo(), lfm.getRecentTracks(limit)])
+        fetchStats(lfm, limit)
             .then(function (res) {
                 clearError();
                 var info = res[0] || {};
@@ -219,8 +302,8 @@
                 animateCount(Number(info.playcount) || 0);
                 renderFeed(tracks);
             })
-            .catch(function () {
-                // Promise rejects when the user is signed out of Last.fm.
+            .catch(function (error) {
+                if (keepsFeedOnFailure(error, status.hidden && feed.childElementCount > 0)) return;
                 showError();
             })
             .finally(function () {
@@ -333,5 +416,5 @@
         }
     }
 
-    return { start: start, accentKey: accentKey };
+    return { start: start, accentKey: accentKey, adaptUserInfo: adaptUserInfo, adaptRecentTracks: adaptRecentTracks, fetchStats: fetchStats, keepsFeedOnFailure: keepsFeedOnFailure };
 });

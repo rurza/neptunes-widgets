@@ -27,7 +27,16 @@
         return isLiveStream ? 'stop' : 'pause';
     }
 
-    const PURE = { transportHidden: transportHidden, transportGlyph: transportGlyph };
+    /*
+     * The "Nothing playing" state is simply no track. With no player running the host sends
+     * no track, no playerType and playerState 0 (not 1); a player stopped at the end of its
+     * queue WITH its last track still shows that track.
+     */
+    function isEmpty(state) {
+        return !(state && state.track);
+    }
+
+    const PURE = { transportHidden: transportHidden, transportGlyph: transportGlyph, isEmpty: isEmpty };
     if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
     if (typeof window === 'undefined') return;
 
@@ -199,6 +208,7 @@
     const playPauseBtn = document.getElementById('playPauseBtn');
     const nextBtn = document.getElementById('nextBtn');
     const liveBadge = document.getElementById('liveBadge');
+    const emptyOpen = document.getElementById('emptyOpen');
 
     let currentArtworkURL = null;
     let settings = {};
@@ -216,9 +226,10 @@
 
     function updateUI(state) {
         applyDirection(state);
-        if (!state || !state.track) {
+        widget.classList.toggle('empty', isEmpty(state));
+        if (isEmpty(state)) {
             widget.classList.remove('playing', 'live');
-            title.textContent = 'Not Playing';
+            title.textContent = 'Nothing playing';
             artist.textContent = '';
             setCoverVisible(false);
             noArtwork.classList.remove('hidden');
@@ -403,6 +414,11 @@
 
         nextBtn.addEventListener('click', () => {
             window.NepTunes.next();
+        });
+
+        // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+        emptyOpen.addEventListener('click', () => {
+            if (typeof window.NepTunes.activatePlayer === 'function') window.NepTunes.activatePlayer();
         });
 
         setupResize();

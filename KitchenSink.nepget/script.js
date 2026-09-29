@@ -63,6 +63,7 @@
     const playerName = document.getElementById('playerName');
     const switchPlayerBtn = document.getElementById('switchPlayerBtn');
     const activatePlayerBtn = document.getElementById('activatePlayerBtn');
+    const emptyOpen = document.getElementById('emptyOpen');
     const artwork = document.getElementById('artwork');
     const title = document.getElementById('title');
     const artist = document.getElementById('artist');
@@ -180,7 +181,7 @@
         if (!state) {
             widget.classList.add('stopped');
             clearLive();
-            title.textContent = 'Not Playing';
+            title.textContent = 'Nothing playing';
             artist.textContent = '';
             album.textContent = '';
             playerName.textContent = 'No Player';
@@ -190,16 +191,19 @@
             return;
         }
 
-        // Player info
+        // Player info. With no player running the host omits playerType altogether, so the
+        // badge has to go back to "No Player" rather than keep naming the last one.
         if (state.playerType) {
             playerName.textContent = state.playerType === 'appleMusic' ? 'Apple Music' : 'Spotify';
+        } else {
+            playerName.textContent = 'No Player';
         }
 
         // Track info
         if (!state.track) {
             widget.classList.add('stopped');
             clearLive();
-            title.textContent = 'Not Playing';
+            title.textContent = 'Nothing playing';
             artist.textContent = '';
             album.textContent = '';
             playBtn.classList.remove('playing');
@@ -435,6 +439,8 @@
         // Player activation
         switchPlayerBtn.addEventListener('click', () => window.NepTunes.switchPlayer());
         activatePlayerBtn.addEventListener('click', () => window.NepTunes.activatePlayer());
+        // Brings the running player forward; with none running, launches the preferred player if one is set, otherwise the last-used one.
+        emptyOpen.addEventListener('click', () => window.NepTunes.activatePlayer());
     }
 
     // Initialize

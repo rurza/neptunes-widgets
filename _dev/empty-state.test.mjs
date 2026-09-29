@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 // first-party music widget does, and each one's empty state opens the music player. These pin
 // the parts of that contract a browser is not needed for.
 
-const MUSIC = ['Artwork', 'CDCase', 'FullPlayer', 'Glass', 'Headline', 'KitchenSink', 'Minimal',
+const MUSIC = ['Artwork', 'CDCase', 'FullPlayer', 'Glass', 'Headline', 'Minimal',
                'NowPlaying', 'Sleeve', 'Stack', 'Strip', 'V3', 'Vinyl'];
 const STATS = ['Activity', 'Charts', 'Scrobbles'];
 

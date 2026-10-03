@@ -1,0 +1,119 @@
+{
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.listening-clock",
+  "name": "Listening Clock",
+  "version": "1.0.0",
+  "author": "Adam Różyński",
+  "description": "When you listen, as 24 hour bars around a clock face. Hover an hour for its plays and listening time.",
+  "license": "MIT",
+  "homepage": "https://neptunesmac.app",
+  "minNepTunesVersion": "4.1.0",
+  "entry": "index.html",
+  "preview": "preview.jpg",
+  "defaultSize": {
+    "width": 240,
+    "height": 240
+  },
+  "minSize": {
+    "width": 200,
+    "height": 200
+  },
+  "maxSize": {
+    "width": 480,
+    "height": 480
+  },
+  "resizable": true,
+  "pointerTracking": true,
+  "alwaysVisible": true,
+  "permissions": [
+    "artwork",
+    "listeningHistory"
+  ],
+  "settings": {
+    "schema": [
+      {
+        "id": "range",
+        "type": "select",
+        "label": "Period",
+        "options": [
+          {
+            "value": "7d",
+            "label": "Last 7 days"
+          },
+          {
+            "value": "30d",
+            "label": "Last 30 days"
+          },
+          {
+            "value": "all",
+            "label": "All time"
+          }
+        ],
+        "default": "30d"
+      },
+      {
+        "id": "accentSource",
+        "type": "radio",
+        "label": "Accent",
+        "options": [
+          {
+            "value": "system",
+            "label": "System blue"
+          },
+          {
+            "value": "album",
+            "label": "From album art"
+          },
+          {
+            "value": "fixed",
+            "label": "Fixed color"
+          }
+        ],
+        "default": "system"
+      },
+      {
+        "id": "fixedColor",
+        "type": "color",
+        "label": "Fixed accent color",
+        "default": "#5B92EA"
+      },
+      {
+        "id": "theme",
+        "type": "radio",
+        "label": "Theme",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          }
+        ],
+        "default": "auto"
+      },
+      {
+        "id": "background",
+        "type": "radio",
+        "label": "Background",
+        "options": [
+          {
+            "value": "card",
+            "label": "Card"
+          },
+          {
+            "value": "none",
+            "label": "None"
+          }
+        ],
+        "default": "card"
+      }
+    ]
+  },
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

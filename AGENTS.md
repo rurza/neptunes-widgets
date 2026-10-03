@@ -210,6 +210,10 @@ _dev/hover-check/run.sh
   `Charts.nepget/neptunes-kit.js`) — do the same if you use it,
   and add a case to `_dev/neptunes-kit.test.mjs` for anything
   you add to it.
+- `_dev/history-stats.js` (`NTHistory`) is what the listening-history widgets share —
+  their common strings in every app language, ranges and `history.info().since`, the history error
+  policy, the accent. `ListeningClock.nepget` and `GenreTrends.nepget` vendor it verbatim, like
+  the kit; `_dev/history-stats.test.mjs` fails on a stale copy. Re-copy and re-sign after editing it.
 - Never measure layout in CSS alone. WebKit floors computed line-heights
   (16.8px → 16px), so any height arithmetic (like `targetHeight` above) must
   be measured once in a real WKWebView and then pinned by a `_dev` test — see
@@ -446,7 +450,7 @@ node widget-tools.mjs embed-sign MyWidget.nepget \
 node widget-tools.mjs embed-verify MyWidget.nepget
 
 # 3. Stage the approved 4.1 release channel. It packages a temporary copy of all
-#    16 checkout-local bundles and writes only immutable versioned archives,
+#    17 checkout-local bundles and writes only immutable versioned archives,
 #    screenshots, release metadata and the signed 4.1 feed. The frozen legacy
 #    gallery paths are never touched.
 NEPTUNES_KEYS_DIR=/path/to/private-keys node Scripts/stage-widget-releases.mjs

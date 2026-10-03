@@ -232,5 +232,37 @@
   },
   "expect": "stable",
   "why": "explicit black + controls \u2014 icons must not move"
+ },
+ {
+  "widget": "ListeningClock",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "ListeningClock",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
+ },
+ {
+  "widget": "GenreTrends",
+  "settings": {
+   "theme": "auto"
+  },
+  "expect": "react",
+  "why": "theme=auto must follow the desktop"
+ },
+ {
+  "widget": "GenreTrends",
+  "settings": {
+   "theme": "dark"
+  },
+  "expect": "stable",
+  "why": "explicit dark must survive a flip untouched"
  }
 ]

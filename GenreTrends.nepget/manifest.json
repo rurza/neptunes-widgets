@@ -1,0 +1,88 @@
+{
+  "manifestVersion": 1,
+  "id": "pl.micropixels.neptunes.widget.genre-trends",
+  "name": "Genre Trends",
+  "version": "1.0.0",
+  "author": "Adam Różyński",
+  "description": "Your top genres stacked by day on a plays-per-day scale. Hover a band for that genre’s plays on that day.",
+  "license": "MIT",
+  "homepage": "https://neptunesmac.app",
+  "minNepTunesVersion": "4.1.0",
+  "entry": "index.html",
+  "preview": "preview.jpg",
+  "defaultSize": {
+    "width": 340,
+    "height": 220
+  },
+  "minSize": {
+    "width": 280,
+    "height": 190
+  },
+  "maxSize": {
+    "width": 720,
+    "height": 440
+  },
+  "resizable": true,
+  "pointerTracking": true,
+  "alwaysVisible": true,
+  "permissions": [
+    "listeningHistory"
+  ],
+  "settings": {
+    "schema": [
+      {
+        "id": "range",
+        "type": "select",
+        "label": "Period",
+        "options": [
+          {
+            "value": "7d",
+            "label": "Last 7 days"
+          },
+          {
+            "value": "30d",
+            "label": "Last 30 days"
+          }
+        ],
+        "default": "7d"
+      },
+      {
+        "id": "theme",
+        "type": "radio",
+        "label": "Theme",
+        "options": [
+          {
+            "value": "auto",
+            "label": "Auto"
+          },
+          {
+            "value": "dark",
+            "label": "Dark"
+          },
+          {
+            "value": "light",
+            "label": "Light"
+          }
+        ],
+        "default": "auto"
+      },
+      {
+        "id": "background",
+        "type": "radio",
+        "label": "Background",
+        "options": [
+          {
+            "value": "card",
+            "label": "Card"
+          },
+          {
+            "value": "none",
+            "label": "None"
+          }
+        ],
+        "default": "card"
+      }
+    ]
+  },
+  "authorPublicKey": "9LnkF5kMetsyjG6MEOtZ/Lo1jUzVyevNC7ubQ12A214="
+}

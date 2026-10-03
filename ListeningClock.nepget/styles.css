@@ -1,0 +1,203 @@
+/* Listening Clock — when you listen, as 24 hour bars around a ring. Geometry — card, ring, marks,
+   centre box — is computed in script.js and written as inline px / SVG coordinates, so the page is drawn
+   by the same arithmetic the pointer hit test uses. This file only paints. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    background: transparent;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Tokens ----
+   The ring, the hovered ring and the marks are macOS's own label and fill greys, as
+   NSColor reports them in sRGB under Aqua and Dark Aqua: the ring systemFill (white or black at
+   0.098), the hovered ring tertiaryLabelColor (white 0.247 / black 0.259), the marks
+   secondaryLabelColor (white 0.549 / black 0.498). The centre disc is the panel itself. The
+   bars are the accent (--accent-rgb, the one JS-written colour), systemBlue unless the user
+   picked otherwise: as is by day, the same colour see-through by night (--night-alpha, never
+   mixed with black), and at full strength with an --ink outline under the pointer — a tint
+   toward white would vanish among the see-through night bars on the light panel. */
+:root {
+    --accent-rgb: 0, 145, 255;
+    --panel: #0d0d0f;
+    --ink: rgba(255, 255, 255, 0.96);
+    --ink-dim: rgba(255, 255, 255, 0.58);
+    --clock-ring: rgba(255, 255, 255, 0.098);
+    --clock-ring-hover: rgba(255, 255, 255, 0.247);
+    --clock-label: rgba(255, 255, 255, 0.549);
+    --night-alpha: 0.5;
+    --status-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --panel-radius: 22px;
+    --label-size: 12px;
+    --caption-size: 10px;
+    --status-size: 14px;
+}
+
+html.theme-light {
+    --accent-rgb: 0, 136, 255;
+    --panel: #fbfbfc;
+    --ink: rgba(10, 10, 12, 0.94);
+    --ink-dim: rgba(10, 10, 12, 0.52);
+    --clock-ring: rgba(0, 0, 0, 0.098);
+    --clock-ring-hover: rgba(0, 0, 0, 0.259);
+    --clock-label: rgba(0, 0, 0, 0.498);
+    --night-alpha: 0.45;
+    --status-shadow: none;
+}
+
+@media (prefers-color-scheme: light) {
+    html.theme-auto {
+        --accent-rgb: 0, 136, 255;
+        --panel: #fbfbfc;
+        --ink: rgba(10, 10, 12, 0.94);
+        --ink-dim: rgba(10, 10, 12, 0.52);
+        --clock-ring: rgba(0, 0, 0, 0.098);
+        --clock-ring-hover: rgba(0, 0, 0, 0.259);
+        --clock-label: rgba(0, 0, 0, 0.498);
+        --night-alpha: 0.45;
+        --status-shadow: none;
+    }
+}
+
+/* ---- Card and its shadow: Activity's, extent 12 to the sides, 8 above, 16 below ---- */
+.panel-shadow,
+.card {
+    position: fixed;
+    left: 20px;
+    top: 16px;
+    width: calc(100vw - 40px);
+    height: calc(100vh - 40px);
+    border-radius: var(--panel-radius);
+}
+
+.panel-shadow {
+    background: var(--panel);
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .14)) drop-shadow(0 3px 3.5px rgba(0, 0, 0, .12));
+    pointer-events: none;
+}
+
+.card {
+    z-index: 1;
+    background: var(--panel);
+}
+
+html.bare .panel-shadow { display: none; }
+html.bare .card { background: transparent; }
+
+[hidden] { display: none !important; }
+
+/* ---- Face ---- */
+.face {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: visible;
+}
+
+.track { fill: var(--clock-ring); }
+.track.hovered { fill: var(--clock-ring-hover); }
+.bar.day { fill: rgb(var(--accent-rgb)); }
+.bar.night { fill: rgba(var(--accent-rgb), var(--night-alpha)); }
+.bar.hovered { fill: rgb(var(--accent-rgb)); stroke: var(--ink); stroke-width: 1.5; paint-order: stroke; }
+#disc { fill: var(--panel); }
+
+.hour-label {
+    fill: var(--clock-label);
+    font-size: var(--label-size);
+    font-weight: 500;
+}
+
+/* Loading: the empty ring breathes, unless Reduce Motion is on. */
+.card[data-phase="loading"] #tracks { animation: clock-pulse 1.2s ease-in-out infinite alternate; }
+@keyframes clock-pulse {
+    from { opacity: 0.45; }
+    to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .card[data-phase="loading"] #tracks { animation: none; }
+}
+
+/* ---- Centre: the peak, or the hovered hour. Each line is shrunk to fit by script.js. ---- */
+.center {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.center-line {
+    max-width: 100%;
+    white-space: nowrap;
+    line-height: 1.15;
+    color: var(--ink-dim);
+}
+.center-line.strong {
+    font-weight: 700;
+    color: var(--ink);
+}
+
+/* ---- Range caption, in the card's top leading corner ---- */
+.caption {
+    position: absolute;
+    top: 5%;
+    inset-inline-start: 5%;
+    font-size: var(--caption-size);
+    line-height: 1.2;
+    color: var(--ink-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+html.bare .caption {
+    top: 0;
+    inset-inline-start: 0;
+    color: var(--ink);
+    text-shadow: var(--status-shadow);
+}
+
+/* ---- States ---- */
+.status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12%;
+    text-align: center;
+    font-size: var(--status-size);
+    line-height: 1.3;
+    color: var(--ink-dim);
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+html.bare .status {
+    color: var(--ink);
+    text-shadow: var(--status-shadow);
+}
+
+/* Square-locked resize, Activity's pattern, driven by script.js's resizeMove messages. */
+.resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+}

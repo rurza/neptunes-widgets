@@ -1,0 +1,296 @@
+/* Genre Trends — the top genres day by day, stacked on a plays-per-day scale. Geometry — card,
+   chart, scale, bands, callout — is computed in script.js and written as inline px / SVG coordinates, so the page is
+   drawn by the same arithmetic the pointer hit test uses. This file only paints. */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    background: transparent;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- Tokens ----
+   The genre palette is macOS's current system colours (Apple's 2025-06-09 revision, as
+   NSColor.system* reports them in sRGB), top band first: blue, green, indigo, pink, orange —
+   the dark values under Dark Aqua, the light ones under Aqua — and "Other" in systemGray
+   (#98989D / #8E8E93). No yellow: it cannot be read on the light panel. Being CSS, it follows a
+   system theme flip with no script; each label's ink (white or --label-dark) is picked in JS
+   from its band's computed colour. */
+:root {
+    --primary-rgb: 255, 255, 255;
+    --panel: #0d0d0f;
+    --ink: rgba(255, 255, 255, 0.96);
+    --ink-dim: rgba(255, 255, 255, 0.58);
+    --callout-bg: #2c2c2e;
+    --status-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    --genre-0: #0091FF;
+    --genre-1: #30D158;
+    --genre-2: #6D7CFF;
+    --genre-3: #FF375F;
+    --genre-4: #FF9230;
+    --genre-other: #98989D;
+    --label-dark: #1D1D1F;
+    --panel-radius: 18px;
+    --status-size: 12px;
+    --text-size: 10px;
+}
+
+html.theme-light {
+    --primary-rgb: 0, 0, 0;
+    --panel: #fbfbfc;
+    --ink: rgba(10, 10, 12, 0.94);
+    --ink-dim: rgba(10, 10, 12, 0.52);
+    --callout-bg: #ffffff;
+    --status-shadow: none;
+    --genre-0: #0088FF;
+    --genre-1: #34C759;
+    --genre-2: #6155F5;
+    --genre-3: #FF2D55;
+    --genre-4: #FF8D28;
+    --genre-other: #8E8E93;
+}
+
+@media (prefers-color-scheme: light) {
+    html.theme-auto {
+        --primary-rgb: 0, 0, 0;
+        --panel: #fbfbfc;
+        --ink: rgba(10, 10, 12, 0.94);
+        --ink-dim: rgba(10, 10, 12, 0.52);
+        --callout-bg: #ffffff;
+        --status-shadow: none;
+        --genre-0: #0088FF;
+        --genre-1: #34C759;
+        --genre-2: #6155F5;
+        --genre-3: #FF2D55;
+        --genre-4: #FF8D28;
+        --genre-other: #8E8E93;
+    }
+}
+
+/* ---- Card and its shadow: Activity's, extent 12 to the sides, 8 above, 16 below ---- */
+.panel-shadow,
+.card {
+    position: fixed;
+    left: 20px;
+    top: 16px;
+    width: calc(100vw - 40px);
+    height: calc(100vh - 40px);
+    border-radius: var(--panel-radius);
+}
+
+.panel-shadow {
+    background: var(--panel);
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .14)) drop-shadow(0 3px 3.5px rgba(0, 0, 0, .12));
+    pointer-events: none;
+}
+
+.card {
+    z-index: 1;
+    background: var(--panel);
+}
+
+html.bare .panel-shadow { display: none; }
+html.bare .card { background: transparent; }
+
+[hidden] { display: none !important; }
+
+/* ---- Chart ---- */
+.chart {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: visible;
+}
+
+/* Opaque bands; a hover dims the others to 40%, where each still reads as its own hue on
+   either panel (at 25% the dark panel sank them into near-black shades). */
+.band { fill-opacity: 1; stroke-width: 0.5; stroke-opacity: 1; }
+.band.dimmed { fill-opacity: 0.4; stroke-opacity: 0.4; }
+.band.genre-0 { fill: var(--genre-0); stroke: var(--genre-0); }
+.band.genre-1 { fill: var(--genre-1); stroke: var(--genre-1); }
+.band.genre-2 { fill: var(--genre-2); stroke: var(--genre-2); }
+.band.genre-3 { fill: var(--genre-3); stroke: var(--genre-3); }
+.band.genre-4 { fill: var(--genre-4); stroke: var(--genre-4); }
+.band.genre-other { fill: var(--genre-other); stroke: var(--genre-other); }
+
+/* ---- Labels: each band's name, written inside it where script.js found room (placeLabel).
+   Box, width and font size are inline; the ink is the one that contrasts more with the band.
+   They take no pointer: the host's pointer reaches the bands' hit test through them. ---- */
+.labels {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.band-label {
+    position: absolute;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    text-align: center;
+    font-weight: 600;
+    pointer-events: none;
+}
+.band-label.ink-light { color: #ffffff; }
+.band-label.ink-dark { color: var(--label-dark); }
+.band-label.dimmed { opacity: 0.4; }
+
+/* ---- Scale: hairline gridlines in macOS's separator grey (the primary colour at 10%, as
+   NSColor.separatorColor is in either appearance), behind the opaque bands, so they show in the
+   empty part of the plot and meet each stack's top edge; the numbers and the unit caption in the
+   footer's secondary-label grey and size. ---- */
+.grid-line {
+    stroke: rgba(var(--primary-rgb), 0.1);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+
+.ticks {
+    position: absolute;
+    inset: 0;
+    color: var(--ink-dim);
+    pointer-events: none;
+}
+
+.tick-label,
+.tick-unit {
+    position: absolute;
+    white-space: nowrap;
+}
+
+.tick-unit {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Days before NepTunes began recording: shown as no data, never as silence. */
+.nodata { fill: color-mix(in srgb, rgb(var(--primary-rgb)) 6%, var(--panel)); }
+
+/* The hover guide: the primary label ink. Not system blue — that is the top band's own fill, so
+   the guide would vanish over the top-ranked genre — but the panel's text colour, which stands
+   off the panel and every band in either appearance. */
+.guide {
+    stroke: var(--ink);
+    stroke-width: 1;
+    visibility: hidden;
+}
+
+/* Loading: the chart area breathes, unless Reduce Motion is on. */
+.card[data-phase="loading"] .nodata { fill: color-mix(in srgb, rgb(var(--primary-rgb)) 8%, var(--panel)); }
+.card[data-phase="loading"] .chart { animation: trends-pulse 1.2s ease-in-out infinite alternate; }
+@keyframes trends-pulse {
+    from { opacity: 0.5; }
+    to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .card[data-phase="loading"] .chart { animation: none; }
+}
+
+/* ---- Footer: the first and last day, then the legend — one line, naming only the bands that
+   got no label on the chart, and hidden when every band did ---- */
+.footer {
+    position: absolute;
+    font-size: var(--text-size);
+    line-height: 13px;
+    color: var(--ink-dim);
+}
+
+.axis {
+    display: flex;
+    justify-content: space-between;
+    white-space: nowrap;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 8px;
+    margin-top: 3px;
+    max-height: 13px;   /* one line */
+    overflow: hidden;
+}
+
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    color: var(--ink);
+    white-space: nowrap;
+}
+.legend-item.dimmed { opacity: 0.35; }
+.legend-name { max-width: 8em; overflow: hidden; text-overflow: ellipsis; }
+
+.swatch {
+    flex: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+}
+.legend-item.genre-0 .swatch { background: var(--genre-0); }
+.legend-item.genre-1 .swatch { background: var(--genre-1); }
+.legend-item.genre-2 .swatch { background: var(--genre-2); }
+.legend-item.genre-3 .swatch { background: var(--genre-3); }
+.legend-item.genre-4 .swatch { background: var(--genre-4); }
+.legend-item.genre-other .swatch { background: var(--genre-other); }
+
+/* ---- States ---- */
+.status {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10%;
+    text-align: center;
+    font-size: var(--status-size);
+    line-height: 1.3;
+    color: var(--ink-dim);
+    overflow-wrap: anywhere;
+    hyphens: auto;
+}
+html.bare .status {
+    color: var(--ink);
+    text-shadow: var(--status-shadow);
+}
+
+/* ---- Callout. No transition, on purpose: an off-screen WKWebView never advances one, and the
+   page tests read its box. ---- */
+.callout {
+    position: absolute;
+    z-index: 2;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--callout-bg);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
+    text-align: center;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.callout-title { font-size: 11px; font-weight: 600; line-height: 14px; color: var(--ink); }
+.callout-count { font-size: 11px; line-height: 14px; color: var(--ink); }
+.callout-date { margin-top: 1px; font-size: 10px; line-height: 13px; color: var(--ink-dim); }
+
+.resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+}

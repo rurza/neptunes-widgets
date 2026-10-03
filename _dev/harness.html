@@ -35,6 +35,8 @@
       <a class="widget" href="?widget=Charts"><button data-w="Charts">Charts</button></a>
       <a class="widget" href="?widget=Scrobbles"><button data-w="Scrobbles">Scrobbles</button></a>
       <a class="widget" href="?widget=Activity"><button data-w="Activity">Activity</button></a>
+      <a class="widget" href="?widget=ListeningClock"><button data-w="ListeningClock">Listening Clock</button></a>
+      <a class="widget" href="?widget=GenreTrends"><button data-w="GenreTrends">Genre Trends</button></a>
       <a class="widget" href="?widget=V3"><button data-w="V3">V3</button></a>
       <select id="more" aria-label="Other widgets">
         <option value="">More widgets…</option>
@@ -126,7 +128,7 @@
       });
 
       // Default stage size per widget (matches each manifest's defaultSize).
-      var SIZES = { Headline: [360, 190], Strip: [560, 44], Charts: [300, 320], Scrobbles: [300, 340], Activity: [180, 180], V3: [260, 260] };
+      var SIZES = { Headline: [360, 190], Strip: [560, 44], Charts: [300, 320], Scrobbles: [300, 340], Activity: [180, 180], ListeningClock: [240, 240], GenreTrends: [340, 220], V3: [260, 260] };
       function setStageSize(w, h) { stage.style.width = w + 'px'; stage.style.height = h + 'px'; }
       setStageSize.apply(null, SIZES[widget] || [360, 200]);
 

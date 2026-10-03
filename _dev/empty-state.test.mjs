@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 const MUSIC = ['Artwork', 'CDCase', 'FullPlayer', 'Glass', 'Headline', 'Minimal',
                'NowPlaying', 'Sleeve', 'Stack', 'Strip', 'V3', 'Vinyl'];
-const STATS = ['Activity', 'Charts', 'Scrobbles'];
+const STATS = ['Activity', 'Charts', 'Scrobbles', 'ListeningClock', 'GenreTrends'];
 
 const read = (widget, file) => readFileSync(new URL(`../${widget}.nepget/${file}`, import.meta.url), 'utf8');
 const manifest = (widget) => JSON.parse(read(widget, 'manifest.json'));
@@ -22,9 +22,9 @@ for (const w of MUSIC) {
     assert.equal(m.supportsNoPlayback, true, 'supportsNoPlayback');
     assert.notEqual(m.alwaysVisible, true, 'a music widget defaults to "While music is playing"');
     assert.ok(m.permissions.includes('playerActivation'), 'activatePlayer() needs playerActivation');
-    // Older apps ignore supportsNoPlayback and keep the widget playback-only, which it still
-    // handles — so it must stay installable there.
-    assert.equal(m.minNepTunesVersion, undefined, 'no minNepTunesVersion');
+    // The signed 4.1 release sources declare NepTunes 4.1 on every first-party widget, music
+    // widgets included, as the stats widgets below do.
+    assert.equal(m.minNepTunesVersion, '4.1.0', 'minNepTunesVersion');
   });
 
   test(`${w}: the empty state's click target is a labelled <button> that calls activatePlayer`, () => {

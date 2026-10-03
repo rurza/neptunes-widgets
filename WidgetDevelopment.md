@@ -1104,7 +1104,7 @@ container.style.textAlign = window.NepTunes.settings.alignment;
     "id": "accentColor",
     "type": "color",
     "label": "Accent Color",
-    "default": "#007AFF"
+    "default": "#0088FF"
 }
 ```
 

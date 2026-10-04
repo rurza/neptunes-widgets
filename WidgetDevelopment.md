@@ -2099,6 +2099,11 @@ every later version of that widget must be signed too.
    gallery entry, computes the zip's `sha256`, records the author signature and
    author public key, regenerates `website/public/widgets/index.json`, and
    re-signs it as `index.json.sig` with the vendor release key.
+   The same run refreshes the website's snapshot of the public Mac App Store
+   version (`website/src/data/appStoreRelease.json`, via
+   `Scripts/refresh-app-store-release.mjs`); a release whose `minNepTunesVersion`
+   is newer than it is shown as **Beta** in the gallery. Without App Store
+   Connect credentials it warns and keeps the committed snapshot.
 3. Both files ship with the website.
 4. NepTunes checks the feed on launch (throttled), roughly daily, and whenever
    the user presses **Check for Updates** in Settings › Widgets. The throttle

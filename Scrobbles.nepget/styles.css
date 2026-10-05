@@ -22,9 +22,8 @@ html, body {
 }
 
 body {
-    /* Shadow margin: must exceed the shadow's extent (blur + offset) so it fades out fully
-       before the window edge instead of being hard-clipped. The same three values position
-       .panel-shadow, so the two can't drift apart. */
+    /* Shadow margin: must exceed the host's card shadow extent (16 below, 12 to the sides,
+       8 above) so it fades out fully before the window edge instead of being hard-clipped. */
     padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
     font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     /* Tabular figures everywhere — counter and relative times stay aligned. */
@@ -51,8 +50,8 @@ body {
 
     --pad: 22px; /* horizontal content inset; lives on children so the feed reaches the edge */
 
-    /* Transparent gutter between the window edge and the panel, holding the drop shadow.
-       Shared by `body`'s padding and `.panel-shadow`'s inset. */
+    /* Transparent gutter between the window edge and the panel, holding the drop shadow:
+       `body`'s padding. */
     --gutter-x: 22px;
     --gutter-top: 22px;
     --gutter-bottom: 26px;
@@ -69,47 +68,12 @@ html.theme-light {
     --np-bg: rgba(22, 22, 26, 0.05);
 }
 
-/* ---- Drop shadow ----
-   An empty box sitting exactly under the panel, carrying the shadow so that .widget itself
-   has none.
-
-   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
-   WebKit intermittently painted that shadow as a *square, unblurred rectangle* — the two
-   bottom corner notches, which a rounded silhouette leaves clear, filled in solid and the
-   falloff cut off dead. Measured on a user's capture: the shadow in the corner notch was
-   0.20 alpha against 0.14 under the panel's straight bottom edge, i.e. stronger where a
-   rounded shadow is nearly gone, with 1px steps where it should feather over 12. A correct
-   render of the same bundle puts the notch at 0.06 against the same 0.14.
-
-   `filter: drop-shadow()` builds the shadow from this box's own alpha channel instead of
-   from a rounded-rect path, so a square-cornered result is not a shape it can produce; the
-   worst it can degrade to is no shadow at all. It lives on a separate, permanently empty box
-   rather than on .widget because a filter on .widget would push the whole panel — the pulsing
-   now-playing row, the counting-up hero number, the scrolling feed — through the filter
-   pipeline on every frame. Nothing here ever changes, so it is rasterised once.
-
-   `position: fixed` resolves against the viewport, so the inset values are exactly `body`'s
-   padding and the box lands precisely on .widget at any window size. */
-.panel-shadow {
-    position: fixed;
-    /* Flush with .widget, not inset. Insetting it by even 1px to keep its antialiased corner
-       out from under the panel's costs ~29% of the shadow at the panel edge (measured: 0.122
-       alpha -> 0.087). Flush, the two coincident edges differ from the old single edge by at
-       most 7% over ~150 subpixels on the two bottom corners, which is not visible. */
-    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
-    border-radius: var(--panel-radius);
-    background: var(--panel);
-    /* Same two-layer weight as the box-shadow it replaces: tight contact + soft ambient.
-       Extent below 16, sides 12, top 8 — each ≥8px inside the gutter (26/22/22/22). */
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14)) drop-shadow(0 3px 3.5px rgba(0, 0, 0, 0.12));
-    pointer-events: none;
-}
-
-/* ---- Panel ---- */
+/* ---- Panel ----
+   A card widget ("card": true): NepTunes clips .widget (.nt-card) to the system's continuous
+   corner and, if the user turns the Shadow switch on, draws the shadow on body. The gutter
+   (body's padding) is the room that shadow fades out in. --panel-radius is the fallback corner
+   for a NepTunes without the card shape. */
 .widget {
-    /* Positioned only to paint above .panel-shadow, which is out of flow. */
-    position: relative;
-    z-index: 1;
     width: 100%;
     height: 100%;
     border-radius: var(--panel-radius);

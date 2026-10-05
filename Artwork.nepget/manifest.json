@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.artwork",
   "name": "Artwork",
-  "version": "1.5.1",
+  "version": "1.6.0",
   "author": "Adam Różyński",
   "description": "Album artwork with frosted glass controls",
   "license": "MIT",
@@ -18,6 +18,7 @@
     "height": 180
   },
   "resizable": true,
+  "card": true,
   "supportsNoPlayback": true,
   "permissions": [
     "artwork",

@@ -603,7 +603,7 @@
 
     // ---- Geometry & settings ----------------------------------------------------
 
-    var CARD_GUTTER = { left: 20, top: 16, right: 20, bottom: 24 };   // shadow extent + 8 (styles.css)
+    var CARD_GUTTER = { left: 20, top: 16, right: 20, bottom: 24 };   // room for the host's card shadow (styles.css)
     var BARE_GUTTER = { left: 6, top: 6, right: 6, bottom: 6 };
     var CALLOUT_GAP = 8;
 
@@ -660,7 +660,7 @@
     var RETRY_MS = 60 * 1000;
     var SETTINGS_RELOAD_MS = 400;
 
-    var root = null, card = null, panelShadow = null, chartEl = null, layersEl = null, noDataEl = null;
+    var root = null, card = null, chartEl = null, layersEl = null, noDataEl = null;
     var guideEl = null, gridEl = null, ticksEl = null, labelsEl = null, footerEl = null, axisStart = null, axisEnd = null, legendEl = null;
     var statusEl = null, calloutEl = null, calloutTitle = null, calloutCount = null, calloutDate = null;
     var resizeHandle = null;
@@ -682,6 +682,8 @@
         root.classList.remove('theme-auto', 'theme-dark', 'theme-light');
         root.classList.add('theme-' + settings.theme);
         root.classList.toggle('bare', settings.background === 'none');
+        // A bare chart is no card: no system corner to clip it, no shadow to cast.
+        card.classList.toggle('nt-card', settings.background !== 'none');
         inkLabels();
     }
 
@@ -749,12 +751,10 @@
     function layoutPass() {
         var footerHeight = footerEl.hidden ? 0 : Math.ceil(footerEl.getBoundingClientRect().height);
         var l = currentLayout = layout(window.innerWidth, window.innerHeight, settings.background, footerHeight);
-        [card, panelShadow].forEach(function (el) {
-            el.style.left = l.card.x + 'px';
-            el.style.top = l.card.y + 'px';
-            el.style.width = l.card.w + 'px';
-            el.style.height = l.card.h + 'px';
-        });
+        card.style.left = l.card.x + 'px';
+        card.style.top = l.card.y + 'px';
+        card.style.width = l.card.w + 'px';
+        card.style.height = l.card.h + 'px';
         root.style.setProperty('--panel-radius', l.panelRadius + 'px');
         root.style.setProperty('--status-size', l.statusSize + 'px');
         root.style.setProperty('--text-size', l.textSize + 'px');
@@ -955,8 +955,8 @@
         calloutEl.hidden = false;
         var origin = calloutOrigin(point, { w: calloutEl.offsetWidth, h: calloutEl.offsetHeight },
             { x: 2, y: 2, w: window.innerWidth - 4, h: window.innerHeight - 4 });
-        calloutEl.style.left = (origin.x - currentLayout.card.x) + 'px';
-        calloutEl.style.top = (origin.y - currentLayout.card.y) + 'px';
+        calloutEl.style.left = origin.x + 'px';
+        calloutEl.style.top = origin.y + 'px';
         guideEl.setAttribute('x1', String(currentStack.xs[hit.day]));
         guideEl.setAttribute('x2', String(currentStack.xs[hit.day]));
         guideEl.setAttribute('y1', String(currentPlot.y));
@@ -1058,7 +1058,6 @@
     function init() {
         root = document.documentElement;
         card = document.getElementById('widget');
-        panelShadow = document.getElementById('panelShadow');
         chartEl = document.getElementById('chart');
         layersEl = document.getElementById('layers');
         noDataEl = document.getElementById('nodata');

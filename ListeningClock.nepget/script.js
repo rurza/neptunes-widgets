@@ -184,7 +184,7 @@
     // One layout, used both to draw and to hit-test, so what is drawn and what is hovered cannot
     // disagree. The card is square and centred, as Activity's is.
 
-    var CARD_GUTTER = { left: 20, top: 16, right: 20, bottom: 24 };   // shadow extent + 8 (styles.css)
+    var CARD_GUTTER = { left: 20, top: 16, right: 20, bottom: 24 };   // room for the host's card shadow (styles.css)
     var BARE_GUTTER = { left: 6, top: 6, right: 6, bottom: 6 };
     /** A centre disc this wide or wider has room for three lines; narrower, two. */
     var THREE_LINE_DISC = 46;
@@ -248,7 +248,7 @@
     // A run of range changes loads once, when it settles; appearance changes never load.
     var SETTINGS_RELOAD_MS = 400;
 
-    var root = null, card = null, panelShadow = null, face = null, tracksEl = null, barsEl = null;
+    var root = null, card = null, face = null, tracksEl = null, barsEl = null;
     var discEl = null, labelsEl = null, centerEl = null, captionEl = null, statusEl = null, resizeHandle = null;
     var trackEls = [], barEls = [], labelEls = [], lineEls = [];
     var settings = normalizeSettings(null);
@@ -294,6 +294,8 @@
         root.classList.remove('theme-auto', 'theme-dark', 'theme-light');
         root.classList.add('theme-' + settings.theme);
         root.classList.toggle('bare', settings.background === 'none');
+        // A bare clock is no card: no system corner to clip it, no shadow to cast.
+        card.classList.toggle('nt-card', settings.background !== 'none');
         updateAccent();
     }
 
@@ -309,12 +311,10 @@
     /** Card, ring, marks and centre box, from the layout. Bars are drawn by render(). */
     function applyLayout() {
         var l = currentLayout = layout(window.innerWidth, window.innerHeight, settings.background);
-        [card, panelShadow].forEach(function (el) {
-            el.style.left = l.card.x + 'px';
-            el.style.top = l.card.y + 'px';
-            el.style.width = l.card.side + 'px';
-            el.style.height = l.card.side + 'px';
-        });
+        card.style.left = l.card.x + 'px';
+        card.style.top = l.card.y + 'px';
+        card.style.width = l.card.side + 'px';
+        card.style.height = l.card.side + 'px';
         root.style.setProperty('--panel-radius', l.panelRadius + 'px');
         root.style.setProperty('--label-size', l.labelSize + 'px');
         root.style.setProperty('--caption-size', l.captionSize + 'px');
@@ -486,7 +486,6 @@
     function init() {
         root = document.documentElement;
         card = document.getElementById('widget');
-        panelShadow = document.getElementById('panelShadow');
         face = document.getElementById('face');
         tracksEl = document.getElementById('tracks');
         barsEl = document.getElementById('bars');

@@ -56,6 +56,8 @@ In this repository:
   (state, events, artwork, Last.fm, listening history, pointer events) so you can
   iterate in a browser.
 - `_dev/neptunes-kit.js`: the shared helper library (`NTKit`) the bundles use.
+- `_dev/card-shape.css`: the stylesheet NepTunes injects into a `"card": true`
+  widget; the harness applies it the same way.
 - `_dev/theme-check`, `_dev/shadow-check`, `_dev/rtl-check`, `_dev/icon-check`,
   `_dev/hover-check`: the checks each bundle is held to. They need macOS and a
   Swift toolchain.

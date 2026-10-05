@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.now-playing",
   "name": "Now Playing",
-  "version": "1.11.1",
+  "version": "1.12.0",
   "author": "Adam Różyński",
   "description": "Displays the currently playing track with playback controls",
   "license": "MIT",
@@ -17,6 +17,7 @@
     "height": 200
   },
   "resizable": false,
+  "card": true,
   "preview": "preview.jpg",
   "supportsNoPlayback": true,
   "permissions": [

@@ -33,6 +33,11 @@ This renders the widget instead, so what you see in the picker is what installs.
 
 - **Settings** are the manifest's own defaults — a preview shows the widget as it arrives, not as
   someone configured it. `spec.json` may override per widget.
+- **A card widget gets the host's card shape.** For a `"card": true` manifest the host injects a
+  stylesheet at document start that clips `.nt-card` to macOS's continuous corner, with the card
+  shadow off unless the user turns it on. This injects the same, from `_dev/card-shape.css` — the
+  byte-identical copy of the host's stylesheet that a kit test holds to it — with the shadow off,
+  so a preview shows the card a fresh install gets.
 - **The desktop appearance is pinned dark**, so a `theme: auto` bundle resolves the same way on
   any Mac that runs this, and lands in the same dark grid as the drawn previews.
 - **The album art is generated** — a diagonal gradient with a soft highlight, from `spec.json`'s

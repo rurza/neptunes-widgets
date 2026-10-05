@@ -20,16 +20,15 @@ html, body {
 }
 
 body {
-    /* Shadow margin must exceed the panel's shadow extent (blur + offset). The subtle
-       two-layer shadow (see `.panel-shadow`) reaches ~14px below and ~8px to the sides; padding
-       32/32/40 keeps every edge-facing side clear by >=8px. defaultSize/minSize in the manifest
-       match this padding. */
+    /* Shadow margin must exceed the card's shadow extent. The host's two-layer shadow reaches
+       16px below, 12px to the sides and 8px above; padding 32/32/40 clears it with room to
+       spare. defaultSize/minSize in the manifest match this padding. */
     padding: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
     font-family: -apple-system, system-ui, sans-serif;
 }
 
 :root {
-    /* Transparent gutter holding the drop shadow; also `body`'s padding. */
+    /* Transparent gutter holding the host's drop shadow; also `body`'s padding. */
     --gutter-top: 32px;
     --gutter-x: 32px;
     --gutter-bottom: 40px;
@@ -69,38 +68,13 @@ body {
     }
 }
 
-/* ---- Drop shadow ----
-   An empty box sitting exactly under the panel, carrying the shadow so that .widget has none
-   of its own.
-
-   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
-   WebKit intermittently paints that shadow as a *square, unblurred rectangle* — the bottom
-   corner notches, which a rounded silhouette leaves clear, fill in solid and the falloff stops
-   dead. It is a paint defect, not a CSS error, it is not reproducible on demand, and it shipped
-   visibly in Scrobbles. `filter: drop-shadow()` builds the shadow from this box's own alpha
-   channel rather than from a rounded-rect path, so a square-cornered result is not a shape it
-   can produce; the worst it degrades to is no shadow at all.
-
-   Its own box rather than a filter on .widget, because a filter there would push the whole
-   panel through the filter pipeline on every frame. Nothing here ever changes, so it is
-   rasterised once. `position: fixed` resolves against the viewport, so the inset values are
-   exactly `body`'s padding and the box lands on .widget at any window size.
-
-   Note drop-shadow()'s blur argument is half box-shadow's — WebKit reads it as a standard
-   deviation — so these are the same weights the box-shadow above carried. */
-.panel-shadow {
-    position: fixed;
-    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
-    border-radius: var(--panel-radius);
-    background: var(--panel);
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14)) drop-shadow(0 6px 8px rgba(0, 0, 0, 0.12));
-    pointer-events: none;
-}
-
+/* ---- Card ----
+   A card widget ("card": true): NepTunes clips .widget (.nt-card) to the system's continuous
+   corner and, if the user turns the Shadow switch on, draws the shadow on body. The gutter
+   (body's padding) is the room that shadow fades out in. --panel-radius is the fallback corner
+   for a NepTunes without the card shape. */
 .widget {
-    /* z-index only so the panel paints above .panel-shadow, which is out of flow. */
     position: relative;
-    z-index: 1;
     width: 100%;
     height: 100%;
     border-radius: var(--panel-radius);

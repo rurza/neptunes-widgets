@@ -91,6 +91,8 @@
     <div class="group">
       <button id="bg">Toggle light backdrop</button>
       <button id="hover">Pin nt-hover</button>
+      <button id="cardshadow">Shadow: off</button>
+      <span id="cardstate" style="color:#9a9aa6"></span>
     </div>
 
     <p id="hint">Serve this folder over http for best results:<br />
@@ -120,6 +122,9 @@
       // The user's "Animated cover" choice for this widget; on by default, as in the app. The app
       // offers the switch only when offersMotionArtwork(manifest).
       var motionOn = params.get('motion') !== '0';
+      // The user's "Shadow" choice for a card widget; off by default, as in the app. The app
+      // offers the switch only when the manifest says "card": true.
+      var cardShadowOn = params.get('cardshadow') === '1';
       var activationCount = 0;
 
       // Highlight the active widget button.
@@ -177,7 +182,14 @@
         var base = '<base href="../' + widget + '.nepget/">';
         var injected = html.replace(/<head([^>]*)>/i, '<head$1>' + base);
         if (injected === html) injected = base + html; // no <head> found
+        // A card widget gets the host's card shape (WidgetCardShape.styleSheet(), copied verbatim
+        // into card-shape.css), ahead of the widget's own styles as the host's document-start
+        // script puts it. The href is relative to the <base>, i.e. the bundle directory.
+        if (isCard(manifest)) {
+          injected = injected.replace(base, base + '<link rel="stylesheet" href="../_dev/card-shape.css">');
+        }
         doc.open(); doc.write(injected); doc.close();
+        applyCardShadow();
         // The host orders a widget out while nothing plays unless its effective Show setting is
         // Always. Mirror that so Stop / Quit show what a user would see.
         stage.contentWindow.NepTunes.on('statechange', applyVisibility);
@@ -194,6 +206,29 @@
         updateSignState();
         updateShowControl();
         updateMotionControl();
+        updateCardControl();
+      }
+
+      function isCard(manifest) { return !!(manifest && manifest.card === true); }
+
+      // The host toggles `nt-card-shadow` on the widget's <html> live
+      // (WidgetCardShape.shadowToggleScript), only for a card widget.
+      function applyCardShadow() {
+        var doc = stage.contentWindow && stage.contentWindow.document;
+        if (doc && doc.documentElement) {
+          doc.documentElement.classList.toggle('nt-card-shadow', isCard(manifestRef) && cardShadowOn);
+        }
+      }
+
+      function updateCardControl() {
+        var offered = isCard(manifestRef);
+        var button = document.getElementById('cardshadow');
+        button.disabled = !offered;
+        button.textContent = 'Shadow: ' + (offered && cardShadowOn ? 'on' : 'off');
+        button.classList.toggle('active', offered && cardShadowOn);
+        document.getElementById('cardstate').textContent = offered
+          ? 'Card shape from card-shape.css; .nt-card is clipped to the system corner.'
+          : 'No switch: the manifest does not declare "card": true, so no card shape either.';
       }
 
       function updateMotionControl() {
@@ -275,6 +310,11 @@
         motionOn = !motionOn;
         if (controller) controller.setMotionArtwork(motionOn);
         updateMotionControl();
+      };
+      document.getElementById('cardshadow').onclick = function () {
+        cardShadowOn = !cardShadowOn;
+        applyCardShadow();
+        updateCardControl();
       };
       document.getElementById('signout').onclick = function () {
         signedOut = !signedOut;

@@ -22,11 +22,9 @@ html, body {
 }
 
 body {
-    /* SHADOW MATH — cover shadow is `0 12px 34px rgba(0,0,0,.4)`.
-       Extent it reaches past the cover edge:
-         bottom = |offsetY| + blur = 12 + 34 = 46px   -> bottom pad 46 (clears exactly)
-         top    = blur - offsetY   = 34 - 12 = 22px   -> top  pad 34 (>= 22, headroom)
-         sides  = blur             =        34px      -> side pad 34 (clears exactly)
+    /* The gutter. It was sized for the cover's own old `0 12px 34px` shadow; the host's card
+       shadow needs less (12 sides and top, 16 bottom), but the gutter stays as it is so the
+       cover stays 240 px and the window keeps its size and hover region.
        Window = cover + padding, so the manifest sizes include this padding:
          defaultSize width  = 240 + 34 + 34 = 308
          defaultSize height = 240 + 34 + 46 = 320
@@ -41,7 +39,7 @@ body {
 
 /* ---- Theme tokens. Default = dark; resolved theme set as a root class. ---- */
 :root {
-    /* Transparent gutter holding the drop shadow; also `body`'s padding. */
+    /* Transparent gutter holding the host's drop shadow; also `body`'s padding. */
     --gutter-top: 34px;
     --gutter-x: 34px;
     --gutter-bottom: 46px;
@@ -80,39 +78,13 @@ html.theme-light {
     --placeholder-b: #c9c9cd;
 }
 
-/* ---- Cover (rounded square, holds the shadow, clips the art) ---- */
-/* ---- Drop shadow ----
-   An empty box sitting exactly under the panel, carrying the shadow so that .widget has none
-   of its own.
-
-   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
-   WebKit intermittently paints that shadow as a *square, unblurred rectangle* — the bottom
-   corner notches, which a rounded silhouette leaves clear, fill in solid and the falloff stops
-   dead. It is a paint defect, not a CSS error, it is not reproducible on demand, and it shipped
-   visibly in Scrobbles. `filter: drop-shadow()` builds the shadow from this box's own alpha
-   channel rather than from a rounded-rect path, so a square-cornered result is not a shape it
-   can produce; the worst it degrades to is no shadow at all.
-
-   Its own box rather than a filter on .widget, because a filter there would push the whole
-   panel through the filter pipeline on every frame. Nothing here ever changes, so it is
-   rasterised once. `position: fixed` resolves against the viewport, so the inset values are
-   exactly `body`'s padding and the box lands on .widget at any window size.
-
-   Note drop-shadow()'s blur argument is half box-shadow's — WebKit reads it as a standard
-   deviation — so these are the same weights the box-shadow above carried. */
-.panel-shadow {
-    position: fixed;
-    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
-    border-radius: var(--panel-radius);
-    background: var(--placeholder-a);
-    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14)) drop-shadow(0 8px 9px rgba(0, 0, 0, 0.12));
-    pointer-events: none;
-}
-
+/* ---- Cover (rounded square, clips the art) ----
+   A card widget ("card": true): NepTunes clips .widget (.nt-card) to the system's continuous
+   corner and, if the user turns the Shadow switch on, draws the shadow on body. The gutter
+   (body's padding) is the room that shadow fades out in. --panel-radius is the fallback corner
+   for a NepTunes without the card shape. */
 .widget {
     position: relative;
-    /* z-index only so the panel paints above .panel-shadow, which is out of flow. */
-    z-index: 1;
     width: 100%;
     height: 100%;
     border-radius: var(--panel-radius);

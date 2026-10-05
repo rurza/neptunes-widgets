@@ -37,7 +37,7 @@ test('script.js exports exactly the contract surface, all callable', () => {
   for (const name of [
     'volumeStep', 'clampVolume', 'speakerSymbol', 'repeatSymbol', 'repeatIsOn',
     'wheelAxis', 'swipeDecision', 'infoBarState', 'transportHidden', 'transportGlyph',
-    'motionState', 'createMotionLayer', 'start',
+    'motionState', 'createMotionLayer', 'createSymbolSwapper', 'start',
   ]) {
     assert.equal(typeof V3[name], 'function', `V3.${name} is missing or not a function`);
   }
@@ -753,9 +753,10 @@ test('motion: the manifest declares motion artwork, with the artwork permission 
   assert.ok(v3Manifest.permissions.includes('artwork'));
 });
 
-test('motion: the signed 4.1 release requires NepTunes 4.1.0 and is version 1.3.1', () => {
+test('motion: V3 requires NepTunes 4.1.0; the V1-sized icons release is version 1.4.1', () => {
   assert.equal(v3Manifest.minNepTunesVersion, '4.1.0');
-  assert.equal(v3Manifest.version, '1.3.1');
+  assert.equal(v3Manifest.version, '1.4.1');
+  assert.equal(v3Manifest.card, true);
 });
 
 // -- motionState -----------------------------------------------------------------
@@ -1105,3 +1106,237 @@ test('motion page: the page reads the loop from the track and watches prefers-re
   assert.match(v3Js, /motionArtworkURL/);
   assert.match(v3Js, /getElementById\('motionLayer'\)/);
 });
+
+// -- volume popover --------------------------------------------------------------
+// It floats outside the card so the card's corner clip can never cut it, and it is frosted with
+// the pre-blurred cover, never with backdrop-filter (README: "Do not blur with `backdrop-filter`
+// at the window's edge" — it overhangs the card's corners into the transparent gutter).
+
+/// The markup between `<div ... id="ID"` and the `</div>` that closes it.
+function elementMarkup(html, id) {
+  const start = html.indexOf(`id="${id}"`);
+  assert.ok(start >= 0, `an element with id ${id}`);
+  const open = html.lastIndexOf('<div', start);
+  const tags = /<div\b|<\/div>/g;
+  tags.lastIndex = open;
+  let depth = 0, m;
+  while ((m = tags.exec(html))) {
+    depth += m[0] === '</div>' ? -1 : 1;
+    if (depth === 0) return html.slice(open, m.index + m[0].length);
+  }
+  assert.fail(`${id} is never closed`);
+}
+
+test('volume popover: it is a child of body, outside the clipped card', () => {
+  assert.ok(!elementMarkup(v3Html, 'widget').includes('id="volumePopover"'));
+  const body = v3Html.slice(v3Html.indexOf('<body>'), v3Html.indexOf('</body>'));
+  assert.ok(body.includes('id="volumePopover"'));
+});
+
+test('volume popover: no backdrop-filter, frosted with the pre-blurred cover instead', () => {
+  const rules = v3Css.match(/[^{}]*\{[^}]*\}/g).filter((r) => r.split('{')[0].includes('volume-popover'));
+  assert.ok(rules.length > 0);
+  for (const rule of rules) assert.doesNotMatch(rule, /backdrop-filter\s*:/, rule.split('{')[0].trim());
+  assert.ok(elementMarkup(v3Html, 'volumePopover').includes('id="popoverFrost"'));
+  assert.match(v3Js, /\[infoFrost, hoverFrost, popoverFrost\]/);
+});
+
+test('volume popover: a wheel over it still reaches the scroll-to-volume handler', () => {
+  // Outside #widget, a wheel over the popover no longer bubbles to the card's listener.
+  assert.match(v3Js, /widget\.addEventListener\('wheel', onWheel, \{ passive: false \}\)/);
+  assert.match(v3Js, /volumePopover\.addEventListener\('wheel', onWheel, \{ passive: false \}\)/);
+});
+
+
+// -- control icon size -------------------------------------------------------------
+//
+// V1 drew every control with `.font(.system(size: 26))` at the symbol's natural size, centred in
+// a 34x34 frame, wide glyphs spilling past it. The host aspect-fits a symbol into the square box
+// a widget asks for (data-size), so asking for 26 drew every glyph smaller than V1 — the loud
+// speaker at about 60%. Each box below is the one at which the real rasterizer draws that glyph's
+// ink within 0.5pt of V1's height at 2x (measured in scratch Swift against a SwiftUI render; see
+// the 1.4.1 commit). The speaker family shares one box because the rasterizer fits it to its
+// widest member, so the cone stays put as the volume changes.
+
+const CONTROL_BOX = {
+  shuffleBtn: 35, repeatBtn: 35, loveBtn: 33, volumeBtn: 43,
+  prevBtn: 30, nextBtn: 30,
+};
+const PLAY_BOX = { 'play-icon': 27, 'pause-icon': 26, 'stop-icon': 28 };
+
+function controlImgs(html, buttonId) {
+  const m = new RegExp(`<button[^>]*id="${buttonId}"[^>]*>([\\s\\S]*?)</button>`).exec(html);
+  assert.ok(m, `no #${buttonId}`);
+  return [...m[1].matchAll(/<img[^>]*>/g)].map((t) => t[0]);
+}
+const attr = (tag, name) => (new RegExp(`${name}="([^"]*)"`).exec(tag) || [])[1];
+
+test('icons: each control asks for the box that draws its glyph at V1\'s size', () => {
+  const html = readV3('index.html');
+  for (const [id, box] of Object.entries(CONTROL_BOX)) {
+    const imgs = controlImgs(html, id);
+    assert.equal(imgs.length, 1, id);
+    assert.equal(attr(imgs[0], 'data-size'), String(box), id);
+  }
+  for (const img of controlImgs(html, 'playBtn')) {
+    const role = Object.keys(PLAY_BOX).find((c) => attr(img, 'class').split(' ').includes(c));
+    assert.ok(role, img);
+    assert.equal(attr(img, 'data-size'), String(PLAY_BOX[role]), role);
+  }
+});
+
+test('icons: the empty-state play button is unchanged', () => {
+  const [img] = controlImgs(readV3('index.html'), 'emptyOpen');
+  assert.equal(attr(img, 'data-size'), '26');
+});
+
+// Every data-size a control can render at — written in index.html or set from script — needs its
+// own CSS box, or that icon is resampled (or drawn at the PNG's retina size).
+function controlSizes() {
+  const html = readV3('index.html');
+  const sizes = new Set();
+  for (const m of html.matchAll(/<button[^>]*class="[^"]*\bcontrol-btn\b[^"]*"[^>]*>([\s\S]*?)<\/button>/g)) {
+    for (const t of m[1].matchAll(/data-size="([^"]*)"/g)) sizes.add(t[1]);
+  }
+  const js = readV3('script.js');
+  for (const m of js.matchAll(/dataset\.size\s*=\s*['"]?(\d+)/g)) sizes.add(m[1]);
+  for (const m of js.matchAll(/setSrc\([^)]*\bsize\s*:\s*(\d+)/g)) sizes.add(m[1]);
+  for (const m of js.matchAll(/NepTunes\.symbol\([^)]*\bsize\s*:\s*(\d+)/g)) sizes.add(m[1]);
+  return sizes;
+}
+
+test('icons: every size a control renders at has a CSS box of exactly that size', () => {
+  const css = readV3('styles.css');
+  const sizes = controlSizes();
+  for (const box of [...Object.values(CONTROL_BOX), ...Object.values(PLAY_BOX), 26]) {
+    assert.ok(sizes.has(String(box)), `the collector missed data-size ${box}`);
+  }
+  for (const size of sizes) {
+    const rule = new RegExp(`\\.control-btn img\\.sf-icon\\[data-size="${size}"\\]\\s*\\{([^}]*)\\}`).exec(css);
+    assert.ok(rule, `no CSS box for data-size ${size}`);
+    assert.match(rule[1], new RegExp(`width:\\s*${size}px`), `width for ${size}`);
+    assert.match(rule[1], new RegExp(`height:\\s*${size}px`), `height for ${size}`);
+  }
+  const base = /\.control-btn img\.sf-icon\s*\{([^}]*)\}/.exec(css);
+  assert.ok(base);
+  assert.match(base[1], /flex-shrink:\s*0/, 'a box wider than the 34pt frame must not be squeezed into it');
+});
+
+// The rasterizer fits the whole speaker family to speaker.wave.3 and left-aligns every state in
+// that box, so the cone holds still. V1 centred each state in its frame instead, the cone moving
+// as the waves came and went. These shifts (whole device pixels at 2x) put each state's ink back
+// where V1's was, within 0.5pt — measured in a real WKWebView against a SwiftUI render.
+const SPEAKER_SHIFT = {
+  'speaker': 8.5, 'speaker.slash': 8, 'speaker.wave.1': 6, 'speaker.wave.2': 3, 'speaker.wave.3': 0,
+};
+
+test('icons: each speaker state is shifted to sit where V1 centred it', () => {
+  const css = readV3('styles.css');
+  for (const [name, shift] of Object.entries(SPEAKER_SHIFT)) {
+    const rule = new RegExp(`#volumeIcon\\[data-shown="${name.replace(/\./g, '\\.')}"\\]\\s*\\{([^}]*)\\}`).exec(css);
+    if (shift === 0) { assert.equal(rule, null, `${name} needs no shift`); continue; }
+    assert.ok(rule, `no shift for ${name}`);
+    assert.match(rule[1], new RegExp(`transform:\\s*translateX\\(${shift}px\\)`), name);
+  }
+});
+
+test('icons: every swapped icon starts with data-shown equal to its data-symbol', () => {
+  const html = readV3('index.html');
+  for (const id of ['repeatBtn', 'loveBtn', 'volumeBtn']) {
+    const [img] = controlImgs(html, id);
+    assert.equal(attr(img, 'data-shown'), attr(img, 'data-symbol'), id);
+  }
+});
+
+// -- createSymbolSwapper: src and data-shown always describe the same glyph ----------------
+//
+// The speaker shift is keyed on data-shown, so it must never name a glyph other than the one in
+// src: not when a request fails, not when two overlap and finish out of order.
+
+function deferredSymbols() {
+  const calls = [];
+  const symbol = (name, opts) => new Promise((resolve, reject) => calls.push({ name, opts, resolve, reject }));
+  return { calls, symbol };
+}
+function fakeImg(name, size) {
+  return { src: `png:${name}`, dataset: { symbol: name, shown: name, size: String(size) } };
+}
+const tick = () => new Promise((r) => setTimeout(r, 0));
+function consistent(img) {
+  assert.equal(img.src, `png:${img.dataset.shown}`, 'src and data-shown disagree');
+}
+
+test('swapper: a swap requests the box size and the icon colour, and lands src and data-shown together', async () => {
+  const { calls, symbol } = deferredSymbols();
+  const sw = V3.createSymbolSwapper({ symbol, color: () => '#abc', current: { volume: 'speaker.wave.2' } });
+  const img = fakeImg('speaker.wave.2', 43);
+  sw.set(img, 'volume', 'speaker');
+  assert.equal(img.dataset.symbol, 'speaker', 'data-symbol is updated at once, for SFSymbols.reload');
+  assert.equal(img.dataset.shown, 'speaker.wave.2', 'the old glyph is still on screen');
+  consistent(img);
+  assert.deepEqual(calls[0].opts, { size: 43, color: '#abc' });
+  calls[0].resolve('png:speaker'); await tick();
+  assert.equal(img.dataset.shown, 'speaker');
+  consistent(img);
+});
+
+test('swapper: out-of-order completion never leaves an older glyph on screen', async () => {
+  const { calls, symbol } = deferredSymbols();
+  const sw = V3.createSymbolSwapper({ symbol, color: () => '#fff', current: { volume: 'speaker.wave.2' } });
+  const img = fakeImg('speaker.wave.2', 43);
+  sw.set(img, 'volume', 'speaker.wave.3');
+  sw.set(img, 'volume', 'speaker');
+  calls[1].resolve('png:speaker'); await tick();
+  assert.equal(img.dataset.shown, 'speaker'); consistent(img);
+  calls[0].resolve('png:speaker.wave.3'); await tick();
+  assert.equal(img.dataset.shown, 'speaker', 'the stale answer was applied'); consistent(img);
+});
+
+test('swapper: an empty answer or a rejection keeps the old glyph, and the next push retries', async () => {
+  for (const fail of [(c) => c.resolve(''), (c) => c.reject(new Error('SF Symbol not found'))]) {
+    const { calls, symbol } = deferredSymbols();
+    const sw = V3.createSymbolSwapper({ symbol, color: () => '#fff', current: { volume: 'speaker.wave.3' } });
+    const img = fakeImg('speaker.wave.3', 43);
+    sw.set(img, 'volume', 'speaker');
+    fail(calls[0]); await tick();
+    assert.equal(img.dataset.shown, 'speaker.wave.3'); consistent(img);
+    assert.equal(img.dataset.symbol, 'speaker.wave.3', 'a reload must not fetch a glyph that is not shown');
+    sw.set(img, 'volume', 'speaker');
+    assert.equal(calls.length, 2, 'the same state on the next push asks again');
+    calls[1].resolve('png:speaker'); await tick();
+    assert.equal(img.dataset.shown, 'speaker'); consistent(img);
+  }
+});
+
+test('swapper: a failure of a superseded request does not undo the newer one', async () => {
+  const { calls, symbol } = deferredSymbols();
+  const sw = V3.createSymbolSwapper({ symbol, color: () => '#fff', current: { volume: 'speaker.wave.2' } });
+  const img = fakeImg('speaker.wave.2', 43);
+  sw.set(img, 'volume', 'speaker.wave.3');
+  sw.set(img, 'volume', 'speaker');
+  calls[0].reject(new Error('timed out')); await tick();
+  assert.equal(img.dataset.symbol, 'speaker');
+  calls[1].resolve('png:speaker'); await tick();
+  assert.equal(img.dataset.shown, 'speaker'); consistent(img);
+});
+
+test('swapper: data-shown flips only once the new image is decoded', async () => {
+  const { calls, symbol } = deferredSymbols();
+  let decoded;
+  const decode = () => new Promise((r) => { decoded = r; });
+  const sw = V3.createSymbolSwapper({ symbol, color: () => '#fff', decode, current: { volume: 'speaker.wave.2' } });
+  const img = fakeImg('speaker.wave.2', 43);
+  sw.set(img, 'volume', 'speaker');
+  calls[0].resolve('png:speaker'); await tick();
+  assert.equal(img.dataset.shown, 'speaker.wave.2', 'flipped before the decode'); consistent(img);
+  decoded(); await tick();
+  assert.equal(img.dataset.shown, 'speaker'); consistent(img);
+});
+
+test('swapper: an unchanged symbol is not re-requested', () => {
+  const { calls, symbol } = deferredSymbols();
+  const sw = V3.createSymbolSwapper({ symbol, color: () => '#fff', current: { volume: 'speaker' } });
+  sw.set(fakeImg('speaker', 43), 'volume', 'speaker');
+  assert.equal(calls.length, 0);
+});
+

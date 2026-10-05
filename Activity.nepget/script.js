@@ -748,7 +748,7 @@
     // drawn and what is hovered cannot disagree. Proportions are the onboarding's: 11pt
     // cells 3pt apart, radius 3 — a 95pt grid of which each gap is 3/95.
 
-    var CARD_GUTTER = { left: 20, top: 16, right: 20, bottom: 24 };   // shadow extent + 8 (styles.css)
+    var CARD_GUTTER = { left: 20, top: 16, right: 20, bottom: 24 };   // room for the host's card shadow (styles.css)
     var BARE_GUTTER = { left: 6, top: 6, right: 6, bottom: 6 };
     var CARD_PADDING = 0.1;
     var CALLOUT_GAP = 5;
@@ -927,7 +927,7 @@
     // posts one per tick) never load.
     var SETTINGS_RELOAD_MS = 400;
 
-    var root = null, card = null, panelShadow = null, gridEl = null, statusEl = null;
+    var root = null, card = null, gridEl = null, statusEl = null;
     var calloutEl = null, calloutCount = null, calloutDate = null, resizeHandle = null;
     var cellEls = [];
     var settings = normalizeSettings(null);
@@ -975,6 +975,8 @@
         root.classList.remove('theme-auto', 'theme-dark', 'theme-light');
         root.classList.add('theme-' + settings.theme);
         root.classList.toggle('bare', settings.background === 'none');
+        // A bare grid is no card: no system corner to clip its cells, no shadow to cast.
+        card.classList.toggle('nt-card', settings.background !== 'none');
         updateAccent();
     }
 
@@ -1012,12 +1014,10 @@
     function applyLayout() {
         currentLayout = layout(window.innerWidth, window.innerHeight, settings.background);
         var c = currentLayout.card;
-        [card, panelShadow].forEach(function (el) {
-            el.style.left = c.x + 'px';
-            el.style.top = c.y + 'px';
-            el.style.width = c.side + 'px';
-            el.style.height = c.side + 'px';
-        });
+        card.style.left = c.x + 'px';
+        card.style.top = c.y + 'px';
+        card.style.width = c.side + 'px';
+        card.style.height = c.side + 'px';
         root.style.setProperty('--panel-radius', currentLayout.panelRadius + 'px');
         root.style.setProperty('--cell-radius', currentLayout.radius + 'px');
         root.style.setProperty('--status-size', currentLayout.statusSize + 'px');
@@ -1245,7 +1245,6 @@
     function init() {
         root = document.documentElement;
         card = document.getElementById('widget');
-        panelShadow = document.getElementById('panelShadow');
         gridEl = document.getElementById('grid');
         statusEl = document.getElementById('status');
         calloutEl = document.getElementById('callout');

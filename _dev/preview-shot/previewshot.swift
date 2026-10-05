@@ -22,6 +22,30 @@ let widgetsDir = URL(fileURLWithPath: args[1])
 let apiJS = try! String(contentsOf: URL(fileURLWithPath: args[2]), encoding: .utf8)
 let wanted = Set(args.dropFirst(4))
 
+// The card shape the host injects into a `"card": true` widget (`WidgetCardShape` in NepTunesKit).
+// `_dev/card-shape.css` is its byte-identical copy — a kit test fails the moment the two differ —
+// and it ships in the published mirror, which has no app source to pull it from.
+let cardShapeCSS = URL(fileURLWithPath: args[3]).deletingLastPathComponent()
+    .appendingPathComponent("../card-shape.css").standardizedFileURL
+
+/// The host's document-start card script (`WidgetCardShape.userScript`), with the shadow off — the
+/// default a fresh install gets — so a preview shows the card as it arrives.
+func cardShapeScript() -> String? {
+    guard let css = try? String(contentsOf: cardShapeCSS, encoding: .utf8) else { return nil }
+    let literal = String(String(decoding: try! JSONSerialization.data(withJSONObject: [css]), as: UTF8.self)
+        .dropFirst().dropLast())
+    return """
+    (function () {
+      var root = document.documentElement;
+      var style = document.createElement('style');
+      style.id = 'neptunes-card-shape';
+      style.textContent = \(literal);
+      (document.head || root).appendChild(style);
+      root.classList.toggle("nt-card-shadow", false);
+    })();
+    """
+}
+
 let CANVAS = NSSize(width: 960, height: 400)   // what the picker and the web gallery expect
 let SNAPSHOT_SCALE: CGFloat = 3                // supersample, then downscale into the canvas
 let FIT = 0.92                                 // fraction of the canvas the window may occupy
@@ -171,7 +195,7 @@ final class Shooter: NSObject, WKNavigationDelegate {
     var panel: NSPanel!
     let bridge = Bridge()
 
-    func load(bundle: URL, size: NSSize, stub: String?) async {
+    func load(bundle: URL, size: NSSize, stub: String?, cardShape: String?) async {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         let ucc = WKUserContentController()
@@ -182,6 +206,10 @@ final class Shooter: NSObject, WKNavigationDelegate {
         // stands in for that data with a fixed, believable set — see stubs/.
         if let stub {
             ucc.addUserScript(WKUserScript(source: stub, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
+        // A card widget gets the host's card shape, last and at document start as the host adds it.
+        if let cardShape {
+            ucc.addUserScript(WKUserScript(source: cardShape, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         }
         config.userContentController = ucc
         config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
@@ -354,9 +382,19 @@ func run() async -> Int {
             stub = source
         }
 
+        var cardShape: String?
+        if manifest["card"] as? Bool == true {
+            guard let script = cardShapeScript() else {
+                failures.append(name)
+                print("❌ \(name): a card widget, but no card stylesheet at \(cardShapeCSS.path)")
+                continue
+            }
+            cardShape = script
+        }
+
         let shooter = Shooter()
         let windowSize = NSSize(width: width, height: height)
-        await shooter.load(bundle: bundle, size: windowSize, stub: stub)
+        await shooter.load(bundle: bundle, size: windowSize, stub: stub, cardShape: cardShape)
         await shooter.push(settings: settings, state: state)
         if let notReady = await shooter.waitUntilReady() {
             shooter.close()

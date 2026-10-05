@@ -51,6 +51,13 @@ validate and test it.
    (with the `artwork` permission) to play Apple Music motion artwork over it —
    see *Motion artwork* below. Older apps ignore the key and show static art, so
    it needs no `minNepTunesVersion`.
+   A widget that is one rounded panel adds `"card": true` and the class
+   `nt-card` on that panel: the host clips it to the system widget corner
+   (`--nt-card-radius`) and owns its shadow, which the user switches on per
+   widget. Draw no shadow of your own, keep a 12 px side/top and 16 px bottom
+   gutter and your own `border-radius` as the fallback, and never set
+   `clip-path` on `.nt-card` or `filter` on its parent. See *Card shape* in
+   `Docs/WidgetDevelopment.md`.
 
    ```json
    {

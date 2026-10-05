@@ -1138,8 +1138,9 @@ test('reading the cover needs the artwork permission', () => {
   assert.deepEqual([...manifest().permissions].sort(), ['artwork', 'lastFm', 'listeningHistory']);
 });
 
-test('the accent change ships as 1.0.6: Activity has never been released, so no bump', () => {
-  assert.equal(manifest().version, '1.0.6');
+test('the card shape ships as 1.1.0', () => {
+  assert.equal(manifest().version, '1.1.0');
+  assert.equal(manifest().card, true);
 });
 
 const COVER = 'data:image/jpeg;base64,COVER-A';

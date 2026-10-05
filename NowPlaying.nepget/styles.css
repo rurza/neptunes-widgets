@@ -53,6 +53,13 @@ body {
     -webkit-app-region: drag;
 }
 
+/* A card widget ("card": true): NepTunes clips .widget (.nt-card) to the system's continuous
+   corner and, if the user turns the Shadow switch on, draws the shadow on body, so the card
+   draws none of its own. The margin is the gutter that shadow fades out in, and the 12px radius
+   is the fallback corner for a NepTunes without the card shape. No backdrop-filter: the page
+   cannot sample the desktop behind a transparent window, so it blurred nothing, and clipped at
+   the window's edge WebKit drops the blur in the corner arcs anyway (NepTunes Widget/README.md,
+   "Do not blur with `backdrop-filter` at the window's edge"). */
 .widget {
     display: flex;
     align-items: center;
@@ -61,10 +68,7 @@ body {
     margin: 20px;
     width: 328px;
     background: var(--bg-color);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border-radius: 12px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.14), 0 4px 5px rgba(0, 0, 0, 0.12);
 }
 
 .artwork-container {

@@ -7,10 +7,7 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Carries the card's drop shadow. Empty and inert on purpose — see styles.css. -->
-    <div class="panel-shadow" id="panelShadow" aria-hidden="true"></div>
-
-    <div class="card" id="widget">
+    <div class="card nt-card" id="widget">
         <svg class="chart" id="chart" role="img" xmlns="http://www.w3.org/2000/svg">
             <rect class="nodata" id="nodata" width="0" height="0"></rect>
             <g class="grid" id="grid"></g>
@@ -26,13 +23,16 @@
             <div class="legend" id="legend"></div>
         </div>
         <div class="status" id="status" role="status" aria-live="polite" hidden></div>
-        <!-- Inside the card so it never widens the host's hover region (body's children). -->
-        <div class="callout" id="callout" aria-hidden="true" hidden>
-            <div class="callout-title" id="calloutTitle"></div>
-            <div class="callout-count" id="calloutCount"></div>
-            <div class="callout-date" id="calloutDate"></div>
-        </div>
         <div class="resize-handle" id="resizeHandle"></div>
+    </div>
+
+    <!-- Outside the card: NepTunes clips .nt-card to the system corner, and a callout near the
+         card's edge reaches past it into the gutter. Hidden (display: none) whenever the pointer
+         is off the chart, so it does not widen the host's hover region (body's children). -->
+    <div class="callout" id="callout" aria-hidden="true" hidden>
+        <div class="callout-title" id="calloutTitle"></div>
+        <div class="callout-count" id="calloutCount"></div>
+        <div class="callout-date" id="calloutDate"></div>
     </div>
 
     <script src="neptunes-kit.js"></script>

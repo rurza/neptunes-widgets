@@ -292,10 +292,71 @@
         return { update: update };
     }
 
+    /*
+     * Swaps the rasterised SF Symbol in an <img> so that src and data-shown always name the same
+     * glyph: the speaker states are shifted in CSS by data-shown (styles.css), and a shift applied
+     * to the wrong glyph puts it 8pt off. SFSymbols.setSrc cannot promise that — it swallows
+     * failures and writes whichever answer arrives last — so this asks the bridge directly:
+     *
+     *  - data-symbol changes at once, because SFSymbols.reload() re-fetches it on a theme flip;
+     *  - only the newest request per control may land, and only with a non-empty URL, after the
+     *    image has decoded (so the old glyph never paints a frame at the new offset), and then src
+     *    and data-shown change together;
+     *  - a failed newest request keeps the old glyph and puts data-symbol back to it (a reload then
+     *    fetches what is shown), and forgets the wish, so the next state push asks again.
+     *
+     * opts: symbol(name, {size, color}) -> Promise<url>, color(img) -> tint, decode(url) ->
+     * Promise, current: { key: name } as index.html starts.
+     */
+    function createSymbolSwapper(opts) {
+        var symbol = opts.symbol;
+        var color = opts.color;
+        var decode = opts.decode || function () { return Promise.resolve(); };
+        var current = opts.current;
+        var latest = {};
+
+        function set(img, key, name) {
+            if (!img || current[key] === name) return;
+            current[key] = name;
+            img.dataset.symbol = name;
+            var token = latest[key] = (latest[key] || 0) + 1;
+            function fresh() { return latest[key] === token; }
+            function fail() {
+                if (!fresh()) return;
+                current[key] = img.dataset.shown;
+                img.dataset.symbol = img.dataset.shown;
+            }
+            var request;
+            try {
+                request = Promise.resolve(symbol(name, { size: +img.dataset.size, color: color(img) }));
+            } catch (e) {
+                request = Promise.reject(e);
+            }
+            request.then(function (url) {
+                if (!fresh()) return;
+                if (!url) { fail(); return; }
+                return decode(url).then(function () {
+                    if (!fresh()) return;
+                    img.src = url;
+                    img.dataset.shown = name;
+                });
+            }).catch(fail);
+        }
+
+        return { set: set };
+    }
+
+    function decodeImage(url) {
+        if (typeof Image === 'undefined') return Promise.resolve();
+        var probe = new Image();
+        probe.src = url;
+        return typeof probe.decode === 'function' ? probe.decode() : Promise.resolve();
+    }
+
     // ----------------------------------------------------------------- DOM ----
 
     var widget, cover, nocover, infoBar, titleEl, artistEl, liveBadge;
-    var infoFrost, hoverFrost;
+    var infoFrost, hoverFrost, popoverFrost;
     var motion = null;             // createMotionLayer over #motionLayer, made in init()
     var reducedMotionQuery = null; // matchMedia('(prefers-reduced-motion: reduce)'), or null
     var shuffleBtn, repeatBtn, repeatIcon, loveBtn, loveIcon, volumeBtn, volumeIcon;
@@ -347,16 +408,19 @@
     // a glyph that actually changed.
     var currentSymbols = { repeat: 'repeat', love: 'heart', volume: 'speaker.wave.2' };
 
-    /*
-     * Swap a rasterised SF Symbol. dataset.symbol is updated too, not just the src:
-     * sfsymbols.js re-reads it on reload() after a system light/dark flip, and a stale
-     * attribute would silently restore the wrong glyph.
-     */
+    var symbolSwapper = null;
+
+    /* Swap a control's glyph — see createSymbolSwapper. */
     function setSymbol(img, key, name) {
-        if (!img || currentSymbols[key] === name) return;
-        currentSymbols[key] = name;
-        img.dataset.symbol = name;
-        if (window.SFSymbols) SFSymbols.setSrc(img, name);
+        if (!symbolSwapper) {
+            symbolSwapper = createSymbolSwapper({
+                symbol: function (n, o) { return window.NepTunes.symbol(n, o); },
+                color: function (el) { return window.SFSymbols ? SFSymbols.getColor(el) : '#ffffff'; },
+                decode: decodeImage,
+                current: currentSymbols
+            });
+        }
+        symbolSwapper.set(img, key, name);
     }
 
     // ------------------------------------------------------------- settings --
@@ -522,10 +586,10 @@
         return canvas.toDataURL('image/png');
     }
 
-    /// Paint `dataURL` behind both frosted panels, or clear them when there is no cover so
-    /// the panels fall back to their flat `--material` over the no-cover field.
+    /// Paint `dataURL` behind the frosted panels and the volume popover, or clear them when
+    /// there is no cover so they fall back to their flat backgrounds over the no-cover field.
     function setFrost(dataURL) {
-        [infoFrost, hoverFrost].forEach(function (el) {
+        [infoFrost, hoverFrost, popoverFrost].forEach(function (el) {
             if (!el) return;
             el.style.backgroundImage = dataURL ? 'url(' + dataURL + ')' : '';
         });
@@ -923,6 +987,7 @@
         nocover = document.getElementById('nocover');
         infoFrost = document.getElementById('infoFrost');
         hoverFrost = document.getElementById('hoverFrost');
+        popoverFrost = document.getElementById('popoverFrost');
         infoBar = document.getElementById('infoBar');
         titleEl = document.getElementById('title');
         artistEl = document.getElementById('artist');
@@ -960,6 +1025,11 @@
         setupControls();
         setupResize();
         widget.addEventListener('wheel', onWheel, { passive: false });
+        // The popover floats outside the card (a child of body, not of #widget), so a wheel over it
+        // no longer bubbles to the card. It gets the same handler, which keeps scroll-to-volume
+        // and the rubber-band guard working over it exactly as before. Being a sibling of the
+        // card, it never fires twice.
+        volumePopover.addEventListener('wheel', onWheel, { passive: false });
         widget.addEventListener('dblclick', onDoubleClick);
 
         applySettings(window.NepTunes.settings);
@@ -1001,6 +1071,7 @@
         isEmpty: isEmpty,
         motionState: motionState,
         createMotionLayer: createMotionLayer,
+        createSymbolSwapper: createSymbolSwapper,
         start: start
     };
 });

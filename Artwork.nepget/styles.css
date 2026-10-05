@@ -6,8 +6,8 @@
     user-select: none;
 }
 
-/* Transparent gutter between the window edge and the panel, holding the drop shadow.
-   Shared by `body`'s padding and `.panel-shadow`'s inset so the two cannot drift apart. */
+/* Transparent gutter between the window edge and the panel, holding the host's drop shadow.
+   Shared by `body`'s padding and `.controls-frost`'s height so the two cannot drift apart. */
 :root {
     --gutter-top: 20px;
     --gutter-x: 20px;
@@ -74,38 +74,13 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
-/* ---- Drop shadow ----
-   An empty box sitting exactly under the panel, carrying the shadow so that .widget has none
-   of its own.
-
-   Why not `box-shadow` on .widget, which is the obvious way and is what this used to do:
-   WebKit intermittently paints that shadow as a *square, unblurred rectangle* — the bottom
-   corner notches, which a rounded silhouette leaves clear, fill in solid and the falloff stops
-   dead. It is a paint defect, not a CSS error, it is not reproducible on demand, and it shipped
-   visibly in Scrobbles. `filter: drop-shadow()` builds the shadow from this box's own alpha
-   channel rather than from a rounded-rect path, so a square-cornered result is not a shape it
-   can produce; the worst it degrades to is no shadow at all.
-
-   Its own box rather than a filter on .widget, because a filter there would push the whole
-   panel through the filter pipeline on every frame. Nothing here ever changes, so it is
-   rasterised once. `position: fixed` resolves against the viewport, so the inset values are
-   exactly `body`'s padding and the box lands on .widget at any window size.
-
-   Note drop-shadow()'s blur argument is half box-shadow's — WebKit reads it as a standard
-   deviation — so these are the same weights the box-shadow above carried. */
-.panel-shadow {
-    position: fixed;
-    inset: var(--gutter-top) var(--gutter-x) var(--gutter-bottom);
-    border-radius: var(--panel-radius);
-    background: #2a2a2a;
-    filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.14)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.12));
-    pointer-events: none;
-}
-
+/* ---- Card ----
+   A card widget ("card": true): NepTunes clips .widget (.nt-card) to the system's continuous
+   corner and, if the user turns the Shadow switch on, draws the shadow on body. The gutter
+   (body's padding) is the room that shadow fades out in. --panel-radius is the fallback corner
+   for a NepTunes without the card shape. */
 .widget {
     position: relative;
-    /* z-index only so the panel paints above .panel-shadow, which is out of flow. */
-    z-index: 1;
     height: 100%;
     width: 100%;
     border-radius: var(--panel-radius);

@@ -1,0 +1,30 @@
+:root { --nt-card-radius: 27px; }
+.nt-card {
+  /* The widget's own radius is only the fallback for hosts without the card shape. */
+  border-radius: 0 !important;
+  clip-path: shape(from 0 calc(1.52866 * var(--nt-card-radius)),
+    curve to calc(0.074911 * var(--nt-card-radius)) calc(0.631494 * var(--nt-card-radius)) with 0 calc(1.08849 * var(--nt-card-radius)) / 0 calc(0.868407 * var(--nt-card-radius)),
+    curve to calc(0.631494 * var(--nt-card-radius)) calc(0.074911 * var(--nt-card-radius)) with calc(0.16906 * var(--nt-card-radius)) calc(0.372824 * var(--nt-card-radius)) / calc(0.372824 * var(--nt-card-radius)) calc(0.16906 * var(--nt-card-radius)),
+    curve to calc(1.52866 * var(--nt-card-radius)) 0 with calc(0.868407 * var(--nt-card-radius)) 0 / calc(1.08849 * var(--nt-card-radius)) 0,
+    line to calc(100% - 1.52866 * var(--nt-card-radius)) 0,
+    curve to calc(100% - 0.631494 * var(--nt-card-radius)) calc(0.074911 * var(--nt-card-radius)) with calc(100% - 1.08849 * var(--nt-card-radius)) 0 / calc(100% - 0.868407 * var(--nt-card-radius)) 0,
+    curve to calc(100% - 0.074911 * var(--nt-card-radius)) calc(0.631494 * var(--nt-card-radius)) with calc(100% - 0.372824 * var(--nt-card-radius)) calc(0.16906 * var(--nt-card-radius)) / calc(100% - 0.16906 * var(--nt-card-radius)) calc(0.372824 * var(--nt-card-radius)),
+    curve to 100% calc(1.52866 * var(--nt-card-radius)) with 100% calc(0.868407 * var(--nt-card-radius)) / 100% calc(1.08849 * var(--nt-card-radius)),
+    line to 100% calc(100% - 1.52866 * var(--nt-card-radius)),
+    curve to calc(100% - 0.074911 * var(--nt-card-radius)) calc(100% - 0.631494 * var(--nt-card-radius)) with 100% calc(100% - 1.08849 * var(--nt-card-radius)) / 100% calc(100% - 0.868407 * var(--nt-card-radius)),
+    curve to calc(100% - 0.631494 * var(--nt-card-radius)) calc(100% - 0.074911 * var(--nt-card-radius)) with calc(100% - 0.16906 * var(--nt-card-radius)) calc(100% - 0.372824 * var(--nt-card-radius)) / calc(100% - 0.372824 * var(--nt-card-radius)) calc(100% - 0.16906 * var(--nt-card-radius)),
+    curve to calc(100% - 1.52866 * var(--nt-card-radius)) 100% with calc(100% - 0.868407 * var(--nt-card-radius)) 100% / calc(100% - 1.08849 * var(--nt-card-radius)) 100%,
+    line to calc(1.52866 * var(--nt-card-radius)) 100%,
+    curve to calc(0.631494 * var(--nt-card-radius)) calc(100% - 0.074911 * var(--nt-card-radius)) with calc(1.08849 * var(--nt-card-radius)) 100% / calc(0.868407 * var(--nt-card-radius)) 100%,
+    curve to calc(0.074911 * var(--nt-card-radius)) calc(100% - 0.631494 * var(--nt-card-radius)) with calc(0.372824 * var(--nt-card-radius)) calc(100% - 0.16906 * var(--nt-card-radius)) / calc(0.16906 * var(--nt-card-radius)) calc(100% - 0.372824 * var(--nt-card-radius)),
+    curve to 0 calc(100% - 1.52866 * var(--nt-card-radius)) with 0 calc(100% - 0.868407 * var(--nt-card-radius)) / 0 calc(100% - 1.08849 * var(--nt-card-radius)),
+    close);
+}
+/* Always a filter on the root and the card's parent, so toggling the shadow never changes the
+   containing block of position:fixed descendants. One drop-shadow per element: Core
+   Animation only accelerates a final drop-shadow, and a longer list is painted without a
+   card that has its own compositing layer. */
+html { filter: drop-shadow(0 0 0 transparent); }
+:has(> .nt-card) { filter: drop-shadow(0 0 0 transparent); }
+html.nt-card-shadow :has(> .nt-card) { filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.14)); }
+html.nt-card-shadow { filter: drop-shadow(0 3px 3.5px rgba(0, 0, 0, 0.12)); }

@@ -21,7 +21,7 @@
 }
 
 /* Transparent window: only .widget is visible, and body padding is the only room the
-   card's drop shadow has to render into. */
+   host's card shadow has to render into. */
 html,
 body {
     width: 100%;
@@ -31,10 +31,9 @@ body {
 }
 
 body {
-    /* SHADOW MATH — card shadow is `0 1px 3px + 0 2px 4px`, so it reaches 6px below,
-       4px to the sides and 2px above. 20px on all four sides clears it with headroom,
-       and is the exact padding/shadow pair proven clip-free in Artwork.nepget.
-       Manifest sizes include it: visible cover is 220 / 160 / 460 for default / min / max.
+    /* SHADOW MATH — the host's card shadow (Shadow switch) reaches 16px below, 12px to
+       the sides and 8px above. 20px on all four sides clears it, as in Artwork.nepget.
+       Manifest sizes include it: visible cover is 160 / 140 / 460 for default / min / max.
        This padding used to double as hover slop — `nt-hover` keyed off the window frame,
        which is cover + padding, so the controls began fading in 20px before the pointer
        reached the cover. The host now measures the cover itself
@@ -78,6 +77,10 @@ body {
 
 /* ---- The card ------------------------------------------------------------------- */
 
+/* A card widget ("card": true): NepTunes clips .widget (.nt-card) to the system's continuous
+   corner and, if the user turns the Shadow switch on, draws the shadow on body. So the card
+   draws no shadow of its own. Its 12px radius is the fallback corner for a NepTunes without the
+   card shape. */
 .widget {
     position: relative;
     width: 100%;
@@ -86,7 +89,6 @@ body {
     border-radius: 12px;
     overflow: hidden;
     background: #0a0a0a;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 2px 4px rgba(0, 0, 0, 0.12);
     -webkit-app-region: drag;
 }
 
@@ -212,9 +214,9 @@ body {
    content and the transparent window — the sharp cover then shows straight through the tint,
    in the corners only. Both of these surfaces sat exactly on that boundary: `.hover` is
    `inset: 0` on the card, so all four of its corners are the card's corners, and `.info-bar`
-   is flush to the bottom, so two of them are. `.volume-popover` keeps `backdrop-filter`
-   because it floats in the middle of the card, where its rounded clip is over opaque content
-   and the defect cannot arise.
+   is flush to the bottom, so two of them are. `.volume-popover` uses the same image:
+   it floats outside the card and can overhang the card's corners into the transparent gutter,
+   which is that defect's exact condition.
 
    Established by elimination on a real desktop, in Artwork.nepget, where the same bar had the
    same fault: it needs BOTH a rounded clip AND the transparent boundary, and neither the
@@ -223,8 +225,8 @@ body {
    screenshot cannot see it at all — the capture path re-renders and filters correctly — so it
    only ever reproduces on screen. Related: WebKit bugs 158807 and 275919.
 
-   `--material-blur` is left declared but unused by these two, so the popover keeps one name
-   for the material's blur radius and the pre-blur in script.js can be read against it. */
+   `--material-blur` is left declared but unused, so the pre-blur in script.js can be read
+   against the material's original blur radius. */
 .frost {
     position: absolute;
     z-index: 0;
@@ -372,7 +374,7 @@ body {
    `.linear(duration: 0.15)`. The `:has()` arm pins the panel open while the volume
    popover is showing, exactly as V1 OR-ed `showingVolumePopover` into its hover state. */
 html.nt-hover .hover,
-.widget:has(#volumePopover.open) .hover {
+body:has(#volumePopover.open) .hover {
     opacity: 1;
     pointer-events: auto;
     transition: opacity 0.15s linear 0.13s;
@@ -394,7 +396,7 @@ html.nt-hover .hover,
 
 /* In: `.easeOut(duration: 0.2).delay(0.1)` on top of the 0.13s hover gate = 0.23s. */
 html.nt-hover .hover-rows,
-.widget:has(#volumePopover.open) .hover-rows {
+body:has(#volumePopover.open) .hover-rows {
     opacity: 1;
     transition: opacity 0.2s ease-out 0.23s;
 }
@@ -472,13 +474,33 @@ html.nt-hover .hover-rows,
     display: none;
 }
 
-/* `.font(.system(size: 26))`. Sized explicitly — the rasterised PNG is retina, so an
-   unsized <img> renders at double size. */
+/* `.font(.system(size: 26))` at the symbol's natural size, centred in the 34x34 frame. The
+   host aspect-fits a symbol into the square box data-size asks for, so each control asks for
+   the box that draws its glyph at V1's 26pt size (index.html), and the <img> is sized to that
+   same box here — the rasterised PNG is retina, so an unsized <img> renders at double size.
+   Boxes wider than the frame overflow it, centred, as V1's wide glyphs spilled past theirs. */
 .control-btn img.sf-icon {
-    width: 26px;
-    height: 26px;
+    flex-shrink: 0;
     display: block;
 }
+
+.control-btn img.sf-icon[data-size="26"] { width: 26px; height: 26px; }
+.control-btn img.sf-icon[data-size="27"] { width: 27px; height: 27px; }
+.control-btn img.sf-icon[data-size="28"] { width: 28px; height: 28px; }
+.control-btn img.sf-icon[data-size="30"] { width: 30px; height: 30px; }
+.control-btn img.sf-icon[data-size="33"] { width: 33px; height: 33px; }
+.control-btn img.sf-icon[data-size="35"] { width: 35px; height: 35px; }
+/* The whole speaker family, fitted to speaker.wave.3, so the cone holds still across states. */
+.control-btn img.sf-icon[data-size="43"] { width: 43px; height: 43px; }
+
+/* ...which left-aligns every speaker state in that box, so the cone holds still. V1 centred each
+   state in its frame instead, the cone moving as the waves come and go. These put each state's
+   ink where V1's was (within 0.5pt, whole device pixels at 2x). speaker.wave.3 fills the box and
+   needs none. Keyed on data-shown, which script.js updates when the new PNG lands. */
+#volumeIcon[data-shown="speaker"] { transform: translateX(8.5px); }
+#volumeIcon[data-shown="speaker.slash"] { transform: translateX(8px); }
+#volumeIcon[data-shown="speaker.wave.1"] { transform: translateX(6px); }
+#volumeIcon[data-shown="speaker.wave.2"] { transform: translateX(3px); }
 
 /* IDs, not just the class, so these outrank `.control-btn img.sf-icon` above — that
    rule also sets `display: block` and would otherwise leave the pause glyph stuck
@@ -512,21 +534,34 @@ html.nt-hover .hover-rows,
 
 /* ---- Volume popover ------------------------------------------------------------- */
 
-/* V1's `Slider` in a 140x36 `.popover`. An AppKit popover floats outside the window;
-   this one has to live inside the clipped card, so it is parked just above the first
-   control row and clamped to the top edge on small covers (where it overlaps the row
-   it belongs to — there is simply no room at a 160px cover).
+/* V1's `Slider` in a 140x36 `.popover`. An AppKit popover floats outside its window; this one
+   floats outside the CARD: it is a child of body, not of `.widget`, so the card's continuous
+   corner clip can never cut it. It may overhang the card's edge into the 20px transparent
+   gutter at small sizes, as a real popover overhangs its window. It never leaves the window:
+   it is 140px wide and the window is at least 180.
+
+   Body is its containing block (the host keeps a transparent filter on the card's parent, and
+   body's padding box is the window), so the card is `20px` in from every window edge and its
+   height is `100% - 40px`. It is parked where it always was, just above the first control row,
+   and clamped to 8px below the card's top on small covers (where it overlaps the row it belongs
+   to — there is simply no room at a 160px cover). In card terms:
 
      row block height  = 34 + 17 + 34 = 85, centred, so row 1's top is 50% - 42.5px
      popover top       = row 1 top - 8px gap - 36px height = 50% - 86.5px
-     bottom            = 100% - 36px - top                 = 50% + 50.5px
-     clamp             = at most 100% - 36px - 8px         = 100% - 44px */
+     clamp             = at least 8px
+
+   and in window terms (card top = 20px, card 50% = window 50% - 20px):
+
+     top               = max(50% - 86.5px, 28px)
+
+   Horizontally it is centred on the card, which is centred in the window. */
 .volume-popover {
+    --popover-top: max(calc(50% - 86.5px), 28px);
     position: absolute;
     z-index: 4;
     left: 50%;
     transform: translateX(-50%);
-    bottom: min(calc(50% + 50.5px), calc(100% - 44px));
+    top: var(--popover-top);
     width: 140px;
     height: 36px;
     display: flex;
@@ -534,9 +569,10 @@ html.nt-hover .hover-rows,
     /* `.padding(.horizontal, 6)` on the slider. */
     padding: 0 6px;
     border-radius: 8px;
-    background: var(--material);
-    -webkit-backdrop-filter: var(--material-blur);
-    backdrop-filter: var(--material-blur);
+    overflow: hidden;
+    /* Only ever seen where the frost is not (no cover). Near-black, close to what the old
+       backdrop blur showed there: `--material` over the black no-cover field, tinted again. */
+    background: #000000;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
     opacity: 0;
     visibility: hidden;
@@ -544,6 +580,32 @@ html.nt-hover .hover-rows,
     /* visibility flips only after the fade finishes, so the panel is not clickable
        on its way out. */
     transition: opacity 0.12s linear, visibility 0s linear 0.12s;
+}
+
+/* The frost: the card-sized pre-blurred cover, offset so it lines up with the card behind the
+   popover — the same crop `.hover .frost` shows there. Card left in popover terms is
+   20px - (50vw - 70px); card top is 20px - the popover's top. Percentages inside the popover
+   would be of the popover, so the window is read in viewport units here (the web view is the
+   window). */
+.volume-popover .frost {
+    left: calc(90px - 50vw);
+    top: calc(20px - max(calc(50vh - 86.5px), 28px));
+    width: calc(100vw - 40px);
+    height: calc(100vh - 40px);
+}
+
+/* The popover's own `--material` tint over the frost, which is what the backdrop-filter
+   version laid over its blurred backdrop. */
+.volume-popover .frost::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--material);
+}
+
+.volume-popover .slider {
+    position: relative;
+    z-index: 1;
 }
 
 .volume-popover.open {

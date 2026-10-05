@@ -179,6 +179,12 @@ The `manifest.json` file defines your widget's metadata, permissions, and settin
     // older versions ignore the key and the widget shows static artwork.
     "supportsMotionArtwork": false,
 
+    // The widget is one rounded panel, and NepTunes gives it the corner macOS
+    // draws its own widgets with (default: false). The user gets a Shadow
+    // switch, off by default. See "Card shape". Older versions ignore the key
+    // and the widget keeps its own border-radius.
+    "card": false,
+
     // Preview image shown in settings (relative path)
     "preview": "preview.jpg",
 
@@ -422,6 +428,89 @@ its first presented frame and released after fading out.
 
 In the browser harness, **Animated cover** switches a small sample loop on and off for any widget
 that declares the key; with it on, a playing track carries `motionArtworkURL`.
+
+### Card shape
+
+macOS draws its desktop widgets with a continuous ("squircle") corner at a fixed radius. CSS
+cannot draw that corner: `border-radius` is a circular arc, and the WebKit in the widget host does
+not support `corner-shape`. A widget that is one rounded panel can ask NepTunes for the system's
+corner instead:
+
+```json
+"card": true
+```
+
+and put the class `nt-card` on its panel:
+
+```html
+<body>
+    <div class="nt-card">…</div>
+</body>
+```
+
+What the host does for a card widget, and only for one:
+
+- **Clips `.nt-card` to the system corner.** At document start, before your own styles, NepTunes
+  injects a stylesheet that clips the element with `clip-path: shape(…)` traced from SwiftUI's
+  own continuous rounded rectangle, at the radius macOS 27 uses for its widgets (27 px). The clip
+  follows the element at any size, while the window resizes too, with no script of yours. It also
+  sets `border-radius: 0 !important` on `.nt-card`, so your own radius does not cut a circular
+  corner inside the continuous one. Anything of `.nt-card` painted outside its own box (an
+  `outline`, a `box-shadow`, a child that overflows it) is clipped away.
+- **Exposes the radius as `--nt-card-radius`** on `:root` (`27px`). Use it to make an inner
+  element follow the card's corner, with a fallback for older hosts:
+  `border-radius: calc(var(--nt-card-radius, 12px) - 8px)`. Corners inside the card are
+  otherwise yours; the host only shapes the card's outline.
+- **Draws the shadow, if the user wants one.** The widget's settings get a **Shadow** switch, off
+  by default as for the system's own widgets. With it on, NepTunes sets the class `nt-card-shadow`
+  on `<html>` and draws a two-layer shadow as two `filter: drop-shadow(…)`s: the tighter layer on
+  the card's **parent**, the wider one on `<html>`, around both. The shadow is cast by the clipped
+  outline, continuous corners included. Flipping the switch applies at once, without reloading the
+  page, and never moves the card or resizes the window.
+  The layers sit on two elements because Core Animation only accelerates a filter whose last
+  function is a `drop-shadow`. WebKit paints any longer list in software from the element's own
+  pixels, and those leave out a card that has its own compositing layer (while it fades or
+  animates, or when it holds a `backdrop-filter`), so a two-`drop-shadow` list on one element
+  loses the shadow exactly then.
+
+What you do:
+
+- **Draw no shadow of your own** on a card. The host's is the only one, and the user controls it.
+  A widget that also draws one shows two when the switch is on, and one the user cannot turn off.
+- **Keep the gutter.** Leave at least **12 px** of transparent `body` padding at the sides and
+  top and **16 px** at the bottom, whether or not the shadow is on: the host's shadow fades out
+  inside exactly that much, and anything less cuts it straight at the window edge.
+- **Keep your own `border-radius` on `.nt-card`.** It is the fallback: NepTunes versions without
+  the card shape ignore the key and the class, and draw your panel with your radius, as before.
+  So declaring `card` needs no `minNepTunesVersion`.
+- **Keep the card at least 83 px on each side.** Each continuous corner spans about 1.53 radii
+  along each edge (82.55 px for two corners), and a smaller card cannot fit two whole corners.
+  With the 12/16 px gutter that is a window `minSize` of at least 107 × 111.
+- **Don't override the host's rules.** Its `clip-path` on `.nt-card` and its `filter` on the
+  card's parent and on `<html>` are not `!important`, so a `clip-path` you set on `.nt-card`, or a
+  `filter` you set on its parent or on `<html>`, silently replaces the system corner or a layer of
+  the shadow. Put filters on another element.
+- **Expect the parent to be a containing block.** The host keeps a transparent
+  `filter: drop-shadow(0 0 0 transparent)` on the card's parent and on `<html>` at all times, so
+  the parent is the containing block for `position: fixed` descendants whether or not the shadow
+  is on (the one on `<html>` changes nothing, as the root already is the viewport's box): a
+  `position: fixed` element inside it resolves against the parent, not the viewport. That is what
+  keeps the switch from moving anything, but it means a `position: fixed; inset: …` layer under
+  the card no longer lines up with the window.
+- **A frosted panel at the card's edge still must not use `backdrop-filter`.** Where a rounded
+  clip meets the transparent window, WebKit stops blurring in the corner arcs, and the card's
+  clip is such a clip. See *Do not blur with `backdrop-filter` at the window's edge* in
+  `NepTunes Widget/README.md`, and blur a copy of the artwork yourself instead.
+- **Changing the key rebuilds the window** (see *What a change actually triggers*): the
+  stylesheet is installed when the window is built, so a reload alone could not add or remove it.
+  Bump `version` before you ship the change, as for any release.
+
+A widget that is shaped like an object (a vinyl record, a CD case, a sleeve) rather than a panel
+should not declare `card`. Without the key nothing changes: no shape, no shadow, no switch.
+
+In the browser harness (`_dev/harness.html`), a widget that declares `card` gets the
+same stylesheet (`_dev/card-shape.css`, a copy of the host's), and the **Shadow** switch next to
+**Pin nt-hover** toggles `nt-card-shadow` as the app does.
 
 ## JavaScript API
 
@@ -1859,14 +1948,14 @@ SHOW_WIDGET: … - shown at frame=(259, 294, 200x200)
 
 `WidgetBundleReloadPlan` decides how far the change has to reach, because reloading the page
 picks up new HTML, CSS and JS and nothing else — window size limits, resizability, pointer
-tracking, whether it stays visible without playback, the entry file and the permission set were
+tracking, whether it stays visible without playback, the card shape, the entry file and the permission set were
 all read from `manifest.json` when the window was built:
 
 | what changed | plan |
 | --- | --- |
 | manifest unreadable (mid-copy) | `.none` |
 | page content only | `.reloadContent` — `reloadFromOrigin()`, since WebKit's memory cache will otherwise serve the previous `styles.css` for a `file://` load |
-| `version`, `entry`, sizes, `resizable`, `pointerTracking`, `alwaysVisible`, `supportsNoPlayback`, `supportsMotionArtwork`, `permissions`, `settings` | `.recreate` — tear the window down and rebuild |
+| `version`, `entry`, sizes, `resizable`, `pointerTracking`, `alwaysVisible`, `supportsNoPlayback`, `supportsMotionArtwork`, `card`, `permissions`, `settings` | `.recreate` — tear the window down and rebuild |
 
 `.recreate` waits for the bundle to become loadable **before** closing the window. It used to
 close first and then call `showWidget`, which gives up silently when the package will not

@@ -753,9 +753,9 @@ test('motion: the manifest declares motion artwork, with the artwork permission 
   assert.ok(v3Manifest.permissions.includes('artwork'));
 });
 
-test('motion: V3 requires NepTunes 4.1.0; the resize grip release is version 1.5.0', () => {
+test('motion: V3 requires NepTunes 4.1.0; the resize grip correction is version 1.5.1', () => {
   assert.equal(v3Manifest.minNepTunesVersion, '4.1.0');
-  assert.equal(v3Manifest.version, '1.5.0');
+  assert.equal(v3Manifest.version, '1.5.1');
   assert.equal(v3Manifest.card, true);
 });
 

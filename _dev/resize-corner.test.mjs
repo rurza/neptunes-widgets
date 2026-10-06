@@ -145,15 +145,29 @@ for (const w of WIDGETS) {
     const grip = rule(css(w), '.resize-grip');
     const fallback = fallbackRadius(w);
     assert.equal(grip['--grip-radius'], `max(calc(var(--nt-card-radius, ${fallback}) - 6px), 10px)`);
-    assert.equal(grip.width, 'calc(1.52866 * var(--grip-radius))');
-    assert.equal(grip.height, 'calc(1.52866 * var(--grip-radius))');
-    assert.equal(grip.right, '6px');
-    assert.equal(grip.bottom, '6px');
+    assert.equal(grip.width, 'calc(2.52866 * var(--grip-radius))');
+    assert.equal(grip.height, 'calc(2.52866 * var(--grip-radius))');
+    assert.equal(grip.right, 'calc(6px - 0.5 * var(--grip-radius))');
+    assert.equal(grip.bottom, 'calc(6px - 0.5 * var(--grip-radius))');
+  });
+
+  test(`${w}: round caps and halo fit inside the SVG even while opacity is composited`, () => {
+    const { attrs, d } = gripMarkup(w);
+    const viewBox = attrs.match(/viewBox="([^"]+)"/)[1].split(/\s+/).map(Number);
+    const points = sample(parseCubics(d), 100).map(({ p }) => p);
+    // The smallest grip radius is 10 CSS px. A 3px stroke plus its 1px halo needs
+    // 2.5px on either side even when WebKit clips a composited SVG to its viewport.
+    const margin = 2.5 / 10;
+    for (const p of points) for (let axis = 0; axis < 2; axis++) {
+      assert.ok(p[axis] - margin >= viewBox[axis], 'stroke escapes the near viewport edge');
+      assert.ok(p[axis] + margin <= viewBox[axis] + viewBox[axis + 2],
+        'round cap/halo escapes the far viewport edge during the fade');
+    }
   });
 
   test(`${w}: the grip's stroke traces the middle 60% of the host's continuous corner`, () => {
     const { attrs, d } = gripMarkup(w);
-    assert.match(attrs, /viewBox="0 0 1\.52866 1\.52866"/);
+    assert.match(attrs, /viewBox="-0\.5 -0\.5 2\.52866 2\.52866"/);
     const corner = sample(cornerCubics(), 4000);
     const total = corner[corner.length - 1].length;
     const nearest = (p) => corner.reduce((best, c) => {
@@ -237,13 +251,13 @@ test("V3: the handle's notch clears the transport row at the minimum size", () =
   assert.ok(Number(m[2]) >= into.y, `notch ${m[2]}px tall, button reaches ${into.y}px`);
 });
 
-test('the bigger handle and the grip ship as a minor release of each widget', () => {
+test('the unclipped grip ships as a patch release of each widget', () => {
   const versions = Object.fromEntries(WIDGETS.map((w) => {
     const manifest = JSON.parse(read(`../${w}.nepget/manifest.json`));
     assert.equal(manifest.minNepTunesVersion, '4.1.0', `${w}: no new host requirement`);
     return [w, manifest.version];
   }));
   assert.deepEqual(versions, {
-    Activity: '1.2.0', Artwork: '1.7.0', GenreTrends: '1.2.0', ListeningClock: '1.2.0', V3: '1.5.0',
+    Activity: '1.2.1', Artwork: '1.7.1', GenreTrends: '1.2.1', ListeningClock: '1.2.1', V3: '1.5.1',
   });
 });

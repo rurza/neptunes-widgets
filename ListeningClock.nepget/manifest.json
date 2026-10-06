@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.listening-clock",
   "name": "Listening Clock",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "Adam Różyński",
   "description": "When you listen, as 24 hour bars around a clock face. Hover an hour for its plays and listening time.",
   "license": "MIT",

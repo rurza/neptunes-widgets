@@ -501,11 +501,15 @@ body {
 .resize-grip {
     --grip-radius: max(calc(var(--nt-card-radius, 16px) - 6px), 10px);
     position: absolute;
-    right: 6px;
-    bottom: 6px;
+    /* Padding belongs to the SVG viewport, not just overflow:visible: WebKit's opacity
+       compositor can clip the non-scaling stroke to that viewport during a fade. The half-radius
+       margin leaves room for the round caps and halo even at the smallest (10px) radius.
+       Offset it back out so the visible curve stays exactly 6px inside the card. */
+    right: calc(6px - 0.5 * var(--grip-radius));
+    bottom: calc(6px - 0.5 * var(--grip-radius));
     z-index: 4;
-    width: calc(1.52866 * var(--grip-radius));
-    height: calc(1.52866 * var(--grip-radius));
+    width: calc(2.52866 * var(--grip-radius));
+    height: calc(2.52866 * var(--grip-radius));
     overflow: visible;
     pointer-events: none;
     opacity: 0;

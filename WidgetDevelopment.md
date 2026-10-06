@@ -501,6 +501,17 @@ What you do:
   clip meets the transparent window, WebKit stops blurring in the corner arcs, and the card's
   clip is such a clip. See *Do not blur with `backdrop-filter` at the window's edge* in
   `NepTunes Widget/README.md`, and blur a copy of the artwork yourself instead.
+- **A resize handle in the card's corner sits inside the clipped corner.** The continuous corner
+  reaches about 41 px along each edge, and a click on a pixel it clips away falls through to the
+  desktop, so a 16–20 px handle in the bottom-right corner keeps only a thin sliver of itself.
+  Make it **32 × 32 px**, which keeps about 84% of it after the clip, and keep it off any control
+  that reaches into that corner at your `minSize` (stack the control above it, or notch the
+  handle). Then **show a grip on hover** (`html.nt-hover`): your `cursor: nwse-resize` is almost
+  never seen, because the widget helper runs in the background and macOS shows the cursor only
+  for the active app. Draw it along the card's corner with `var(--nt-card-radius, …)`, give it
+  `pointer-events: none` so the handle stays the hit target, and keep it inside the card so it
+  does not grow the hover region. The five resizable sample cards (Activity, Artwork, Genre
+  Trends, Listening Clock, V3) share one grip; copy theirs.
 - **Changing the key rebuilds the window** (see *What a change actually triggers*): the
   stylesheet is installed when the window is built, so a reload alone could not add or remove it.
   Bump `version` before you ship the change, as for any release.

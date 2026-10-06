@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.genre-trends",
   "name": "Genre Trends",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Adam Różyński",
   "description": "Your top genres stacked by day on a plays-per-day scale. Hover a band for that genre’s plays on that day.",
   "license": "MIT",

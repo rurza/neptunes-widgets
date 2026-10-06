@@ -73,6 +73,10 @@ body {
        that dip is what V1 looked like. Overshoot past 100% is clipped by .widget's
        overflow, exactly as SwiftUI clipped it. */
     --bar-spring: 0.55s cubic-bezier(0.32, 1.28, 0.5, 1) 0.1s;
+    /* The hover grip (.resize-grip): secondary-label ink, with a faint halo that keeps it on
+       artwork or a busy chart. */
+    --grip-ink: rgba(255, 255, 255, 0.55);
+    --grip-halo: rgba(0, 0, 0, 0.35);
 }
 
 /* ---- The card ------------------------------------------------------------------- */
@@ -647,16 +651,60 @@ body:has(#volumePopover.open) .hover-rows {
 
 /* ---- Resize handle -------------------------------------------------------------- */
 
-/* Square-locked resize, driven by the script's `resizeMove` messages. */
+/* Square-locked resize, driven by the script's `resizeMove` messages. 32px, so most of it
+   survives the card's corner clip. Above the hover panel, so the notch keeps it off the controls:
+   the transport row is centred, and near minSize its last button's 34px box reaches into the
+   handle's top-left by up to 24 x 4.5px (94 - C/2, 74.5 - C/2 for a card of side C). The notch
+   hands that strip back to the button; _dev/resize-corner.test.mjs recomputes it from minSize. */
 .resize-handle {
     position: absolute;
     bottom: 0;
     right: 0;
     z-index: 5;
-    width: 20px;
-    height: 20px;
+    width: 32px;
+    height: 32px;
+    clip-path: polygon(24px 0, 100% 0, 100% 100%, 0 100%, 0 5px, 24px 5px);
     cursor: nwse-resize;
     -webkit-app-region: no-drag;
+}
+
+/* ---- Resize grip ----
+   The card's corner is clipped to the system's continuous curve, and the widget helper runs in
+   the background, where macOS never shows it the resize cursor. So on hover the corner draws a
+   grip, iPadOS-style: a short stroke along the card's own corner, 6px in, at the concentric radius
+   (the host's curve from card-shape, in a 1.52866-radius box), trimmed to its middle 60%. The
+   trim is in the path itself: dashing a non-scaling stroke breaks it into beads in WebKit. With no
+   card shape it follows this widget's fallback radius instead, never tighter than 10px. It takes
+   no pointer: .resize-handle under it is the hit target. Same geometry and timing in every
+   resizable card widget; _dev/resize-corner.test.mjs holds them together. */
+.resize-grip {
+    --grip-radius: max(calc(var(--nt-card-radius, 12px) - 6px), 10px);
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    z-index: 4;
+    width: calc(1.52866 * var(--grip-radius));
+    height: calc(1.52866 * var(--grip-radius));
+    overflow: visible;
+    pointer-events: none;
+    opacity: 0;
+    filter: drop-shadow(0 0 1px var(--grip-halo));
+    transition: opacity 0.1s linear;
+}
+
+.resize-grip path {
+    fill: none;
+    stroke: var(--grip-ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+/* V3's hover timing: in after the 0.13s hover gate, out at once. Gated on the host's nt-hover,
+   never on :hover, which latches in a widget. */
+html.nt-hover .resize-grip {
+    opacity: 1;
+    transition: opacity 0.15s linear 0.13s;
 }
 
 /* ---- Nothing playing ------------------------------------------------------------- */

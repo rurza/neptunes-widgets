@@ -43,6 +43,10 @@ body {
     --panel-radius: 15px;
     --cell-radius: 3.5px;
     --status-size: 12px;
+    /* The hover grip (.resize-grip): secondary-label ink, with a faint halo that keeps it on
+       artwork or a busy chart. */
+    --grip-ink: rgba(255, 255, 255, 0.55);
+    --grip-halo: rgba(0, 0, 0, 0.35);
 }
 
 html.theme-light {
@@ -51,6 +55,8 @@ html.theme-light {
     --panel: #fbfbfc;
     --ink: rgba(10, 10, 12, 0.94);
     --ink-dim: rgba(10, 10, 12, 0.52);
+    --grip-ink: rgba(0, 0, 0, 0.5);
+    --grip-halo: rgba(255, 255, 255, 0.5);
     --callout-bg: #ffffff;
     --status-shadow: none;
 }
@@ -62,6 +68,8 @@ html.theme-light {
         --panel: #fbfbfc;
         --ink: rgba(10, 10, 12, 0.94);
         --ink-dim: rgba(10, 10, 12, 0.52);
+        --grip-ink: rgba(0, 0, 0, 0.5);
+        --grip-halo: rgba(255, 255, 255, 0.5);
         --callout-bg: #ffffff;
         --status-shadow: none;
     }
@@ -194,7 +202,46 @@ html.bare .status {
     right: 0;
     bottom: 0;
     z-index: 3;
-    width: 16px;
-    height: 16px;
+    width: 32px;
+    height: 32px;
     cursor: nwse-resize;
+}
+
+/* ---- Resize grip ----
+   The card's corner is clipped to the system's continuous curve, and the widget helper runs in
+   the background, where macOS never shows it the resize cursor. So on hover the corner draws a
+   grip, iPadOS-style: a short stroke along the card's own corner, 6px in, at the concentric radius
+   (the host's curve from card-shape, in a 1.52866-radius box), trimmed to its middle 60%. The
+   trim is in the path itself: dashing a non-scaling stroke breaks it into beads in WebKit. With no
+   card shape it follows this widget's fallback radius instead, never tighter than 10px. It takes
+   no pointer: .resize-handle under it is the hit target. Same geometry and timing in every
+   resizable card widget; _dev/resize-corner.test.mjs holds them together. */
+.resize-grip {
+    --grip-radius: max(calc(var(--nt-card-radius, 15px) - 6px), 10px);
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    z-index: 4;
+    width: calc(1.52866 * var(--grip-radius));
+    height: calc(1.52866 * var(--grip-radius));
+    overflow: visible;
+    pointer-events: none;
+    opacity: 0;
+    filter: drop-shadow(0 0 1px var(--grip-halo));
+    transition: opacity 0.1s linear;
+}
+
+.resize-grip path {
+    fill: none;
+    stroke: var(--grip-ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+/* V3's hover timing: in after the 0.13s hover gate, out at once. Gated on the host's nt-hover,
+   never on :hover, which latches in a widget. */
+html.nt-hover .resize-grip {
+    opacity: 1;
+    transition: opacity 0.15s linear 0.13s;
 }

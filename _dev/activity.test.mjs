@@ -1138,8 +1138,8 @@ test('reading the cover needs the artwork permission', () => {
   assert.deepEqual([...manifest().permissions].sort(), ['artwork', 'lastFm', 'listeningHistory']);
 });
 
-test('the card shape ships as 1.1.0', () => {
-  assert.equal(manifest().version, '1.1.0');
+test('the card shape shipped in 1.1.0; the resize grip ships as 1.2.0', () => {
+  assert.equal(manifest().version, '1.2.0');
   assert.equal(manifest().card, true);
 });
 

@@ -126,6 +126,41 @@
    "selector": "#emptyOpen",
    "expect": "always-visible",
    "why": "nothing playing: the pill is not hover-gated even when the transport is"
+  },
+  {
+   "widget": "Activity",
+   "settings": {},
+   "selector": ".resize-grip",
+   "expect": "hover-gated",
+   "why": "the corner's resize grip: the cursor change is never seen while the widget helper is in the background, so the grip is what says the card resizes"
+  },
+  {
+   "widget": "Artwork",
+   "settings": {},
+   "selector": ".resize-grip",
+   "expect": "hover-gated",
+   "why": "the corner's resize grip: the cursor change is never seen while the widget helper is in the background, so the grip is what says the card resizes"
+  },
+  {
+   "widget": "GenreTrends",
+   "settings": {},
+   "selector": ".resize-grip",
+   "expect": "hover-gated",
+   "why": "the corner's resize grip: the cursor change is never seen while the widget helper is in the background, so the grip is what says the card resizes"
+  },
+  {
+   "widget": "ListeningClock",
+   "settings": {},
+   "selector": ".resize-grip",
+   "expect": "hover-gated",
+   "why": "the corner's resize grip: the cursor change is never seen while the widget helper is in the background, so the grip is what says the card resizes"
+  },
+  {
+   "widget": "V3",
+   "settings": {},
+   "selector": ".resize-grip",
+   "expect": "hover-gated",
+   "why": "the corner's resize grip: the cursor change is never seen while the widget helper is in the background, so the grip is what says the card resizes"
   }
  ]
 }

@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "pl.micropixels.neptunes.widget.activity",
   "name": "Listening Activity",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "Adam Różyński",
   "description": "Your last seven weeks of listening as a grid of days. Hover a day for its count.",
   "license": "MIT",

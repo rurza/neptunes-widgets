@@ -54,7 +54,7 @@
     let currentTextShadow = true;
     let currentControlsBackground = true;
 
-    const PADDING = 48;         // shadow gutter; fixed, because the blur does not scale
+    const PADDING = 40;         // 32px maximum downward shadow + 8px clearance
     const GAP = 12;
     const CONTROLS_WIDTH = 84;  // 24+2+32+2+24
     const TRACK_INFO_WIDTH = 160;

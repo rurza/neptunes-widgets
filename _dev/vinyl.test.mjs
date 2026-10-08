@@ -51,8 +51,8 @@ test('the picker offers only real turntable speeds, 33⅓ among them', () => {
 });
 
 test('manual viewport resizing derives a square disc down to the 80px minimum', () => {
-    assert.equal(Vinyl.discSizeForViewport(240, 240, 'off', 'off'), 144);
-    assert.equal(Vinyl.discSizeForViewport(460, 300, 'left', 'bottom'), 152);
+    assert.equal(Vinyl.discSizeForViewport(240, 240, 'off', 'off'), 160);
+    assert.equal(Vinyl.discSizeForViewport(460, 300, 'left', 'bottom'), 168);
 });
 
 // transportHidden HIDES prev/next during a live stream, rather than greying them like the
@@ -131,7 +131,7 @@ function everyLayout() {
 }
 
 test('a bare record is the disc plus its shadow gutter, both axes', () => {
-    assert.deepEqual(Vinyl.windowSizeFor(136, 'off', 'off'), { width: 232, height: 232 });
+    assert.deepEqual(Vinyl.windowSizeFor(136, 'off', 'off'), { width: 216, height: 216 });
 });
 
 test('each panel adds its own width, and only on the side it is on', () => {
@@ -153,14 +153,14 @@ test('each panel adds its own width, and only on the side it is on', () => {
 });
 
 test('bottom panels get a wide enough row at Extra Small without shrinking the record', () => {
-    assert.deepEqual(Vinyl.windowSizeFor(80, 'bottom', 'bottom'), { width: 346, height: 228 });
-    assert.deepEqual(Vinyl.windowSizeFor(136, 'bottom', 'bottom'), { width: 346, height: 284 });
-    assert.deepEqual(Vinyl.minimumWindowSize('bottom', 'bottom'), { width: 346, height: 228 });
+    assert.deepEqual(Vinyl.windowSizeFor(80, 'bottom', 'bottom'), { width: 330, height: 212 });
+    assert.deepEqual(Vinyl.windowSizeFor(136, 'bottom', 'bottom'), { width: 330, height: 268 });
+    assert.deepEqual(Vinyl.minimumWindowSize('bottom', 'bottom'), { width: 330, height: 212 });
 });
 
 test('the viewport converter does not promise room below the panel-aware minimum', () => {
-    assert.equal(Vinyl.discSizeForViewport(176, 176, 'bottom', 'bottom'), 80);
-    assert.equal(Vinyl.minimumWindowSize('left', 'right').width, 444);
+    assert.equal(Vinyl.discSizeForViewport(160, 160, 'bottom', 'bottom'), 80);
+    assert.equal(Vinyl.minimumWindowSize('left', 'right').width, 428);
 });
 
 test('the gutter is fixed, so growing the disc grows the window 1:1', () => {
@@ -177,9 +177,11 @@ test('the gutter is fixed, so growing the disc grows the window 1:1', () => {
 
 test('the Size picker is removed; manual resizing is the only size control', () => {
     assert.equal(manifest.settings.schema.some((setting) => setting.id === 'discSize'), false);
-    assert.equal(manifest.defaultSize.width, 232);
-    assert.equal(Vinyl.discSizeForViewport(232, 232, 'off', 'off'), 136);
-    assert.equal(Vinyl.discSizeForViewport(176, 176, 'off', 'off'), 80);
+    assert.deepEqual(manifest.defaultSize, { width: 216, height: 216 });
+    assert.deepEqual(manifest.minSize, { width: 160, height: 160 });
+    assert.deepEqual(manifest.maxSize, { width: 668, height: 452 });
+    assert.equal(Vinyl.discSizeForViewport(216, 216, 'off', 'off'), 136);
+    assert.equal(Vinyl.discSizeForViewport(160, 160, 'off', 'off'), 80);
 });
 
 test('the declared bounds admit every size in every layout', () => {
@@ -215,4 +217,11 @@ test('the resize handle has a visible grip revealed only by host hover', () => {
     assert.match(css, /html\.nt-hover \.resize-grip\s*\{[^}]*opacity:\s*1;/s);
     assert.match(css, /\.resize-handle\s*\{[^}]*cursor:\s*nwse-resize;/s);
     assert.doesNotMatch(css, /(?<!html\.nt-hover )\.resize-grip:hover/);
+});
+
+test('the document root is not a scroll container', () => {
+    const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
+    assert.match(css, /html,\s*body\s*\{[^}]*overflow:\s*clip;/s);
+    assert.match(css, /html,\s*body\s*\{[^}]*height:\s*100%;/s);
+    assert.match(css, /body\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;/s);
 });

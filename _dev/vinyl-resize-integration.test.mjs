@@ -1,8 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
+const require = createRequire(import.meta.url);
 const source = readFileSync(new URL('../Vinyl.nepget/script.js', import.meta.url), 'utf8');
 
 class Classes {
@@ -96,30 +98,31 @@ function browser(settings, { width = 232, height = 232 } = {}) {
 }
 
 const base = { discSize: '136', labelPosition: 'off', controlsPosition: 'off' };
+const positions = ['off', 'left', 'right', 'bottom'];
 
 test('the first real settings delivery derives size from the restored host viewport', () => {
     const page = browser({ ...base, discSize: '80' }, { width: 316, height: 300 });
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, []);
 });
 
 test('a restored custom viewport derives the disc without requesting a resize', () => {
     const page = browser(base, { width: 316, height: 300 });
     page.resize(316, 300);
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, []);
 });
 
 test('manual resize does not echo setSize and unrelated updates preserve the custom disc', () => {
     const page = browser(base);
     page.resize(316, 300);
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     page.settings({ ...base, textColor: 'black', spinRpm: '45' });
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, []);
     page.callbacks.themechange();
     page.callbacks.statechange({ track: { title: 'Track', artist: 'Artist' }, playerState: 1 });
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, []);
 });
 
@@ -127,10 +130,10 @@ test('label and control panel changes preserve custom diameter and request each 
     const page = browser(base);
     page.resize(316, 300);
     page.settings({ ...base, labelPosition: 'left' });
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, [{ width: 472, height: 300 }]);
     page.settings({ ...base, labelPosition: 'left', controlsPosition: 'bottom' });
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, [
         { width: 472, height: 300 }, { width: 472, height: 352 }
     ]);
@@ -139,10 +142,10 @@ test('label and control panel changes preserve custom diameter and request each 
 test('legacy discSize values are ignored at startup and on later settings pushes', () => {
     for (const legacy of ['80', '104', '136', '168', '208', '320', 'nonsense']) {
         const page = browser({ ...base, discSize: legacy }, { width: 316, height: 300 });
-        assert.equal(page.disc(), '204px', `startup legacy value ${legacy}`);
+        assert.equal(page.disc(), '220px', `startup legacy value ${legacy}`);
         assert.deepEqual(page.sizeCalls, [], `startup legacy value ${legacy}`);
         page.settings({ ...base, discSize: legacy === '80' ? '320' : '80' });
-        assert.equal(page.disc(), '204px', `later legacy value ${legacy}`);
+        assert.equal(page.disc(), '220px', `later legacy value ${legacy}`);
         assert.deepEqual(page.sizeCalls, [], `later legacy value ${legacy}`);
     }
 });
@@ -151,7 +154,7 @@ test('first real settings delivery applies panel bounds whether it precedes or f
     const settings = { ...base, discSize: '80', labelPosition: 'bottom', controlsPosition: 'bottom' };
     const beforeObserver = browser(null, { width: 346, height: 284 });
     beforeObserver.settings(settings);
-    assert.equal(beforeObserver.disc(), '136px');
+    assert.equal(beforeObserver.disc(), '152px');
     assert.deepEqual(beforeObserver.sizeCalls, []);
     beforeObserver.resize(346, 284);
     assert.deepEqual(beforeObserver.sizeCalls, []);
@@ -160,14 +163,14 @@ test('first real settings delivery applies panel bounds whether it precedes or f
     afterObserver.resize(176, 176);
     afterObserver.settings(settings);
     assert.equal(afterObserver.disc(), '80px');
-    assert.deepEqual(afterObserver.sizeCalls, [{ width: 346, height: 228 }]);
+    assert.deepEqual(afterObserver.sizeCalls, [{ width: 330, height: 212 }]);
 });
 
 test('duplicate settings deliveries and unrelated values do not resize the window', () => {
     const page = browser(base, { width: 316, height: 300 });
     page.settings({ ...base });
     page.settings({ ...base, textColor: 'black', spinRpm: '45' });
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, []);
     page.settings({ ...base, labelPosition: 'left' });
     page.settings({ ...base, labelPosition: 'left' });
@@ -179,7 +182,7 @@ test('rapid viewport notifications settle without setSize feedback', () => {
     for (const [width, height] of [[250, 250], [280, 260], [320, 300], [316, 300]]) {
         page.resize(width, height);
     }
-    assert.equal(page.disc(), '204px');
+    assert.equal(page.disc(), '220px');
     assert.deepEqual(page.sizeCalls, []);
 });
 
@@ -188,23 +191,41 @@ test('restored undersized bottom panels are corrected once to readable minimum d
         { width: 176, height: 176 });
     page.resize(176, 176);
     assert.equal(page.disc(), '80px');
-    assert.deepEqual(page.sizeCalls, [{ width: 346, height: 228 }]);
+    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 212 }]);
     page.resize(176, 176);
     assert.equal(page.sizeCalls.length, 1, 'repeated observer delivery must not create a resize loop');
-    page.resize(346, 228);
+    page.resize(330, 212);
     assert.equal(page.sizeCalls.length, 1);
+});
+
+test('every panel layout grows an undersized restored viewport to its content minimum', () => {
+    const Vinyl = require('../Vinyl.nepget/script.js');
+    for (const labelPosition of positions) {
+        for (const controlsPosition of positions) {
+            const settings = { ...base, labelPosition, controlsPosition };
+            const page = browser(settings, { width: 160, height: 160 });
+            const minimum = Vinyl.minimumWindowSize(labelPosition, controlsPosition);
+            assert.equal(page.disc(), '80px', `${labelPosition}/${controlsPosition} smallest disc`);
+            const needsResize = minimum.width > 160 || minimum.height > 160;
+            assert.deepEqual(page.sizeCalls, needsResize ? [minimum] : [],
+                `${labelPosition}/${controlsPosition} minimum resize`);
+            page.resize(minimum.width, minimum.height);
+            assert.deepEqual(page.sizeCalls, needsResize ? [minimum] : [],
+                `${labelPosition}/${controlsPosition} no resize feedback`);
+        }
+    }
 });
 
 test('manual shrink cannot strand a readable bottom-panel layout below its minimum', () => {
     const page = browser(base);
     page.resize(176, 176);
     page.settings({ ...base, labelPosition: 'bottom', controlsPosition: 'bottom' });
-    assert.deepEqual(page.sizeCalls, [{ width: 346, height: 228 }]);
-    page.resize(346, 228);
-    page.resize(176, 176);
+    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 228 }]);
+    page.resize(330, 228);
+    page.resize(160, 160);
     assert.equal(page.disc(), '80px');
     assert.deepEqual(page.sizeCalls, [
-        { width: 346, height: 228 }, { width: 346, height: 228 }
+        { width: 330, height: 228 }, { width: 330, height: 212 }
     ]);
 });
 

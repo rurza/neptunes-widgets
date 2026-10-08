@@ -18,9 +18,16 @@
 
 html, body {
     background: transparent;
+    width: 100%;
+    height: 100%;
+    /* The window has no page-scrolling surface. All visible states are sized to fit by the
+       panel-aware viewport logic; `clip` blocks scroll input without adding a scroll container. */
+    overflow: clip;
 }
 
 body {
+    position: fixed;
+    inset: 0;
     /* San Francisco, like every other bundle — without this Vinyl inherited WebKit's
        default serif. */
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
@@ -33,7 +40,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: flex-start;
-    padding: 48px;
+    padding: 40px;
     gap: 12px;
 }
 

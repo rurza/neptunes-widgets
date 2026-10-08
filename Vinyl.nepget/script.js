@@ -59,9 +59,12 @@
     const CONTROLS_WIDTH = 84;  // 24+2+32+2+24
     const TRACK_INFO_WIDTH = 160;
     const BOTTOM_HEIGHT = 40;
+    const BOTTOM_GAP = 6;
     const DEFAULT_DISC = 136;   // the diameter shipped Vinyl has always been
 
     let currentDisc = DEFAULT_DISC;
+    let expectedWindowSize = null;
+    let hasReceivedSettings = false;
 
     /*
      * How much room the side panels take, given where the two of them sit. Stacked on the
@@ -85,39 +88,65 @@
         };
     }
 
-    // Pure: the window a record of `discSize` needs with those panels switched on.
-    function windowSizeFor(discSize, labelPos, controlsPos) {
+    function bottomPanelWidth(labelPos, controlsPos) {
+        const label = labelPos === 'bottom' ? TRACK_INFO_WIDTH : 0;
+        const controls = controlsPos === 'bottom' ? CONTROLS_WIDTH : 0;
+        return label + controls + (label && controls ? BOTTOM_GAP : 0);
+    }
+
+    // Pure: the window a disc needs with those panels switched on.
+    function windowSizeFor(discDiameter, labelPos, controlsPos) {
         const extents = panelExtents(labelPos, controlsPos);
+        const bottomWidth = bottomPanelWidth(labelPos, controlsPos);
         return {
-            width: discSize + PADDING * 2 + extents.left + extents.right,
-            height: discSize + PADDING * 2 + extents.bottom
+            width: Math.max(discDiameter, bottomWidth) + PADDING * 2 + extents.left + extents.right,
+            height: discDiameter + PADDING * 2 + extents.bottom
         };
+    }
+
+    function minimumWindowSize(labelPos, controlsPos) {
+        return windowSizeFor(80, labelPos, controlsPos);
     }
 
     // The record's diameter, as a CSS variable the whole stylesheet is written against.
     function applyDiscSize(discSize) {
         currentDisc = discSize;
         document.documentElement.style.setProperty('--vinyl-size', discSize + 'px');
+        document.documentElement.style.setProperty('--bottom-row-width',
+            Math.max(discSize, bottomPanelWidth(currentLabelPosition, currentControlsPosition)) + 'px');
     }
 
     function calculateAndSetSize(labelPos, controlsPos) {
         const size = windowSizeFor(currentDisc, labelPos, controlsPos);
+        expectedWindowSize = size;
         window.NepTunes.setSize(size.width, size.height);
     }
 
-    /*
-     * The diameters the picker offers, keyed by the option values in manifest.json. A table
-     * rather than a parse of the key, for the same reason RPM_PERIOD_MS above is one: an
-     * unrecognised value — a hand-edited settings.json, a leftover from an older picker —
-     * has to land on the default rather than resolve to a zero-width or negative record.
-     * _dev/vinyl-resize.test.mjs pins every option the picker offers to an entry here, so a
-     * size the widget names is always a size it actually draws.
-     */
-    const DISC_SIZES = { '104': 104, '136': 136, '168': 168, '208': 208, '320': 320 };
+    function discSizeForViewport(width, height, labelPos, controlsPos) {
+        const extents = panelExtents(labelPos, controlsPos);
+        return Math.max(80, Math.min(width - extents.left - extents.right - PADDING * 2,
+            height - extents.bottom - PADDING * 2));
+    }
 
-    function discSizeFor(settings) {
-        if (!settings) return DEFAULT_DISC;
-        return DISC_SIZES[String(settings.discSize)] || DEFAULT_DISC;
+    function applyViewportSize() {
+        const width = document.documentElement.clientWidth;
+        const height = document.documentElement.clientHeight;
+        if (expectedWindowSize && Math.abs(width - expectedWindowSize.width) < 2 &&
+            Math.abs(height - expectedWindowSize.height) < 2) {
+            expectedWindowSize = null;
+            return;
+        }
+        const minimum = minimumWindowSize(currentLabelPosition, currentControlsPosition);
+        if (width < minimum.width - 1 || height < minimum.height - 1) {
+            if (expectedWindowSize && expectedWindowSize.width === minimum.width &&
+                expectedWindowSize.height === minimum.height) return;
+            expectedWindowSize = minimum;
+            applyDiscSize(80);
+            window.NepTunes.setSize(minimum.width, minimum.height);
+            return;
+        }
+        expectedWindowSize = null;
+        applyDiscSize(discSizeForViewport(width, height, currentLabelPosition, currentControlsPosition));
     }
 
     function getContainer(position) {
@@ -304,13 +333,10 @@
 
         spinDuration = spinDurationFor(settings);
 
-        // Before the panels are placed and before calculateAndSetSize below reads it: the
-        // stylesheet is written against --vinyl-size, so the record has to be the new size
-        // by the time anything measures the layout it sits in.
-        applyDiscSize(discSizeFor(settings));
-
         const labelPosition = settings.labelPosition || 'off';
         const controlsPosition = settings.controlsPosition || 'off';
+        const previousLabelPosition = currentLabelPosition;
+        const previousControlsPosition = currentControlsPosition;
         const textColor = settings.textColor || 'white';
         const textShadow = settings.textShadow !== false;
         const controlsBackground = settings.controlsBackground !== false;
@@ -354,11 +380,22 @@
             liveBadge = null;
         }
         currentControlsPosition = controlsPosition;
+        applyDiscSize(currentDisc);
 
         // Apply styles after both track info and controls are created
         applyTextStyles();
 
-        calculateAndSetSize(labelPosition, controlsPosition);
+        // The first real push arrives after the host restores the saved window size. Apply
+        // the layout first, then derive the disc from that viewport; legacy discSize values
+        // are intentionally ignored. Later settings only resize when panel placement changes.
+        const layoutChanged = labelPosition !== previousLabelPosition ||
+            controlsPosition !== previousControlsPosition;
+        if (hasReceivedSettings) {
+            if (layoutChanged) calculateAndSetSize(labelPosition, controlsPosition);
+        } else {
+            hasReceivedSettings = true;
+            applyViewportSize();
+        }
 
         // Update UI to populate track info with current state
         updateUI(window.NepTunes.state);
@@ -517,6 +554,9 @@
             return;
         }
 
+        setupResize();
+        if (window.ResizeObserver) new ResizeObserver(applyViewportSize).observe(document.documentElement);
+
         emptyOpen.addEventListener('click', (e) => {
             e.stopPropagation();
             activatePlayer();
@@ -542,6 +582,30 @@
         }
     }
 
+    function setupResize() {
+        const handle = document.getElementById('resizeHandle');
+        if (!handle) return;
+        let resizing = false;
+        let x = 0, y = 0;
+        function post(message) {
+            const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.neptunes;
+            if (bridge) bridge.postMessage(message);
+        }
+        handle.addEventListener('mousedown', function (event) {
+            resizing = true; x = event.screenX; y = event.screenY;
+            event.preventDefault(); event.stopPropagation();
+        });
+        document.addEventListener('mousemove', function (event) {
+            if (!resizing) return;
+            const delta = ((event.screenX - x) + (event.screenY - y)) / 2;
+            x = event.screenX; y = event.screenY;
+            post({ type: 'resizeMove', deltaX: delta, deltaY: delta });
+        });
+        document.addEventListener('mouseup', function () {
+            if (resizing) { resizing = false; post({ type: 'resizeEnd' }); }
+        });
+    }
+
     function start() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init);
@@ -552,7 +616,8 @@
 
     return {
         spinDurationFor: spinDurationFor,
-        discSizeFor: discSizeFor,
+        discSizeForViewport: discSizeForViewport,
+        minimumWindowSize: minimumWindowSize,
         windowSizeFor: windowSizeFor,
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,

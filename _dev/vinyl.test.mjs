@@ -50,6 +50,11 @@ test('the picker offers only real turntable speeds, 33⅓ among them', () => {
     assert.ok(spinRpm.options.some((o) => o.label.includes('33⅓')));
 });
 
+test('manual viewport resizing derives a square disc down to the 80px minimum', () => {
+    assert.equal(Vinyl.discSizeForViewport(240, 240, 'off', 'off'), 144);
+    assert.equal(Vinyl.discSizeForViewport(460, 300, 'left', 'bottom'), 152);
+});
+
 // transportHidden HIDES prev/next during a live stream, rather than greying them like the
 // ad path does. The bridge already refuses the action centrally (WidgetTransportGuard);
 // this only keeps the row from offering a button that can only mislead.
@@ -110,11 +115,8 @@ test('liveBadgeVisible is true only with controls shown AND a live stream', () =
 });
 
 // ---------------------------------------------------------------------------------------
-// Size. The window is not the record: it is the record, plus a fixed 48px shadow gutter,
-// plus whichever side panels are switched on. `windowSizeFor` is that conversion, and
-// `discSizeFor` is the picker's half of it. Both directions are pinned here because the
-// picker is the only thing that moves the size — a wrong number is a record the user asked
-// for and did not get, or a window the panels no longer fit inside.
+// Size. Manual window geometry determines the record diameter; the only settings that alter
+// window geometry are the optional label/control panel placements.
 
 const html = readFileSync(new URL('../Vinyl.nepget/index.html', import.meta.url), 'utf8');
 const POSITIONS = ['off', 'left', 'right', 'bottom'];
@@ -146,8 +148,19 @@ test('each panel adds its own width, and only on the side it is on', () => {
 
     // A side panel never changes the height, and the bottom row never the width.
     assert.equal(Vinyl.windowSizeFor(136, 'left', 'right').height, bare.height);
-    assert.equal(Vinyl.windowSizeFor(136, 'bottom', 'off').width, bare.width);
+    assert.equal(Vinyl.windowSizeFor(136, 'bottom', 'off').width, bare.width + 24);
     assert.equal(Vinyl.windowSizeFor(136, 'bottom', 'bottom').height, bare.height + 52);
+});
+
+test('bottom panels get a wide enough row at Extra Small without shrinking the record', () => {
+    assert.deepEqual(Vinyl.windowSizeFor(80, 'bottom', 'bottom'), { width: 346, height: 228 });
+    assert.deepEqual(Vinyl.windowSizeFor(136, 'bottom', 'bottom'), { width: 346, height: 284 });
+    assert.deepEqual(Vinyl.minimumWindowSize('bottom', 'bottom'), { width: 346, height: 228 });
+});
+
+test('the viewport converter does not promise room below the panel-aware minimum', () => {
+    assert.equal(Vinyl.discSizeForViewport(176, 176, 'bottom', 'bottom'), 80);
+    assert.equal(Vinyl.minimumWindowSize('left', 'right').width, 444);
 });
 
 test('the gutter is fixed, so growing the disc grows the window 1:1', () => {
@@ -155,44 +168,18 @@ test('the gutter is fixed, so growing the disc grows the window 1:1', () => {
     // — a gutter that grew with the disc would leave a fat transparent margin at the large
     // end and clip the shadow at the small end.
     for (const [label, controls] of everyLayout()) {
-        const small = Vinyl.windowSizeFor(100, label, controls);
-        const large = Vinyl.windowSizeFor(300, label, controls);
+        const small = Vinyl.windowSizeFor(300, label, controls);
+        const large = Vinyl.windowSizeFor(500, label, controls);
         assert.equal(large.width - small.width, 200, `${label}/${controls} width`);
         assert.equal(large.height - small.height, 200, `${label}/${controls} height`);
     }
 });
 
-test('every size the picker offers is a size the widget actually draws', () => {
-    // The same contract as the RPM table above: the label a user reads has to be the thing
-    // they get. An option with no entry in DISC_SIZES would silently fall back to the
-    // default, so the picker would offer five sizes and hand out one.
-    const picker = manifest.settings.schema.find((s) => s.id === 'discSize');
-    const seen = new Set();
-    for (const option of picker.options) {
-        const disc = Vinyl.discSizeFor({ discSize: option.value });
-        assert.equal(String(disc), option.value,
-            `"${option.label}" (${option.value}) resolves to ${disc}`);
-        assert.ok(!seen.has(disc), `two options both give ${disc}px`);
-        seen.add(disc);
-    }
-});
-
-test('the picker default is the size Vinyl has always been', () => {
-    const picker = manifest.settings.schema.find((s) => s.id === 'discSize');
-    assert.equal(picker.default, '136');
-    assert.deepEqual(
-        Vinyl.windowSizeFor(Vinyl.discSizeFor({ discSize: picker.default }), 'off', 'off'),
-        { width: manifest.defaultSize.width, height: manifest.defaultSize.height }
-    );
-});
-
-test('anything the table does not know falls back rather than collapsing', () => {
-    // A hand-edited settings.json, a value left over from an older picker, no value at all.
-    // None of them may produce a zero-width record or a NaN window.
-    for (const bad of [{}, null, undefined, { discSize: '' }, { discSize: 'huge' },
-                       { discSize: '0' }, { discSize: '-40' }]) {
-        assert.equal(Vinyl.discSizeFor(bad), 136, `${JSON.stringify(bad)}`);
-    }
+test('the Size picker is removed; manual resizing is the only size control', () => {
+    assert.equal(manifest.settings.schema.some((setting) => setting.id === 'discSize'), false);
+    assert.equal(manifest.defaultSize.width, 232);
+    assert.equal(Vinyl.discSizeForViewport(232, 232, 'off', 'off'), 136);
+    assert.equal(Vinyl.discSizeForViewport(176, 176, 'off', 'off'), 80);
 });
 
 test('the declared bounds admit every size in every layout', () => {
@@ -203,15 +190,12 @@ test('the declared bounds admit every size in every layout', () => {
     const { minSize, maxSize } = manifest;
     assert.ok(maxSize, 'without maxSize the only ceiling is the display');
 
-    const picker = manifest.settings.schema.find((s) => s.id === 'discSize');
-    const offered = picker.options.map((o) => Vinyl.discSizeFor({ discSize: o.value }));
-
-    const smallest = Vinyl.windowSizeFor(Math.min(...offered), 'off', 'off');
+    const smallest = Vinyl.windowSizeFor(80, 'off', 'off');
     assert.ok(minSize.width <= smallest.width && minSize.height <= smallest.height,
-        `minSize ${minSize.width}x${minSize.height} floors Small (${smallest.width}x${smallest.height})`);
+        `minSize ${minSize.width}x${minSize.height} floors the smallest manual disc (${smallest.width}x${smallest.height})`);
 
     for (const [label, controls] of everyLayout()) {
-        const largest = Vinyl.windowSizeFor(Math.max(...offered), label, controls);
+        const largest = Vinyl.windowSizeFor(320, label, controls);
         assert.ok(maxSize.width >= largest.width,
             `maxSize.width ${maxSize.width} caps ${label}/${controls} at ${largest.width}`);
         assert.ok(maxSize.height >= largest.height,
@@ -219,11 +203,7 @@ test('the declared bounds admit every size in every layout', () => {
     }
 });
 
-test('the size is a setting, so the window is not draggable-resizable', () => {
-    // A bundle shipping a drag handle while declaring resizable:false draws a grab target
-    // that cannot move the window — the contradiction WidgetResizableTests guards. Vinyl
-    // resizes through its picker only, and "resizable": true was what made dragging the
-    // window add empty gutter without ever growing the record.
-    assert.equal(manifest.resizable, false);
-    assert.ok(!html.includes('resize-handle'), 'ships a resize handle it cannot honour');
+test('manual resizing is enabled and the widget provides a host resize handle', () => {
+    assert.equal(manifest.resizable, true);
+    assert.ok(html.includes('resize-handle'));
 });

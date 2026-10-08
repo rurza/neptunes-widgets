@@ -28,12 +28,24 @@ body {
 }
 
 .widget {
+    position: relative;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     justify-content: flex-start;
     padding: 48px;
     gap: 12px;
+}
+
+.resize-handle {
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 18px;
+    height: 18px;
+    -webkit-app-region: no-drag;
+    cursor: nwse-resize;
+    opacity: 0;
 }
 
 .vinyl-row {
@@ -69,7 +81,7 @@ body {
     gap: 6px;
     justify-content: center;
     align-items: center;
-    width: var(--vinyl-size);
+    width: var(--bottom-row-width, var(--vinyl-size));
 }
 
 .bottom-row:empty {
@@ -310,8 +322,7 @@ body {
     width: 18px;
     height: 18px;
     display: block;
-    /* Optically centred: a play triangle's mass sits left of its box. */
-    margin-left: 2px;
+    /* SFSymbolRasterizer already optically centers a lone play triangle in its PNG canvas. */
     filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3));
 }
 

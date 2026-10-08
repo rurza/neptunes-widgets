@@ -98,6 +98,19 @@ window.NepTunes = {
         });
     },
 
+    // Request a live minimum content size (host support is feature-detected by bundles).
+    setMinimumSize: function(width, height) {
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+            return false;
+        }
+        window.webkit.messageHandlers.neptunes.postMessage({
+            type: 'setMinimumSize',
+            width: width,
+            height: height
+        });
+        return true;
+    },
+
     // Capabilities helper
     get capabilities() {
         return this.state?.capabilities || {

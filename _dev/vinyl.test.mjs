@@ -163,6 +163,22 @@ test('the viewport converter does not promise room below the panel-aware minimum
     assert.equal(Vinyl.minimumWindowSize('left', 'right').width, 428);
 });
 
+test('resize deltas are clamped before crossing the bridge to panel-aware minimums', () => {
+    for (const [label, controls] of everyLayout()) {
+        const minimum = Vinyl.minimumWindowSize(label, controls);
+        assert.deepEqual(Vinyl.resizeDeltaForViewport(
+            minimum.width + 5, minimum.height + 5, -20, -20, label, controls
+        ), { deltaX: -5, deltaY: -5 }, `${label}/${controls}`);
+        assert.deepEqual(Vinyl.resizeDeltaForViewport(
+            minimum.width, minimum.height, -20, -20, label, controls
+        ), { deltaX: 0, deltaY: 0 }, `${label}/${controls} minimum floor`);
+    }
+    const bottomMinimum = Vinyl.minimumWindowSize('bottom', 'bottom');
+    assert.deepEqual(Vinyl.resizeDeltaForViewport(
+        bottomMinimum.width, bottomMinimum.height + 20, -12, -12, 'bottom', 'bottom'
+    ), { deltaX: 0, deltaY: -12 }, 'the non-square floor still permits vertical shrinking');
+});
+
 test('the gutter is fixed, so growing the disc grows the window 1:1', () => {
     // The drop shadow's blur does not scale with the record, so the padding must not either
     // — a gutter that grew with the disc would leave a fat transparent margin at the large
@@ -221,7 +237,18 @@ test('the resize handle has a visible grip revealed only by host hover', () => {
 
 test('the document root is not a scroll container', () => {
     const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
-    assert.match(css, /html,\s*body\s*\{[^}]*overflow:\s*clip;/s);
     assert.match(css, /html,\s*body\s*\{[^}]*height:\s*100%;/s);
     assert.match(css, /body\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;/s);
+    const rootRules = css.match(/html,\s*body\s*\{([^}]*)\}/s)?.[1] || '';
+    assert.doesNotMatch(rootRules, /overflow:\s*(?:clip|hidden)\s*;/);
+});
+
+test('the record and resize affordance are constrained by the live viewport, not stale content height', () => {
+    const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
+    assert.match(css, /\.widget\s*\{[^}]*width:\s*max-content;[^}]*margin:\s*0 auto;/s);
+    assert.match(css, /--vinyl-size:\s*clamp\(80px,\s*min\(/);
+    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*-8px;[^}]*bottom:\s*-8px;/s);
+    assert.match(css, /\.resize-grip\s*\{[^}]*right:\s*-10px;[^}]*bottom:\s*-10px;/s);
+    assert.match(html, /class="vinyl-shadow"[\s\S]*?id="resizeHandle"[\s\S]*?<\/div>\s*<div class="side right"/);
+    assert.match(css, /html\.resize-active \.resize-grip\s*\{[^}]*opacity:\s*1;/s);
 });

@@ -5,6 +5,7 @@ import { createRequire } from 'node:module';
 import vm from 'node:vm';
 
 const require = createRequire(import.meta.url);
+const Vinyl = require('../Vinyl.nepget/script.js');
 const source = readFileSync(new URL('../Vinyl.nepget/script.js', import.meta.url), 'utf8');
 
 class Classes {
@@ -50,7 +51,7 @@ class Element {
     }
 }
 
-function browser(settings, { width = 232, height = 232 } = {}) {
+function browser(settings, { width = 232, height = 232, minimumAPI = true } = {}) {
     const elements = Object.fromEntries([
         'widget', 'emptyOpen', 'vinyl', 'artwork', 'leftSide', 'rightSide', 'bottomSide',
         'trackInfoTemplate', 'controlsTemplate', 'resizeHandle'
@@ -69,17 +70,22 @@ function browser(settings, { width = 232, height = 232 } = {}) {
     };
     const callbacks = {};
     const sizeCalls = [];
+    const minimumCalls = [];
     const messages = [];
     const nepTunes = {
         settings: null, state: null, on(name, fn) { callbacks[name] = fn; },
         setSize(width, height) { sizeCalls.push({ width, height }); },
         getArtworkDataURL() { return null; }, _signalReady() {}
     };
+    if (minimumAPI) {
+        nepTunes.setMinimumSize = (width, height) => minimumCalls.push({ width, height });
+    }
     let resizeObserver;
     class TestResizeObserver { constructor(fn) { resizeObserver = fn; } observe() {} }
     const context = {
         document, window: {
             NepTunes: nepTunes, ResizeObserver: TestResizeObserver,
+            addEventListener() {},
             webkit: { messageHandlers: { neptunes: { postMessage(message) { messages.push(message); } } } }
         }, console,
         ResizeObserver: TestResizeObserver,
@@ -88,10 +94,16 @@ function browser(settings, { width = 232, height = 232 } = {}) {
     };
     vm.runInNewContext(source, context, { filename: 'Vinyl/script.js' });
     const page = {
-        root, elements, document, callbacks, sizeCalls, messages,
+        root, elements, document, callbacks, sizeCalls, minimumCalls, messages,
         settings(next) { nepTunes.settings = next; callbacks.settingschange(next); },
         resize(width, height) { root.clientWidth = width; root.clientHeight = height; resizeObserver(); },
-        disc() { return root.style.values['--vinyl-size']; }
+        // Node cannot resolve CSS calc/clamp. This reports the expected arithmetic only;
+        // the real WebKit resize harness owns the rendered-size assertion.
+        disc() {
+            const current = nepTunes.settings || base;
+            return `${Vinyl.discSizeForViewport(root.clientWidth, root.clientHeight,
+                current.labelPosition || 'off', current.controlsPosition || 'off')}px`;
+        }
     };
     if (settings) page.settings(settings);
     return page;
@@ -128,12 +140,23 @@ test('manual resize does not echo setSize and unrelated updates preserve the cus
 
 test('label and control panel changes preserve custom diameter and request each extent once', () => {
     const page = browser(base);
+    assert.deepEqual(page.minimumCalls, [Vinyl.minimumWindowSize('off', 'off')]);
     page.resize(316, 300);
     page.settings({ ...base, labelPosition: 'left' });
-    assert.equal(page.disc(), '220px');
+    assert.deepEqual(page.minimumCalls, [
+        Vinyl.minimumWindowSize('off', 'off'), Vinyl.minimumWindowSize('left', 'off')
+    ]);
+    assert.equal(page.disc(), '80px', 'CSS keeps the old viewport safe while the host applies the larger panel frame');
     assert.deepEqual(page.sizeCalls, [{ width: 472, height: 300 }]);
-    page.settings({ ...base, labelPosition: 'left', controlsPosition: 'bottom' });
+    page.resize(472, 300);
     assert.equal(page.disc(), '220px');
+    page.settings({ ...base, labelPosition: 'left', controlsPosition: 'bottom' });
+    assert.equal(page.disc(), '168px', 'CSS remains bounded until the bottom-panel frame arrives');
+    assert.deepEqual(page.minimumCalls, [
+        Vinyl.minimumWindowSize('off', 'off'),
+        Vinyl.minimumWindowSize('left', 'off'),
+        Vinyl.minimumWindowSize('left', 'bottom')
+    ]);
     assert.deepEqual(page.sizeCalls, [
         { width: 472, height: 300 }, { width: 472, height: 352 }
     ]);
@@ -199,7 +222,6 @@ test('restored undersized bottom panels are corrected once to readable minimum d
 });
 
 test('every panel layout grows an undersized restored viewport to its content minimum', () => {
-    const Vinyl = require('../Vinyl.nepget/script.js');
     for (const labelPosition of positions) {
         for (const controlsPosition of positions) {
             const settings = { ...base, labelPosition, controlsPosition };
@@ -222,11 +244,18 @@ test('manual shrink cannot strand a readable bottom-panel layout below its minim
     page.settings({ ...base, labelPosition: 'bottom', controlsPosition: 'bottom' });
     assert.deepEqual(page.sizeCalls, [{ width: 330, height: 228 }]);
     page.resize(330, 228);
-    page.resize(160, 160);
+    page.elements.resizeHandle.dispatch('mousedown', {
+        screenX: 500, screenY: 500, preventDefault() {}, stopPropagation() {}
+    });
+    page.document.dispatch('mousemove', { screenX: 500, screenY: 450 });
+    assert.deepEqual(JSON.parse(JSON.stringify(page.messages[0])), {
+        type: 'resizeMove', deltaX: 0, deltaY: -16
+    });
+    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 228 }],
+        'normal resize is clamped, not repaired by a later setSize call');
+    page.resize(330, 212);
     assert.equal(page.disc(), '80px');
-    assert.deepEqual(page.sizeCalls, [
-        { width: 330, height: 228 }, { width: 330, height: 212 }
-    ]);
+    page.document.dispatch('mouseup');
 });
 
 test('the resize handle sends grow, shrink, and end messages through the existing mouse path', () => {
@@ -238,10 +267,12 @@ test('the resize handle sends grow, shrink, and end messages through the existin
     page.elements.resizeHandle.dispatch('mousedown', down);
     assert.equal(down.prevented, true);
     assert.equal(down.stopped, true);
+    assert.equal(page.root.classList.contains('resize-active'), true);
 
     page.document.dispatch('mousemove', { screenX: 220, screenY: 220 });
     page.document.dispatch('mousemove', { screenX: 210, screenY: 210 });
     page.document.dispatch('mouseup');
+    assert.equal(page.root.classList.contains('resize-active'), false);
     assert.deepEqual(JSON.parse(JSON.stringify(page.messages)), [
         { type: 'resizeMove', deltaX: 20, deltaY: 20 },
         { type: 'resizeMove', deltaX: -10, deltaY: -10 },
@@ -249,4 +280,42 @@ test('the resize handle sends grow, shrink, and end messages through the existin
     ]);
     page.document.dispatch('mousemove', { screenX: 230, screenY: 230 });
     assert.equal(page.messages.length, 3, 'movement after mouseup must not continue resizing');
+});
+
+test('the active resize path declares native minimums and clamps shrink deltas before posting', () => {
+    for (const labelPosition of positions) {
+        for (const controlsPosition of positions) {
+            const settings = { ...base, labelPosition, controlsPosition };
+            const minimum = Vinyl.minimumWindowSize(labelPosition, controlsPosition);
+            const page = browser(settings, { width: minimum.width + 12, height: minimum.height + 12 });
+            assert.deepEqual(page.minimumCalls, [minimum], `${labelPosition}/${controlsPosition} native floor`);
+
+            page.elements.resizeHandle.dispatch('mousedown', {
+                screenX: 100, screenY: 100, preventDefault() {}, stopPropagation() {}
+            });
+            page.document.dispatch('mousemove', { screenX: 70, screenY: 70 });
+            assert.deepEqual(JSON.parse(JSON.stringify(page.messages[0])), {
+                type: 'resizeMove', deltaX: -12, deltaY: -12
+            }, `${labelPosition}/${controlsPosition} clamped movement`);
+            page.document.dispatch('mousemove', { screenX: 60, screenY: 60 });
+            assert.equal(page.messages.length, 1,
+                `${labelPosition}/${controlsPosition} does not send a zero resize at the floor`);
+            page.document.dispatch('mouseup');
+        }
+    }
+});
+
+test('an older helper without setMinimumSize still gets locally clamped resize requests', () => {
+    const settings = { ...base, labelPosition: 'bottom', controlsPosition: 'bottom' };
+    const minimum = Vinyl.minimumWindowSize('bottom', 'bottom');
+    const page = browser(settings, { width: minimum.width, height: minimum.height + 24, minimumAPI: false });
+    assert.deepEqual(page.minimumCalls, []);
+    page.elements.resizeHandle.dispatch('mousedown', {
+        screenX: 100, screenY: 100, preventDefault() {}, stopPropagation() {}
+    });
+    page.document.dispatch('mousemove', { screenX: 100, screenY: 50 });
+    assert.deepEqual(JSON.parse(JSON.stringify(page.messages[0])), {
+        type: 'resizeMove', deltaX: 0, deltaY: -24
+    });
+    page.document.dispatch('mouseup');
 });

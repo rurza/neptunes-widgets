@@ -61,10 +61,13 @@
     const BOTTOM_HEIGHT = 40;
     const BOTTOM_GAP = 6;
     const DEFAULT_DISC = 136;   // the diameter shipped Vinyl has always been
+    const MAX_WINDOW_WIDTH = 668;
+    const MAX_WINDOW_HEIGHT = 452;
 
     let currentDisc = DEFAULT_DISC;
     let expectedWindowSize = null;
     let hasReceivedSettings = false;
+    let declaredMinimum = null;
 
     /*
      * How much room the side panels take, given where the two of them sit. Stacked on the
@@ -108,18 +111,48 @@
         return windowSizeFor(80, labelPos, controlsPos);
     }
 
-    // The record's diameter, as a CSS variable the whole stylesheet is written against.
-    function applyDiscSize(discSize) {
+    // Remember the last user-sized diameter for later panel-placement changes. CSS itself
+    // derives the visible diameter from the viewport synchronously on every resize frame.
+    function rememberDiscSize(discSize) {
         currentDisc = discSize;
-        document.documentElement.style.setProperty('--vinyl-size', discSize + 'px');
-        document.documentElement.style.setProperty('--bottom-row-width',
-            Math.max(discSize, bottomPanelWidth(currentLabelPosition, currentControlsPosition)) + 'px');
+    }
+
+    function applyPanelGeometry(labelPos, controlsPos) {
+        const extents = panelExtents(labelPos, controlsPos);
+        const style = document.documentElement.style;
+        style.setProperty('--panel-left', extents.left + 'px');
+        style.setProperty('--panel-right', extents.right + 'px');
+        style.setProperty('--panel-bottom', extents.bottom + 'px');
+        style.setProperty('--bottom-panel-width', bottomPanelWidth(labelPos, controlsPos) + 'px');
+    }
+
+    function declareMinimumSize(labelPos, controlsPos) {
+        const minimum = minimumWindowSize(labelPos, controlsPos);
+        if (declaredMinimum && declaredMinimum.width === minimum.width &&
+            declaredMinimum.height === minimum.height) return minimum;
+        declaredMinimum = minimum;
+        if (typeof window.NepTunes.setMinimumSize === 'function') {
+            window.NepTunes.setMinimumSize(minimum.width, minimum.height);
+        }
+        return minimum;
     }
 
     function calculateAndSetSize(labelPos, controlsPos) {
         const size = windowSizeFor(currentDisc, labelPos, controlsPos);
         expectedWindowSize = size;
         window.NepTunes.setSize(size.width, size.height);
+    }
+
+    function resizeDeltaForViewport(width, height, deltaX, deltaY, labelPos, controlsPos) {
+        const minimum = minimumWindowSize(labelPos, controlsPos);
+        const clamp = (current, delta, minimum, maximum) => {
+            if (!Number.isFinite(delta) || delta === 0) return 0;
+            return Math.max(minimum - current, Math.min(maximum - current, delta));
+        };
+        return {
+            deltaX: clamp(width, deltaX, minimum.width, MAX_WINDOW_WIDTH),
+            deltaY: clamp(height, deltaY, minimum.height, MAX_WINDOW_HEIGHT)
+        };
     }
 
     function discSizeForViewport(width, height, labelPos, controlsPos) {
@@ -141,12 +174,29 @@
             if (expectedWindowSize && expectedWindowSize.width === minimum.width &&
                 expectedWindowSize.height === minimum.height) return;
             expectedWindowSize = minimum;
-            applyDiscSize(80);
+            rememberDiscSize(80);
             window.NepTunes.setSize(minimum.width, minimum.height);
             return;
         }
         expectedWindowSize = null;
-        applyDiscSize(discSizeForViewport(width, height, currentLabelPosition, currentControlsPosition));
+        rememberDiscSize(discSizeForViewport(width, height, currentLabelPosition, currentControlsPosition));
+    }
+
+    function observeViewportSize() {
+        const width = document.documentElement.clientWidth;
+        const height = document.documentElement.clientHeight;
+        if (expectedWindowSize) {
+            if (Math.abs(width - expectedWindowSize.width) < 2 &&
+                Math.abs(height - expectedWindowSize.height) < 2) {
+                expectedWindowSize = null;
+                rememberDiscSize(discSizeForViewport(width, height,
+                    currentLabelPosition, currentControlsPosition));
+            }
+            return;
+        }
+        // CSS already sizes the disc on this frame. Keep only the value needed if the user
+        // changes panel placement later; never repair or resize during a normal drag.
+        rememberDiscSize(discSizeForViewport(width, height, currentLabelPosition, currentControlsPosition));
     }
 
     function getContainer(position) {
@@ -341,6 +391,10 @@
         const textShadow = settings.textShadow !== false;
         const controlsBackground = settings.controlsBackground !== false;
 
+        // Install the native floor before changing the layout or requesting a frame change.
+        // Older helpers lack this API; their resize path is clamped locally below.
+        declareMinimumSize(labelPosition, controlsPosition);
+
         currentTextColor = textColor;
         currentTextShadow = textShadow;
         currentControlsBackground = controlsBackground;
@@ -380,7 +434,7 @@
             liveBadge = null;
         }
         currentControlsPosition = controlsPosition;
-        applyDiscSize(currentDisc);
+        applyPanelGeometry(labelPosition, controlsPosition);
 
         // Apply styles after both track info and controls are created
         applyTextStyles();
@@ -391,7 +445,13 @@
         const layoutChanged = labelPosition !== previousLabelPosition ||
             controlsPosition !== previousControlsPosition;
         if (hasReceivedSettings) {
-            if (layoutChanged) calculateAndSetSize(labelPosition, controlsPosition);
+            if (layoutChanged) {
+                if (!expectedWindowSize) {
+                    rememberDiscSize(discSizeForViewport(document.documentElement.clientWidth,
+                        document.documentElement.clientHeight, previousLabelPosition, previousControlsPosition));
+                }
+                calculateAndSetSize(labelPosition, controlsPosition);
+            }
         } else {
             hasReceivedSettings = true;
             applyViewportSize();
@@ -555,7 +615,7 @@
         }
 
         setupResize();
-        if (window.ResizeObserver) new ResizeObserver(applyViewportSize).observe(document.documentElement);
+        if (window.ResizeObserver) new ResizeObserver(observeViewportSize).observe(document.documentElement);
 
         emptyOpen.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -587,23 +647,41 @@
         if (!handle) return;
         let resizing = false;
         let x = 0, y = 0;
+        let resizeWidth = 0, resizeHeight = 0;
         function post(message) {
             const bridge = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.neptunes;
             if (bridge) bridge.postMessage(message);
         }
         handle.addEventListener('mousedown', function (event) {
             resizing = true; x = event.screenX; y = event.screenY;
+            resizeWidth = document.documentElement.clientWidth;
+            resizeHeight = document.documentElement.clientHeight;
+            document.documentElement.classList.add('resize-active');
             event.preventDefault(); event.stopPropagation();
         });
         document.addEventListener('mousemove', function (event) {
             if (!resizing) return;
-            const delta = ((event.screenX - x) + (event.screenY - y)) / 2;
+            const deltaX = event.screenX - x;
+            const deltaY = event.screenY - y;
             x = event.screenX; y = event.screenY;
-            post({ type: 'resizeMove', deltaX: delta, deltaY: delta });
+            const safeDelta = resizeDeltaForViewport(resizeWidth, resizeHeight, deltaX, deltaY,
+                currentLabelPosition, currentControlsPosition);
+            resizeWidth += safeDelta.deltaX;
+            resizeHeight += safeDelta.deltaY;
+            rememberDiscSize(discSizeForViewport(resizeWidth, resizeHeight,
+                currentLabelPosition, currentControlsPosition));
+            if (safeDelta.deltaX || safeDelta.deltaY) {
+                post({ type: 'resizeMove', deltaX: safeDelta.deltaX, deltaY: safeDelta.deltaY });
+            }
         });
-        document.addEventListener('mouseup', function () {
-            if (resizing) { resizing = false; post({ type: 'resizeEnd' }); }
-        });
+        function endResize() {
+            if (!resizing) return;
+            resizing = false;
+            document.documentElement.classList.remove('resize-active');
+            post({ type: 'resizeEnd' });
+        }
+        document.addEventListener('mouseup', endResize);
+        window.addEventListener('blur', endResize);
     }
 
     function start() {
@@ -617,6 +695,7 @@
     return {
         spinDurationFor: spinDurationFor,
         discSizeForViewport: discSizeForViewport,
+        resizeDeltaForViewport: resizeDeltaForViewport,
         minimumWindowSize: minimumWindowSize,
         windowSizeFor: windowSizeFor,
         transportHidden: transportHidden,

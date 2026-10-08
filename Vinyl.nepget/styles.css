@@ -6,23 +6,30 @@
     user-select: none;
 }
 
-/* The record's diameter, and the one number the rest of this stylesheet is written
-   against. script.js sets it on <html>; everything inside .vinyl is already expressed in
+/* The record's diameter, derived from the live viewport and panel extents. Everything
+   inside .vinyl is already expressed in
    %, aspect-ratio and `closest-side` radials, so the disc scales without touching them.
    The shadow GUTTER around it deliberately does not scale — a drop shadow's blur is a
    fixed number of pixels, so a gutter that grew with the record would leave a fat
    transparent margin at the large end and clip at the small one. */
 :root {
-    --vinyl-size: 136px;
+    --panel-left: 0px;
+    --panel-right: 0px;
+    --panel-bottom: 0px;
+    --bottom-panel-width: 0px;
+    /* Resolve size from the live viewport on every native resize frame. This keeps the record
+       inside the available panel-aware area before ResizeObserver or JavaScript can run. */
+    --vinyl-size: clamp(80px, min(
+        calc(100vw - var(--panel-left) - var(--panel-right) - 80px),
+        calc(100vh - var(--panel-bottom) - 80px)
+    ), 320px);
+    --bottom-row-width: max(var(--vinyl-size), var(--bottom-panel-width));
 }
 
 html, body {
     background: transparent;
     width: 100%;
     height: 100%;
-    /* The window has no page-scrolling surface. All visible states are sized to fit by the
-       panel-aware viewport logic; `clip` blocks scroll input without adding a scroll container. */
-    overflow: clip;
 }
 
 body {
@@ -36,6 +43,8 @@ body {
 
 .widget {
     position: relative;
+    width: max-content;
+    margin: 0 auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -46,8 +55,8 @@ body {
 
 .resize-handle {
     position: absolute;
-    right: 2px;
-    bottom: 2px;
+    right: -8px;
+    bottom: -8px;
     width: 18px;
     height: 18px;
     -webkit-app-region: no-drag;
@@ -61,9 +70,9 @@ body {
 .resize-grip {
     --grip-radius: 12px;
     position: absolute;
-    right: calc(6px - 0.5 * var(--grip-radius));
-    bottom: calc(6px - 0.5 * var(--grip-radius));
-    z-index: 1;
+    right: -10px;
+    bottom: -10px;
+    z-index: 12;
     width: calc(2.52866 * var(--grip-radius));
     height: calc(2.52866 * var(--grip-radius));
     overflow: visible;
@@ -84,6 +93,11 @@ body {
 html.nt-hover .resize-grip {
     opacity: 1;
     transition: opacity 0.15s linear 0.13s;
+}
+
+html.resize-active .resize-grip {
+    opacity: 1;
+    transition: opacity 0.1s linear;
 }
 
 .vinyl-row {
@@ -119,7 +133,7 @@ html.nt-hover .resize-grip {
     gap: 6px;
     justify-content: center;
     align-items: center;
-    width: var(--bottom-row-width, var(--vinyl-size));
+    width: var(--bottom-row-width);
 }
 
 .bottom-row:empty {

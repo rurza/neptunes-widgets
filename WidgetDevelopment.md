@@ -527,6 +527,18 @@ same stylesheet (`_dev/card-shape.css`, a copy of the host's), and the **Shadow*
 
 NepTunes injects a global `window.NepTunes` object into every widget.
 
+`NepTunes.setMinimumSize(width, height)` requests a larger minimum window size in points for the
+current document. The host enforces it across native edge resizing, widget resize handles, and
+`setSize`, and immediately raises a window that is already smaller. The request is not persisted
+and resets when the document is replaced. It cannot weaken manifest bounds or exceed the declared
+maximum, display, or host safety limit. Feature-detect it with
+`typeof NepTunes.setMinimumSize === 'function'` for compatibility with older hosts; it is separate
+from `NepTunes.setSize`, which continues to request the current size.
+
+The host caps minimums as well as requested sizes. If a declared minimum exceeds the declared
+maximum or the available display, the smaller security ceiling wins; the widget may therefore
+render below its declared floor rather than create an oversized window.
+
 ### State Object
 
 ```javascript

@@ -67,6 +67,7 @@ function browser(settings, { width = 232, height = 232 } = {}) {
     };
     const callbacks = {};
     const sizeCalls = [];
+    const messages = [];
     const nepTunes = {
         settings: null, state: null, on(name, fn) { callbacks[name] = fn; },
         setSize(width, height) { sizeCalls.push({ width, height }); },
@@ -75,14 +76,17 @@ function browser(settings, { width = 232, height = 232 } = {}) {
     let resizeObserver;
     class TestResizeObserver { constructor(fn) { resizeObserver = fn; } observe() {} }
     const context = {
-        document, window: { NepTunes: nepTunes, ResizeObserver: TestResizeObserver }, console,
+        document, window: {
+            NepTunes: nepTunes, ResizeObserver: TestResizeObserver,
+            webkit: { messageHandlers: { neptunes: { postMessage(message) { messages.push(message); } } } }
+        }, console,
         ResizeObserver: TestResizeObserver,
         requestAnimationFrame: () => 1, cancelAnimationFrame() {}, setTimeout, clearTimeout,
         SFSymbols: { load() {}, reload() {} }
     };
     vm.runInNewContext(source, context, { filename: 'Vinyl/script.js' });
     const page = {
-        root, elements, callbacks, sizeCalls,
+        root, elements, document, callbacks, sizeCalls, messages,
         settings(next) { nepTunes.settings = next; callbacks.settingschange(next); },
         resize(width, height) { root.clientWidth = width; root.clientHeight = height; resizeObserver(); },
         disc() { return root.style.values['--vinyl-size']; }
@@ -202,4 +206,26 @@ test('manual shrink cannot strand a readable bottom-panel layout below its minim
     assert.deepEqual(page.sizeCalls, [
         { width: 346, height: 228 }, { width: 346, height: 228 }
     ]);
+});
+
+test('the resize handle sends grow, shrink, and end messages through the existing mouse path', () => {
+    const page = browser(base);
+    const down = {
+        screenX: 200, screenY: 200, prevented: false, stopped: false,
+        preventDefault() { this.prevented = true; }, stopPropagation() { this.stopped = true; }
+    };
+    page.elements.resizeHandle.dispatch('mousedown', down);
+    assert.equal(down.prevented, true);
+    assert.equal(down.stopped, true);
+
+    page.document.dispatch('mousemove', { screenX: 220, screenY: 220 });
+    page.document.dispatch('mousemove', { screenX: 210, screenY: 210 });
+    page.document.dispatch('mouseup');
+    assert.deepEqual(JSON.parse(JSON.stringify(page.messages)), [
+        { type: 'resizeMove', deltaX: 20, deltaY: 20 },
+        { type: 'resizeMove', deltaX: -10, deltaY: -10 },
+        { type: 'resizeEnd' }
+    ]);
+    page.document.dispatch('mousemove', { screenX: 230, screenY: 230 });
+    assert.equal(page.messages.length, 3, 'movement after mouseup must not continue resizing');
 });

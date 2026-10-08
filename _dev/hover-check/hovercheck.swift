@@ -29,6 +29,7 @@ let args = CommandLine.arguments
 guard args.count >= 4 else { fputs("usage: hovercheck <widgets-dir> <api.js> <spec.json>\n", stderr); exit(2) }
 let widgetsDir = URL(fileURLWithPath: args[1])
 let apiJS = try! String(contentsOf: URL(fileURLWithPath: args[2]), encoding: .utf8)
+let widgetFilter = ProcessInfo.processInfo.environment["HOVER_CHECK_WIDGET"]
 
 /// A fake native side. Only `symbol` matters here: an unanswered request leaves an `<img>`
 /// without a source forever, and a bundle that sizes itself around its icons would lay out
@@ -187,7 +188,15 @@ struct Sample {
 func run() async -> Int {
     let specData = FileManager.default.contents(atPath: args[3])!
     let spec = (try! JSONSerialization.jsonObject(with: specData)) as! [String: Any]
-    let cases = spec["cases"] as! [[String: Any]]
+    let allCases = spec["cases"] as! [[String: Any]]
+    let cases = allCases.filter { c in
+        guard let widgetFilter else { return true }
+        return (c["widget"] as? String) == widgetFilter
+    }
+    guard !cases.isEmpty else {
+        fputs("no hover-check cases match HOVER_CHECK_WIDGET\n", stderr)
+        return 2
+    }
     let track = spec["track"] as! [String: Any]
     var failures: [String] = []
 
@@ -236,9 +245,29 @@ func run() async -> Int {
         await r.hover(false)                    // and it has to hide again, not latch open
         await settle(300)
         let after = Sample(await r.eval(measureJS(selector)))
-        r.close()
 
         var problems: [String] = []
+        var paintedHitConfirmed = false
+        if let expectedHitTarget = c["paintedHitTarget"] as? String {
+            await r.hover(true)
+            await settle(300)
+            let hit = await r.eval("""
+            (() => {
+              const path = document.querySelector('.resize-grip path');
+              const p = path.getPointAtLength(path.getTotalLength() / 2);
+              const q = new DOMPoint(p.x, p.y).matrixTransform(path.getScreenCTM());
+              const target = document.elementFromPoint(q.x, q.y);
+              return target && target.matches(\(String(reflecting: expectedHitTarget))) ? 'hit' :
+                (target?.id || target?.className?.baseVal || target?.tagName || 'none');
+            })()
+            """)
+            if hit != "hit" {
+                problems.append("painted grip center hit `\(hit)`, expected `\(expectedHitTarget)`")
+            } else {
+                paintedHitConfirmed = true
+            }
+        }
+        r.close()
         if idle.missing || hovered.missing || after.missing {
             problems.append("no element matches `\(selector)` — the bundle changed shape, or its script died")
         } else if expect == "hover-gated" {
@@ -280,7 +309,8 @@ func run() async -> Int {
             let shape = expect == "hover-gated"
                 ? "hidden → revealed → hidden\(inert ? ", inert while hidden" : "")"
                 : "on screen throughout"
-            print("✅ \(label): \(shape) — \(why)")
+            let hit = paintedHitConfirmed ? "; painted grip center hits resize handle" : ""
+            print("✅ \(label): \(shape)\(hit) — \(why)")
         } else {
             failures.append(label)
             print("❌ \(label) — \(why)")

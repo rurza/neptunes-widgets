@@ -207,3 +207,12 @@ test('manual resizing is enabled and the widget provides a host resize handle', 
     assert.equal(manifest.resizable, true);
     assert.ok(html.includes('resize-handle'));
 });
+
+test('the resize handle has a visible grip revealed only by host hover', () => {
+    const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
+    assert.match(html, /<svg class="resize-grip"[^>]*aria-hidden="true"/);
+    assert.match(css, /\.resize-grip\s*\{[^}]*pointer-events:\s*none;[^}]*opacity:\s*0;/s);
+    assert.match(css, /html\.nt-hover \.resize-grip\s*\{[^}]*opacity:\s*1;/s);
+    assert.match(css, /\.resize-handle\s*\{[^}]*cursor:\s*nwse-resize;/s);
+    assert.doesNotMatch(css, /(?<!html\.nt-hover )\.resize-grip:hover/);
+});

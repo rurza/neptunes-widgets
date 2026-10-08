@@ -48,6 +48,37 @@ body {
     opacity: 0;
 }
 
+/* V3's resize affordance: the helper runs in the background, so the cursor change is
+   invisible. Keep the visual cue separate from the existing hit target and let the host's
+   measured-content nt-hover region reveal it. */
+.resize-grip {
+    --grip-radius: 12px;
+    position: absolute;
+    right: calc(6px - 0.5 * var(--grip-radius));
+    bottom: calc(6px - 0.5 * var(--grip-radius));
+    z-index: 1;
+    width: calc(2.52866 * var(--grip-radius));
+    height: calc(2.52866 * var(--grip-radius));
+    overflow: visible;
+    pointer-events: none;
+    opacity: 0;
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
+    transition: opacity 0.1s linear;
+}
+
+.resize-grip path {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.68);
+    stroke-width: 3;
+    stroke-linecap: round;
+    vector-effect: non-scaling-stroke;
+}
+
+html.nt-hover .resize-grip {
+    opacity: 1;
+    transition: opacity 0.15s linear 0.13s;
+}
+
 .vinyl-row {
     display: flex;
     flex-direction: row;

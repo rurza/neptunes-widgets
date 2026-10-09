@@ -112,6 +112,10 @@
       "type": "boolean",
       "description": "The widget is one rounded panel: NepTunes clips the element with class nt-card to the corner macOS draws its own widgets with (a continuous corner, radius exposed as --nt-card-radius, 27px), and the widget's settings offer a Shadow switch, off by default, that draws a shadow around the card. Keep a gutter of at least 12px at the sides and top and 16px at the bottom, keep your own border-radius on .nt-card as the fallback, and draw no shadow of your own. Defaults to false: no shape, no shadow, no switch. Older versions ignore the key and the widget keeps its own border-radius."
     },
+    "hitTesting": {
+      "enum": ["regions"],
+      "description": "Only elements explicitly marked with data-nt-hit-region receive clicks. Mark rectangular controls with data-nt-hit-region=\"rect\", circular controls with \"ellipse\", and text content with \"text\". Unmarked transparent space passes through to the desktop. Invalid or unavailable geometry also passes through. Requires NepTunes 4.1; older versions reject this unknown manifest value."
+    },
     "defaultSize": {
       "$ref": "#/$defs/size"
     },

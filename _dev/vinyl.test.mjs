@@ -226,6 +226,17 @@ test('manual resizing is enabled and the widget provides a host resize handle', 
     assert.ok(html.includes('resize-handle'));
 });
 
+test('Vinyl opts into precise native hit regions without making its shadow gutter interactive', () => {
+    assert.equal(manifest.hitTesting, 'regions');
+    assert.match(html, /<div class="vinyl-shadow" data-nt-hit-region="ellipse"/);
+    assert.match(html, /<div class="resize-handle" id="resizeHandle" data-nt-hit-region="rect"/);
+    assert.match(html, /class="title"[^>]*data-nt-hit-region="text"/);
+    assert.match(html, /class="artist"[^>]*data-nt-hit-region="text"/);
+    assert.equal((html.match(/class="control-btn[^\"]*"[^>]*data-nt-hit-region="rect"/g) || []).length, 3);
+    assert.match(html, /id="liveBadge"[^>]*data-nt-hit-region="text"/);
+    assert.doesNotMatch(html, /class="(?:widget|vinyl-row|side[^\"]*|bottom-row|track-info)"[^>]*data-nt-hit-region=/);
+});
+
 test('the resize handle has a visible grip revealed only by host hover', () => {
     const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
     assert.match(html, /<svg class="resize-grip"[^>]*aria-hidden="true"/);

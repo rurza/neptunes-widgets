@@ -1731,6 +1731,24 @@ Elements with these classes or tags won't trigger window dragging:
 
 Add these classes to your buttons and controls.
 
+### Transparent click-through regions
+
+Widgets that need clicks to pass through transparent padding can opt in with
+`"hitTesting": "regions"` (NepTunes 4.1+). Without this key the legacy whole-window hit behavior
+is unchanged. In an opted-in widget, only explicitly marked DOM content receives input; absent or
+invalid geometry passes input through instead of making the whole window active.
+
+Mark rectangular controls with `data-nt-hit-region="rect"`, circular controls with
+`data-nt-hit-region="ellipse"`, and text with `data-nt-hit-region="text"`. Text mode uses visible
+line fragments rather than the containing layout box, so empty text-container space is not a click
+target. Hidden and removed elements do not participate. An ellipse retains its original shape when
+clipped by the viewport or an ancestor; clipping does not make it rectangular. The host bounds the
+number of regions and rejects malformed or stale measurements.
+
+This requires native host support: CSS `pointer-events`, `:hover`, or JavaScript hit testing cannot
+route a click through a transparent native window to the desktop. Older helper versions do not
+understand this manifest key, so use it only with region-aware window routing.
+
 ### Volume Slider Debouncing
 
 Don't spam volume changes; debounce slider input:

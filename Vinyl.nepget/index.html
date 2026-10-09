@@ -10,7 +10,7 @@
     <div class="widget empty" id="widget">
         <div class="vinyl-row">
             <div class="side left" id="leftSide"></div>
-            <div class="vinyl-shadow">
+            <div class="vinyl-shadow" data-nt-hit-region="ellipse">
                 <div class="vinyl" id="vinyl">
                     <div class="grooves"></div>
                     <div class="label" id="label">
@@ -20,7 +20,7 @@
                 </div>
                 <!-- Keep the resize target and cue attached to the visible record, not the shadow gutter. -->
                 <svg class="resize-grip" viewBox="-0.5 -0.5 2.52866 2.52866" aria-hidden="true"><path d="M1.51935 0.52401 C1.51 0.66403 1.49128 0.77848 1.45375 0.89717 C1.3596 1.15584 1.15584 1.3596 0.89717 1.45375 C0.77848 1.49128 0.66403 1.51 0.52401 1.51935"/></svg>
-                <div class="resize-handle" id="resizeHandle" aria-hidden="true"></div>
+                <div class="resize-handle" id="resizeHandle" data-nt-hit-region="rect" aria-hidden="true"></div>
                 <!-- Nothing playing: a play mark on the stopped record's label that opens the
                      music player. Outside .vinyl, which turns, so the mark stays upright.
                      A real <button>, so the host's drag script leaves the click alone; the
@@ -37,25 +37,25 @@
 
     <template id="trackInfoTemplate">
         <div class="track-info" id="trackInfo">
-            <div class="title" id="title"></div>
-            <div class="artist" id="artist"></div>
+            <div class="title" id="title" data-nt-hit-region="text"></div>
+            <div class="artist" id="artist" data-nt-hit-region="text"></div>
         </div>
     </template>
 
     <template id="controlsTemplate">
         <div class="controls" id="controls">
-            <button class="control-btn" id="prevBtn">
+            <button class="control-btn" id="prevBtn" data-nt-hit-region="rect">
                 <img class="sf-icon" data-symbol="backward.end.fill" data-size="18" alt="">
             </button>
-            <button class="control-btn play-btn" id="playBtn">
+            <button class="control-btn play-btn" id="playBtn" data-nt-hit-region="rect">
                 <img class="sf-icon play-icon" data-symbol="play.fill" data-size="24" alt="">
                 <img class="sf-icon pause-icon" data-symbol="pause.fill" data-size="24" alt="">
                 <img class="sf-icon stop-icon" data-symbol="stop.fill" data-size="24" alt="">
             </button>
-            <button class="control-btn" id="nextBtn">
+            <button class="control-btn" id="nextBtn" data-nt-hit-region="rect">
                 <img class="sf-icon" data-symbol="forward.end.fill" data-size="18" alt="">
             </button>
-            <span class="live-badge" id="liveBadge" hidden>LIVE</span>
+            <span class="live-badge" id="liveBadge" data-nt-hit-region="text" hidden>LIVE</span>
         </div>
     </template>
 

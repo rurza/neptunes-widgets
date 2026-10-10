@@ -52,7 +52,7 @@ test('the picker offers only real turntable speeds, 33⅓ among them', () => {
 
 test('manual viewport resizing derives a square disc down to the 80px minimum', () => {
     assert.equal(Vinyl.discSizeForViewport(240, 240, 'off', 'off'), 160);
-    assert.equal(Vinyl.discSizeForViewport(460, 300, 'left', 'bottom'), 168);
+    assert.equal(Vinyl.discSizeForViewport(460, 300, 'left', 'bottom'), 148);
 });
 
 // transportHidden HIDES prev/next during a live stream, rather than greying them like the
@@ -149,13 +149,13 @@ test('each panel adds its own width, and only on the side it is on', () => {
     // A side panel never changes the height, and the bottom row never the width.
     assert.equal(Vinyl.windowSizeFor(136, 'left', 'right').height, bare.height);
     assert.equal(Vinyl.windowSizeFor(136, 'bottom', 'off').width, bare.width + 24);
-    assert.equal(Vinyl.windowSizeFor(136, 'bottom', 'bottom').height, bare.height + 52);
+    assert.equal(Vinyl.windowSizeFor(136, 'bottom', 'bottom').height, bare.height + 72);
 });
 
 test('bottom panels get a wide enough row at Extra Small without shrinking the record', () => {
-    assert.deepEqual(Vinyl.windowSizeFor(80, 'bottom', 'bottom'), { width: 330, height: 212 });
-    assert.deepEqual(Vinyl.windowSizeFor(136, 'bottom', 'bottom'), { width: 330, height: 268 });
-    assert.deepEqual(Vinyl.minimumWindowSize('bottom', 'bottom'), { width: 330, height: 212 });
+    assert.deepEqual(Vinyl.windowSizeFor(80, 'bottom', 'bottom'), { width: 330, height: 232 });
+    assert.deepEqual(Vinyl.windowSizeFor(136, 'bottom', 'bottom'), { width: 330, height: 288 });
+    assert.deepEqual(Vinyl.minimumWindowSize('bottom', 'bottom'), { width: 330, height: 232 });
 });
 
 test('the viewport converter does not promise room below the panel-aware minimum', () => {
@@ -195,7 +195,7 @@ test('the Size picker is removed; manual resizing is the only size control', () 
     assert.equal(manifest.settings.schema.some((setting) => setting.id === 'discSize'), false);
     assert.deepEqual(manifest.defaultSize, { width: 216, height: 216 });
     assert.deepEqual(manifest.minSize, { width: 160, height: 160 });
-    assert.deepEqual(manifest.maxSize, { width: 668, height: 452 });
+    assert.deepEqual(manifest.maxSize, { width: 668, height: 472 });
     assert.equal(Vinyl.discSizeForViewport(216, 216, 'off', 'off'), 136);
     assert.equal(Vinyl.discSizeForViewport(160, 160, 'off', 'off'), 80);
 });
@@ -228,6 +228,7 @@ test('manual resizing is enabled and the widget provides a host resize handle', 
 
 test('Vinyl opts into precise native hit regions without making its shadow gutter interactive', () => {
     assert.equal(manifest.hitTesting, 'regions');
+    assert.match(html, /<div class="widget empty" id="widget" data-nt-hover-region="content-box"/);
     assert.match(html, /<div class="vinyl-shadow" data-nt-hit-region="ellipse"/);
     assert.match(html, /<div class="resize-handle" id="resizeHandle" data-nt-hit-region="rect"/);
     assert.match(html, /class="title"[^>]*data-nt-hit-region="text"/);
@@ -237,13 +238,16 @@ test('Vinyl opts into precise native hit regions without making its shadow gutte
     assert.doesNotMatch(html, /class="(?:widget|vinyl-row|side[^\"]*|bottom-row|track-info)"[^>]*data-nt-hit-region=/);
 });
 
-test('the resize handle has a visible grip revealed only by host hover', () => {
+test('the resize handle is pinned to the content corner and paints its target on host hover', () => {
     const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
-    assert.match(html, /<svg class="resize-grip"[^>]*aria-hidden="true"/);
-    assert.match(css, /\.resize-grip\s*\{[^}]*pointer-events:\s*none;[^}]*opacity:\s*0;/s);
-    assert.match(css, /html\.nt-hover \.resize-grip\s*\{[^}]*opacity:\s*1;/s);
+    assert.match(html, /<div class="resize-handle" id="resizeHandle" data-nt-hit-region="rect"[^>]*>[\s\S]*?<svg class="resize-grip"/);
+    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*40px;[^}]*bottom:\s*40px;[^}]*width:\s*20px;[^}]*height:\s*20px;/s);
+    assert.match(css, /html\.nt-hover \.resize-handle\s*,\s*html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;[^}]*background(?:-color)?:\s*rgba\(/s);
+    assert.doesNotMatch(css, /html\.nt-hover \.resize-handle\s*\{[^}]*transition-delay/);
+    assert.match(css, /html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;/s);
     assert.match(css, /\.resize-handle\s*\{[^}]*cursor:\s*nwse-resize;/s);
-    assert.doesNotMatch(css, /(?<!html\.nt-hover )\.resize-grip:hover/);
+    assert.match(css, /\.bottom-row\s*\{[^}]*align-items:\s*flex-start;[^}]*min-height:\s*60px;/s);
+    assert.doesNotMatch(css, /\.resize-handle:hover/);
 });
 
 test('the document root is not a scroll container', () => {
@@ -258,8 +262,7 @@ test('the record and resize affordance are constrained by the live viewport, not
     const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
     assert.match(css, /\.widget\s*\{[^}]*width:\s*max-content;[^}]*margin:\s*0 auto;/s);
     assert.match(css, /--vinyl-size:\s*clamp\(80px,\s*min\(/);
-    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*-8px;[^}]*bottom:\s*-8px;/s);
-    assert.match(css, /\.resize-grip\s*\{[^}]*right:\s*-10px;[^}]*bottom:\s*-10px;/s);
-    assert.match(html, /class="vinyl-shadow"[\s\S]*?id="resizeHandle"[\s\S]*?<\/div>\s*<div class="side right"/);
-    assert.match(css, /html\.resize-active \.resize-grip\s*\{[^}]*opacity:\s*1;/s);
+    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*40px;[^}]*bottom:\s*40px;/s);
+    assert.match(html, /class="bottom-row"[^>]*id="bottomSide"\s*><\/div>[\s\S]*?<div class="resize-handle"/);
+    assert.match(css, /html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;/s);
 });

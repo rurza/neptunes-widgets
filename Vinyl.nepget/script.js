@@ -58,7 +58,8 @@
     const GAP = 12;
     const CONTROLS_WIDTH = 84;  // 24+2+32+2+24
     const TRACK_INFO_WIDTH = 160;
-    const BOTTOM_HEIGHT = 40;
+    // The bottom row reserves 20px below its controls/label for the content-corner resize grip.
+    const BOTTOM_HEIGHT = 60;
     const BOTTOM_GAP = 6;
     const DEFAULT_DISC = 136;   // the diameter shipped Vinyl has always been
     const MAX_WINDOW_WIDTH = 668;

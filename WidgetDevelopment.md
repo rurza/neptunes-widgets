@@ -1745,6 +1745,15 @@ target. Hidden and removed elements do not participate. An ellipse retains its o
 clipped by the viewport or an ancestor; clipping does not make it rectangular. The host bounds the
 number of regions and rejects malformed or stale measurements.
 
+Hover may be broader than click eligibility. Mark an untransformed content root with
+`data-nt-hover-region="content-box"` to let `nt-hover` cover its CSS content box, including
+transparent padding around controls. The measured box excludes the element's border and padding and
+is clipped to the WebKit viewport. This affects hover presentation only: unless that point also
+matches a `data-nt-hit-region`, mouse input still passes through the transparent window. With no
+hover marker, `nt-hover` retains its historical input-region behavior. A present marker that is
+hidden or otherwise unmeasurable produces an empty hover region rather than falling back to click
+geometry.
+
 This requires native host support: CSS `pointer-events`, `:hover`, or JavaScript hit testing cannot
 route a click through a transparent native window to the desktop. Older helper versions do not
 understand this manifest key, so use it only with region-aware window routing.

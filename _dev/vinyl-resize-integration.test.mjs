@@ -151,14 +151,14 @@ test('label and control panel changes preserve custom diameter and request each 
     page.resize(472, 300);
     assert.equal(page.disc(), '220px');
     page.settings({ ...base, labelPosition: 'left', controlsPosition: 'bottom' });
-    assert.equal(page.disc(), '168px', 'CSS remains bounded until the bottom-panel frame arrives');
+    assert.equal(page.disc(), '148px', 'CSS remains bounded until the bottom-panel frame arrives');
     assert.deepEqual(page.minimumCalls, [
         Vinyl.minimumWindowSize('off', 'off'),
         Vinyl.minimumWindowSize('left', 'off'),
         Vinyl.minimumWindowSize('left', 'bottom')
     ]);
     assert.deepEqual(page.sizeCalls, [
-        { width: 472, height: 300 }, { width: 472, height: 352 }
+        { width: 472, height: 300 }, { width: 472, height: 372 }
     ]);
 });
 
@@ -177,7 +177,7 @@ test('first real settings delivery applies panel bounds whether it precedes or f
     const settings = { ...base, discSize: '80', labelPosition: 'bottom', controlsPosition: 'bottom' };
     const beforeObserver = browser(null, { width: 346, height: 284 });
     beforeObserver.settings(settings);
-    assert.equal(beforeObserver.disc(), '152px');
+    assert.equal(beforeObserver.disc(), '132px');
     assert.deepEqual(beforeObserver.sizeCalls, []);
     beforeObserver.resize(346, 284);
     assert.deepEqual(beforeObserver.sizeCalls, []);
@@ -186,7 +186,7 @@ test('first real settings delivery applies panel bounds whether it precedes or f
     afterObserver.resize(176, 176);
     afterObserver.settings(settings);
     assert.equal(afterObserver.disc(), '80px');
-    assert.deepEqual(afterObserver.sizeCalls, [{ width: 330, height: 212 }]);
+    assert.deepEqual(afterObserver.sizeCalls, [{ width: 330, height: 232 }]);
 });
 
 test('duplicate settings deliveries and unrelated values do not resize the window', () => {
@@ -214,10 +214,10 @@ test('restored undersized bottom panels are corrected once to readable minimum d
         { width: 176, height: 176 });
     page.resize(176, 176);
     assert.equal(page.disc(), '80px');
-    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 212 }]);
+    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 232 }]);
     page.resize(176, 176);
     assert.equal(page.sizeCalls.length, 1, 'repeated observer delivery must not create a resize loop');
-    page.resize(330, 212);
+    page.resize(330, 232);
     assert.equal(page.sizeCalls.length, 1);
 });
 
@@ -242,8 +242,8 @@ test('manual shrink cannot strand a readable bottom-panel layout below its minim
     const page = browser(base);
     page.resize(176, 176);
     page.settings({ ...base, labelPosition: 'bottom', controlsPosition: 'bottom' });
-    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 228 }]);
-    page.resize(330, 228);
+    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 248 }]);
+    page.resize(330, 248);
     page.elements.resizeHandle.dispatch('mousedown', {
         screenX: 500, screenY: 500, preventDefault() {}, stopPropagation() {}
     });
@@ -251,9 +251,9 @@ test('manual shrink cannot strand a readable bottom-panel layout below its minim
     assert.deepEqual(JSON.parse(JSON.stringify(page.messages[0])), {
         type: 'resizeMove', deltaX: 0, deltaY: -16
     });
-    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 228 }],
+    assert.deepEqual(page.sizeCalls, [{ width: 330, height: 248 }],
         'normal resize is clamped, not repaired by a later setSize call');
-    page.resize(330, 212);
+    page.resize(330, 232);
     assert.equal(page.disc(), '80px');
     page.document.dispatch('mouseup');
 });

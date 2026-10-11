@@ -238,16 +238,27 @@ test('Vinyl opts into precise native hit regions without making its shadow gutte
     assert.doesNotMatch(html, /class="(?:widget|vinyl-row|side[^\"]*|bottom-row|track-info)"[^>]*data-nt-hit-region=/);
 });
 
-test('the resize handle is pinned to the content corner and paints its target on host hover', () => {
+test('the resize handle is pinned to the content corner and reveals only its curved stroke', () => {
     const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
-    assert.match(html, /<div class="resize-handle" id="resizeHandle" data-nt-hit-region="rect"[^>]*>[\s\S]*?<svg class="resize-grip"/);
-    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*40px;[^}]*bottom:\s*40px;[^}]*width:\s*20px;[^}]*height:\s*20px;/s);
-    assert.match(css, /html\.nt-hover \.resize-handle\s*,\s*html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;[^}]*background(?:-color)?:\s*rgba\(/s);
+    assert.match(html, /<div class="resize-handle" id="resizeHandle" data-nt-hit-region="rect" data-nt-hover-region="content-box"[^>]*>[\s\S]*?<svg class="resize-grip"/);
+    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*30px;[^}]*bottom:\s*30px;[^}]*width:\s*24px;[^}]*height:\s*24px;/s);
+    assert.match(css, /html\.nt-hover \.resize-handle\s*,\s*html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;/s);
+    const hoveredRule = css.match(/html\.nt-hover \.resize-handle\s*,\s*html\.resize-active \.resize-handle\s*\{([^}]*)\}/s)?.[1] || '';
+    assert.doesNotMatch(hoveredRule, /(?:background(?:-color)?\s*:\s*(?!transparent)|border(?:-color)?\s*:\s*(?!transparent|0)|box-shadow\s*:\s*(?!none))/i,
+        'hover must not paint a box, frame, or shadow around the curve');
+    const handleRule = css.match(/\.resize-handle\s*\{([^}]*)\}/s)?.[1] || '';
+    assert.match(handleRule, /background:\s*transparent/);
+    assert.match(handleRule, /box-shadow:\s*none/);
     assert.doesNotMatch(css, /html\.nt-hover \.resize-handle\s*\{[^}]*transition-delay/);
     assert.match(css, /html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;/s);
     assert.match(css, /\.resize-handle\s*\{[^}]*cursor:\s*nwse-resize;/s);
     assert.match(css, /\.bottom-row\s*\{[^}]*align-items:\s*flex-start;[^}]*min-height:\s*60px;/s);
     assert.doesNotMatch(css, /\.resize-handle:hover/);
+});
+
+test('the resize cue retains its original 20px footprint inside the expanded hit area', () => {
+    const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
+    assert.match(css, /\.resize-grip\s*\{[^}]*width:\s*20px;[^}]*height:\s*20px;/s);
 });
 
 test('the document root is not a scroll container', () => {
@@ -260,9 +271,9 @@ test('the document root is not a scroll container', () => {
 
 test('the record and resize affordance are constrained by the live viewport, not stale content height', () => {
     const css = readFileSync(new URL('../Vinyl.nepget/styles.css', import.meta.url), 'utf8');
-    assert.match(css, /\.widget\s*\{[^}]*width:\s*max-content;[^}]*margin:\s*0 auto;/s);
+    assert.match(css, /\.widget\s*\{[^}]*width:\s*max-content;[^}]*margin:\s*0 auto 0 0;/s);
     assert.match(css, /--vinyl-size:\s*clamp\(80px,\s*min\(/);
-    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*40px;[^}]*bottom:\s*40px;/s);
+    assert.match(css, /\.resize-handle\s*\{[^}]*right:\s*30px;[^}]*bottom:\s*30px;/s);
     assert.match(html, /class="bottom-row"[^>]*id="bottomSide"\s*><\/div>[\s\S]*?<div class="resize-handle"/);
     assert.match(css, /html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;/s);
 });

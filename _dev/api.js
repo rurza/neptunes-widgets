@@ -476,10 +476,28 @@ document.addEventListener('contextmenu', e => e.preventDefault());
         return false;
     }
 
+    function endDrag(cancelled) {
+        if (!isDragging) return;
+        isDragging = false;
+        window.webkit.messageHandlers.neptunes.postMessage(cancelled
+            ? { type: 'dragEnd', cancelled: true, didMove: didMove }
+            : { type: 'dragEnd' });
+        // Only a real drag (pointer actually travelled) should eat the synthetic click.
+        if (didMove) {
+            suppressClick = true;
+            setTimeout(function() { suppressClick = false; }, 0); // clear if no click follows
+        }
+    }
+
     // Use capture phase to ensure we see ALL events before any element can stop propagation.
     // This is the primary handler for drag detection.
     document.addEventListener('mousedown', function(e) {
         console.log('[DRAG-CAPTURE] mousedown captured on:', e.target.tagName, e.target.className, 'eventPhase:', e.eventPhase);
+        // A new press proves the old gesture is over even if WebKit lost its mouseup.
+        // End it before filtering interactive targets such as resize handles.
+        endDrag(true);
+        // The prior gesture's synthetic click can no longer follow this new press.
+        suppressClick = false;
         if (isInteractive(e.target)) {
             console.log('[DRAG-CAPTURE] target is interactive, skipping drag');
             return;
@@ -513,16 +531,12 @@ document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('mouseup', function(e) {
         if (isDragging) {
             console.log('[DRAG-CAPTURE] ending drag');
-            isDragging = false;
-            window.webkit.messageHandlers.neptunes.postMessage({ type: 'dragEnd' });
-            // Only a real drag (pointer actually travelled) should eat the synthetic
-            // click WebKit fires next; a stationary tap must still reach the widget.
-            if (didMove) {
-                suppressClick = true;
-                setTimeout(function() { suppressClick = false; }, 0); // clear if no click follows
-            }
+            endDrag(false);
         }
     }, true); // capture phase
+
+    // App deactivation can prevent WebKit from delivering the matching mouseup.
+    window.addEventListener('blur', function() { endDrag(true); }, true);
 
     // Swallow the one synthetic click that follows a real drag. Capture phase runs before
     // any widget's own (bubble-phase) click handler, so the drag never leaks into a toggle.

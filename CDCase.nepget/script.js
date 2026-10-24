@@ -2061,6 +2061,8 @@
     N.on('settingschange', function () { readSettings(); invalidate(); });
     N.on('themechange', function () { invalidate(); });
     readSettings();
+    // The loop sleeps until something wakes it, and a saved Idle motion is only read here.
+    invalidate();
     if (N.state) applyState(N.state);      // may already have arrived
   });
 
@@ -2069,11 +2071,26 @@
   var t0 = performance.now();
   var lastDraw = 0;
   var dirtyUntil = 0;
+  var rafPending = false;
 
   // Rendering only while something is actually moving matters here: the widget
   // sits on the desktop for hours and a permanently spinning GL loop is a real
-  // battery cost.
-  function invalidate() { dirtyUntil = performance.now() + 250; }
+  // battery cost. So is a frame callback that only finds nothing to draw: the
+  // loop below runs only while animating() says so, and everything that starts
+  // motion comes through invalidate(), which wakes it.
+  function invalidate() { dirtyUntil = performance.now() + 250; wake(); }
+
+  function wake() {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(loop);
+  }
+
+  function loop() {
+    rafPending = false;
+    tick();
+    if (animating(performance.now())) wake();
+  }
 
   function animating(now) {
     /* Unconditional: rAF is frozen whenever the widget is occluded, so a
@@ -2202,7 +2219,7 @@
     try { renderer.render(scene, camera); } catch (e) { /* not built yet */ }
   };
 
-  (function raf() { tick(); requestAnimationFrame(raf); })();
+  wake();
 
   /* ===================== boot ===================== */
 

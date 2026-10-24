@@ -26,10 +26,12 @@
      let accentSource = 'album'; // album | fixed
      let fixedColor = '#FF375F';
 
-    // Last.fm request coordination
-    let inFlight = false;      // a request is currently running
-    let requestToken = 0;      // bumps each load; stale responses are dropped
-    let refreshTimer = null;   // 60s periodic refresh
+    // Last.fm request coordination. NepTunes 4.1.1+ says when Last.fm has accepted a scrobble
+    // (the `scrobble` event), so the chart refreshes then. The slow refresh catches what the
+    // event never reports: scrobbles from another device, and hosts before 4.1.1.
+    const REFRESH_MS = 5 * 60 * 1000;
+    const RETRY_MS = 60000;    // first retry after a failed load: the old polling cadence
+    let refresher = null;      // built in init()
     let trackDebounce = null;  // debounce for now-playing-driven refresh
 
     // Accent caching. The key is everything the painted accent depends on, so the widget
@@ -253,28 +255,64 @@
         return !!(error && error.code && error.code !== 'notSignedIn' && onScreen);
     }
 
+    /*
+     * Runs `load` and keeps only the newest call's answer. A refresh started just before a
+     * scrobble (or a settings change) can answer after the newer one, with the older chart;
+     * it is dropped rather than painted over it. A failure is retried after `retryMs`,
+     * doubling with each failure in a row up to the slow refresh, unless something else
+     * refreshes first. Signed out is not retried: signing in is picked up by the refresh after
+     * a track change, a settings change or the slow refresh. Pure apart from the timers, which
+     * _dev/lastfm-refresh.test.mjs hands in.
+     */
+    function makeRefresher(opts) {
+        const timers = opts.timers || {
+            setTimeout: (fn, ms) => setTimeout(fn, ms),
+            clearTimeout: (id) => clearTimeout(id),
+            setInterval: (fn, ms) => setInterval(fn, ms),
+        };
+        let latest = 0;
+        let retry = null;
+        let failures = 0;          // failed loads in a row, for the back-off
+
+        function refresh() {
+            const seq = ++latest;
+            if (retry !== null) { timers.clearTimeout(retry); retry = null; }
+            return Promise.resolve()
+                .then(opts.load)
+                .then((result) => {
+                    if (seq !== latest) return;
+                    opts.apply(result);
+                    failures = 0;
+                })
+                .catch((error) => {
+                    if (seq !== latest) return;
+                    opts.fail(error);
+                    if (error && error.code === 'notSignedIn') return;
+                    const delay = Math.min(opts.retryMs * 2 ** failures, REFRESH_MS);
+                    failures++;
+                    retry = timers.setTimeout(refresh, delay);
+                });
+        }
+
+        function start() {
+            timers.setInterval(refresh, REFRESH_MS);
+        }
+
+        return { refresh: refresh, start: start };
+    }
+
+    function showFailure(error) {
+        if (keepsChartOnFailure(error, statusEl.hidden && listEl.childElementCount > 0)) return;
+        showStatus('Sign in to Last.fm in NepTunes settings to see your charts.');
+    }
+
     function loadChart() {
         const lf = window.NepTunes && window.NepTunes.lastFm;
         if (!lf) {
             showStatus('Sign in to Last.fm in NepTunes settings to see your charts.');
             return;
         }
-        // In-flight guard: never overlap requests.
-        if (inFlight) return;
-
-        const token = ++requestToken;
-        inFlight = true;
-
-        fetchChart(lf, chart, period, limit).then((items) => {
-            if (token !== requestToken) return; // stale — a newer load superseded us
-            renderRows(items);
-        }).catch((error) => {
-            if (token !== requestToken) return;
-            if (keepsChartOnFailure(error, statusEl.hidden && listEl.childElementCount > 0)) return;
-            showStatus('Sign in to Last.fm in NepTunes settings to see your charts.');
-        }).finally(() => {
-            if (token === requestToken) inFlight = false;
-        });
+        if (refresher) refresher.refresh();
     }
 
     // ---- Accent (now-playing tint) ----------------------------------------
@@ -347,12 +385,6 @@
         trackDebounce = setTimeout(loadChart, 5000);
     }
 
-    // ---- Periodic refresh -------------------------------------------------
-    function startRefreshTimer() {
-        if (refreshTimer) clearInterval(refreshTimer);
-        refreshTimer = setInterval(loadChart, 60000);
-    }
-
     // The desktop switched between light and dark. Only 'auto' resolves against the
     // system — an explicit dark/light choice already renders correctly. The panel itself
     // flips in CSS (.theme-auto + a prefers-color-scheme query); only the JS-derived
@@ -371,12 +403,23 @@
         statusEl = document.getElementById('status');
 
         if (!window.NepTunes) return;
+        // The chart kind, period and row count are read when the load starts, so a refresh
+        // always asks for what the settings say now.
+        refresher = makeRefresher({
+            load: () => fetchChart(window.NepTunes.lastFm, chart, period, limit),
+            apply: renderRows,
+            fail: showFailure,
+            retryMs: RETRY_MS,
+        });
         NepTunes.on('statechange', onState);
         NepTunes.on('settingschange', onSettings);
         NepTunes.on('themechange', onThemeChange);
+        // A host before 4.1.1 keeps this listener and never calls it; the slow refresh
+        // below covers that host.
+        NepTunes.on('scrobble', loadChart);
         onSettings(NepTunes.settings);
         onState(NepTunes.state);
-        startRefreshTimer();
+        if (NepTunes.lastFm) refresher.start();
         if (NepTunes._signalReady) NepTunes._signalReady();
     }
 
@@ -385,5 +428,5 @@
         else init();
     }
 
-    return { start: start, accentKey: accentKey, adaptTopAlbums: adaptTopAlbums, adaptTopArtists: adaptTopArtists, adaptTopTracks: adaptTopTracks, fetchChart: fetchChart, keepsChartOnFailure: keepsChartOnFailure, wantsThumbnail: wantsThumbnail, loadThumbnail: loadThumbnail };
+    return { start: start, accentKey: accentKey, adaptTopAlbums: adaptTopAlbums, adaptTopArtists: adaptTopArtists, adaptTopTracks: adaptTopTracks, fetchChart: fetchChart, keepsChartOnFailure: keepsChartOnFailure, wantsThumbnail: wantsThumbnail, loadThumbnail: loadThumbnail, makeRefresher: makeRefresher };
 });

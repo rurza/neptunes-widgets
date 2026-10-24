@@ -40,11 +40,35 @@
         return !(state && state.track);
     }
 
+    /* ===== progress, without a frame loop =====
+
+       The hairline is one linear Web Animation from where the track is to its end, and the
+       elapsed label is rewritten once a second, on the second, rather than both being
+       redrawn on every frame for as long as the track plays. Each statechange starts them
+       again from the host's position, as it used to rebuild the clock. */
+
+    // Where the bar starts (0…1) and how long it has left to run. Nothing to run without a
+    // duration: the bar has always sat at zero then, while the label still counts.
+    function progressRun(position, duration) {
+        if (!(duration > 0)) return { from: 0, remainingMs: 0 };
+        const pos = Math.min(Math.max(Number(position) || 0, 0), duration);
+        return { from: pos / duration, remainingMs: (duration - pos) * 1000 };
+    }
+
+    // Milliseconds until the label's whole second changes (formatTime floors). Never 0, so
+    // a timer that fires a hair early wakes again just past the boundary.
+    function msToNextSecond(position) {
+        const pos = Math.max(Number(position) || 0, 0);
+        return Math.max(1, Math.ceil((Math.floor(pos) + 1 - pos) * 1000));
+    }
+
     const PURE = {
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
         hasTimeline: hasTimeline,
-        isEmpty: isEmpty
+        isEmpty: isEmpty,
+        progressRun: progressRun,
+        msToNextSecond: msToNextSecond
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
     if (typeof window === 'undefined') return;
@@ -54,6 +78,7 @@
     const titleEl = document.getElementById('title');
     const subtitleEl = document.getElementById('subtitle');
     const barFill = document.getElementById('barFill');
+    const barThumbRun = document.getElementById('barThumbRun');
     const elapsedEl = document.getElementById('elapsed');
     const controls = document.getElementById('controls');
     const prevBtn = document.getElementById('prevBtn');
@@ -73,7 +98,8 @@
     let clockFn = null;          // NTKit.clock(), rebuilt on every statechange
     let curDuration = 0;
     let isPlaying = false;
-    let rafId = null;
+    let barAnimations = [];      // the fill's and the thumb's run to the end of the track
+    let labelTimer = null;       // the elapsed label's next once-a-second rewrite
 
     // ---- Accent ----
     function hexToRgb(hex) {
@@ -149,26 +175,54 @@
     }
 
     // ---- Progress rendering ----
+    // The fill and the thumb span the bar and are slid left by what is still to play, so
+    // the run to the end of the track never resizes anything (styles.css).
+    function barTransform(fraction) {
+        return 'translateX(' + ((fraction - 1) * 100) + '%)';
+    }
+
+    function setBar(fraction) {
+        barFill.style.transform = barTransform(fraction);
+        barThumbRun.style.transform = barTransform(fraction);
+    }
+
+    // One still frame: the bar and the label where the clock says the track is.
     function renderProgress() {
         const pos = clockFn ? clockFn() : 0;
-        const pct = curDuration > 0 ? Math.min(100, (pos / curDuration) * 100) : 0;
-        barFill.style.width = pct + '%';
+        setBar(progressRun(pos, curDuration).from);
         elapsedEl.textContent = NTKit.formatTime(pos);
     }
 
-    function loop() {
-        renderProgress();
-        rafId = requestAnimationFrame(loop);
+    function tickLabel() {
+        labelTimer = null;
+        const pos = clockFn ? clockFn() : 0;
+        elapsedEl.textContent = NTKit.formatTime(pos);
+        // The clock stops at the duration; past it there is nothing left to count.
+        if (!(curDuration > 0) || pos < curDuration) {
+            labelTimer = setTimeout(tickLabel, msToNextSecond(pos));
+        }
     }
 
+    // Playing: paint where the track is, then let the bar run on its own to the end and
+    // wake the label once a second.
     function startLoop() {
-        if (rafId == null) rafId = requestAnimationFrame(loop);
+        stopLoop();
+        renderProgress();
+        const run = progressRun(clockFn ? clockFn() : 0, curDuration);
+        if (run.remainingMs > 0 && typeof barFill.animate === 'function') {
+            const frames = [{ transform: barTransform(run.from) }, { transform: barTransform(1) }];
+            const timing = { duration: run.remainingMs, easing: 'linear', fill: 'forwards' };
+            barAnimations = [barFill.animate(frames, timing), barThumbRun.animate(frames, timing)];
+        }
+        tickLabel();
     }
 
     function stopLoop() {
-        if (rafId != null) {
-            cancelAnimationFrame(rafId);
-            rafId = null;
+        barAnimations.forEach((animation) => animation.cancel());
+        barAnimations = [];
+        if (labelTimer != null) {
+            clearTimeout(labelTimer);
+            labelTimer = null;
         }
     }
 
@@ -181,7 +235,7 @@
         clockFn = null;
         curDuration = 0;
         isPlaying = false;
-        barFill.style.width = '0%';
+        setBar(0);
         elapsedEl.textContent = '0:00';
         playBtn.classList.remove('playing', 'live');
         root.classList.remove('live');
@@ -258,12 +312,12 @@
             timestamp: state.timestamp
         });
 
-        // Drive the rAF loop only while playing; otherwise render once. A station has no
-        // timeline to animate, so the loop would burn a frame a second painting a bar that
-        // CSS is hiding anyway.
+        // Run the bar and the label only while playing; otherwise render once. A station
+        // has no timeline to animate, so there is nothing to run for a bar that CSS is
+        // hiding anyway.
         if (!hasTimeline(track)) {
             stopLoop();
-            barFill.style.width = '0%';
+            setBar(0);
             elapsedEl.textContent = NTKit.formatTime(0);
         } else if (isPlaying) {
             startLoop();

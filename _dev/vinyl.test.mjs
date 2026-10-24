@@ -277,3 +277,25 @@ test('the record and resize affordance are constrained by the live viewport, not
     assert.match(html, /class="bottom-row"[^>]*id="bottomSide"\s*><\/div>[\s\S]*?<div class="resize-handle"/);
     assert.match(css, /html\.resize-active \.resize-handle\s*\{[^}]*opacity:\s*1;/s);
 });
+
+// The record turns by a Web Animation now, not a requestAnimationFrame loop. Stopping it reads
+// the angle the animation reached and leaves the record there; starting again (or a new RPM)
+// begins a fresh lap from that angle. spinAngle is that reading.
+
+test('the record turns at the period, from wherever it was left', () => {
+    assert.equal(Vinyl.spinAngle(0, 450, 1800), 90);
+    assert.equal(Vinyl.spinAngle(30, 900, 1800), 210);
+    assert.equal(Vinyl.spinAngle(0, 0, 1800), 0);
+});
+
+test('the angle stays within one turn however long it has been playing', () => {
+    assert.equal(Vinyl.spinAngle(0, 1800, 1800), 0);
+    assert.equal(Vinyl.spinAngle(350, 1800 * 1000 + 100, 1800), 10);
+    const a = Vinyl.spinAngle(123, 987654321, 769);
+    assert.ok(a >= 0 && a < 360, String(a));
+});
+
+test('an animation that has not started yet reads as where it starts', () => {
+    // currentTime is null until the animation is ready.
+    assert.equal(Vinyl.spinAngle(42, null, 1800), 42);
+});

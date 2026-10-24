@@ -80,6 +80,7 @@
     <div class="group">
       <button id="signout">Toggle signed-out</button>
       <span id="signstate" style="color:#9a9aa6">signed in</span>
+      <button id="scrobble">Scrobble accepted</button>
     </div>
 
     <h1>History</h1>
@@ -321,6 +322,8 @@
         if (controller) controller.setSignedOut(signedOut);
         updateSignState();
       };
+      // Last.fm accepted a scrobble: the `scrobble` event, for a widget with the lastFm permission.
+      document.getElementById('scrobble').onclick = function () { controller && controller.emitScrobble(); };
       var historyOff = false;
       document.getElementById('history').onclick = function () {
         historyOff = !historyOff;

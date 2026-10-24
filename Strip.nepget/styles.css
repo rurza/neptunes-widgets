@@ -306,7 +306,12 @@ html[dir="rtl"] .label-wrap {
     left: 0;
     bottom: 0;
     height: 2px;
-    width: 0;
+    /* Full width, scaled down to the progress from the physical left (script.js), so the
+       run to the end of the track is a compositor animation rather than a width redrawn
+       every frame. `left`, not a logical keyword: the line stays physical under RTL. */
+    width: 100%;
+    transform: scaleX(0);
+    transform-origin: left center;
     background: var(--accent);
     transition: background 600ms ease;
 }

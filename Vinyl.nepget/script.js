@@ -33,11 +33,11 @@
 
     let currentArtworkURL = null;
     let artworkTransitionTimeout = null;
-    let currentRotation = 0;
+    let currentRotation = 0;     // the angle the current lap started from (or rests at)
     let isSpinning = false;
     let isPlaying = false;
-    let lastTimestamp = null;
-    let animationId = null;
+    let spinAnimation = null;    // the Web Animation turning the record while playing
+    let spinPeriod = 0;          // the period spinAnimation was started with
 
     // Milliseconds per revolution, keyed by the `spinRpm` option values in manifest.json.
     // Each is 60000/rpm rounded: 33 is 33⅓, so it is 1800 exactly — do not derive these
@@ -466,37 +466,45 @@
         if (window.SFSymbols) SFSymbols.reload();
     }
 
-    function spin(timestamp) {
-        if (!isSpinning) return;
+    /*
+     * The record turns by a Web Animation, one endless lap after another from the angle it
+     * was left at, so the compositor turns it and no script runs per frame. Stopping reads
+     * the angle the lap reached and leaves the record there; playing again, or a new RPM
+     * while it plays, starts a fresh lap from that angle, so it never jumps.
+     */
 
-        if (lastTimestamp === null) {
-            lastTimestamp = timestamp;
-        }
-
-        const delta = timestamp - lastTimestamp;
-        lastTimestamp = timestamp;
-
-        const rotationPerMs = 360 / spinDuration;
-        currentRotation = (currentRotation + delta * rotationPerMs) % 360;
-
-        vinyl.style.transform = `rotate(${currentRotation}deg)`;
-        animationId = requestAnimationFrame(spin);
+    // Pure: the angle a lap that started at `fromDeg` has reached after `elapsedMs`. Null
+    // elapsed is an animation not yet started, which is still at its first frame.
+    function spinAngle(fromDeg, elapsedMs, periodMs) {
+        const turned = elapsedMs ? (elapsedMs % periodMs) * 360 / periodMs : 0;
+        return (fromDeg + turned) % 360;
     }
 
     function startSpinning() {
-        if (isSpinning) return;
+        if (isSpinning && spinPeriod === spinDuration) return;
+        if (isSpinning) stopSpinning();          // a new RPM: carry on from here
         isSpinning = true;
-        lastTimestamp = null;
-        animationId = requestAnimationFrame(spin);
+        spinPeriod = spinDuration;
+        vinyl.style.transform = `rotate(${currentRotation}deg)`;
+        if (typeof vinyl.animate !== 'function') return;
+        spinAnimation = vinyl.animate(
+            [
+                { transform: `rotate(${currentRotation}deg)` },
+                { transform: `rotate(${currentRotation + 360}deg)` }
+            ],
+            { duration: spinPeriod, iterations: Infinity, easing: 'linear' }
+        );
     }
 
     function stopSpinning() {
+        if (!isSpinning) return;
         isSpinning = false;
-        if (animationId) {
-            cancelAnimationFrame(animationId);
-            animationId = null;
+        if (spinAnimation) {
+            currentRotation = spinAngle(currentRotation, spinAnimation.currentTime, spinPeriod);
+            spinAnimation.cancel();
+            spinAnimation = null;
         }
-        lastTimestamp = null;
+        vinyl.style.transform = `rotate(${currentRotation}deg)`;
     }
 
     // Mirror for a right-to-left host language. Applied on state rather than at startup:
@@ -695,6 +703,7 @@
 
     return {
         spinDurationFor: spinDurationFor,
+        spinAngle: spinAngle,
         discSizeForViewport: discSizeForViewport,
         resizeDeltaForViewport: resizeDeltaForViewport,
         minimumWindowSize: minimumWindowSize,

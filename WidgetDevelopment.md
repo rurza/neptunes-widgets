@@ -233,7 +233,7 @@ The `manifest.json` file defines your widget's metadata, permissions, and settin
 | `ratingControl` | `setRating()`, `increaseRating()`, `decreaseRating()`, `removeRating()` | Apple Music only |
 | `shuffleRepeatControl` | `toggleShuffle()`, `toggleRepeat()` | Mode toggling |
 | `playerActivation` | `activatePlayer()`, `switchPlayer()` | Window management |
-| `lastFm` | `lastFm.call()`, `lastFm.image()`, and the narrow `lastFm.getUserInfo()`, `getTopAlbums()`, `getTopArtists()`, `getTopTracks()`, `getRecentTracks()`, `getTrackInfo()`, `getArtistInfo()`, `loveTrack()`, `unloveTrack()` | Proxied through the main app, which keeps the API key and session; `loveTrack`/`unloveTrack` also need `love`. See [Last.fm](#lastfm) |
+| `lastFm` | `lastFm.call()`, `lastFm.image()`, and the narrow `lastFm.getUserInfo()`, `getTopAlbums()`, `getTopArtists()`, `getTopTracks()`, `getRecentTracks()`, `getTrackInfo()`, `getArtistInfo()`, `loveTrack()`, `unloveTrack()` | Proxied through the main app, which keeps the API key and session; `loveTrack`/`unloveTrack` also need `love`. Also the `scrobble` event (4.1.1+). See [Last.fm](#lastfm) |
 | `listeningHistory` | `history.info()`, `history.query()`, `history.recent()` | NepTunes 4.1+. The most private data a widget can read; older versions refuse to install a widget that declares it, so declare `"minNepTunesVersion": "4.1.0"` or later (`widget-tools.mjs validate` fails without it). See [Listening history](#listening-history) |
 
 ### Minimum NepTunes version
@@ -660,8 +660,46 @@ window.NepTunes.on('themechange', function(e) { retheme(e.dark); });
 window.NepTunes.on('pointermove', function(p) { /* p.x, p.y: viewport CSS pixels */ });
 window.NepTunes.on('pointerleave', function() { /* the pointer left the widget window */ });
 
+// Last.fm accepted a scrobble NepTunes sent — only with the "lastFm" permission (NepTunes 4.1.1+)
+window.NepTunes.on('scrobble', function(e) { refreshStats(); /* e.at: ms since 1970 */ });
+
 // Remove a specific listener
 window.NepTunes.off('statechange', myHandler);
+```
+
+#### `scrobble`
+
+Fires when Last.fm has accepted a scrobble NepTunes sent, so a widget showing Last.fm data can
+refresh then instead of polling. Only widgets with the `lastFm` permission hear it.
+
+- The payload is `{ at }`: when the widget host heard of it, in milliseconds since 1970 (the
+  same scale as `Date.now()`). Nothing about the track: re-read what you show through
+  `lastFm.call()`.
+- Scrobbles that were queued while offline and go through together fire it **once**, not once
+  per track. A scrobble that could not be sent fires nothing. One that Last.fm received but
+  ignored (it answers those as a success, with `ignored: 1`) does fire it, so the refresh may
+  find nothing new.
+- Before it fires, NepTunes drops its cached answers that the scrobble made stale, so a
+  `lastFm.call()` made from the listener reaches Last.fm instead of the
+  [60-second cache](#lastfm): `user.getInfo`, `user.getRecentTracks` without a `to`,
+  `user.getTrackScrobbles`, `user.getTopArtists`, `user.getTopAlbums`, `user.getTopTracks`,
+  `library.getArtists`, the `user.getWeekly…Chart` reads with a `from` and no `to`, and
+  `track.getInfo`, `artist.getInfo` and `album.getInfo` called with a `username`. A weekly
+  chart with neither `from` nor `to` is the latest completed week, which a scrobble cannot
+  change, so it stays cached. Last.fm can take a while to count a scrobble into the top lists,
+  so they may still show the earlier numbers for a few minutes.
+- An answer to a request you made before the event can arrive after the answer to your refresh.
+  Drop out-of-order answers, for example by numbering your requests and keeping only the
+  latest one's result.
+- **Keep a slow fallback refresh** (every few minutes). The event knows only about scrobbles
+  this Mac sent: scrobbles from a phone or another computer never fire it, and NepTunes before
+  4.1.1 never fires it at all. A widget that listens for it does not need to raise its
+  `minNepTunesVersion`; an older host simply leaves the listener unused.
+
+```javascript
+var REFRESH_MS = 5 * 60 * 1000;   // catches other devices and older hosts
+NepTunes.on('scrobble', refreshStats);
+setInterval(refreshStats, REFRESH_MS);
 ```
 
 ### Action Methods
@@ -820,8 +858,9 @@ then retry.
 
 **Budget.**
 - Every widget on the Mac shares one limiter of 5 requests a second (Last.fm's own guidance), with a short queue behind it.
-- Identical calls (same method, same parameters, after the rules above) are answered from a cache for 60 seconds. Re-reading on every `statechange` is free, but polling faster than once a minute returns the same answer.
+- Identical calls (same method, same parameters, after the rules above) are answered from a cache for 60 seconds, and identical calls made while one is still waiting for Last.fm share its request. Re-reading on every `statechange` is free, but polling faster than once a minute returns the same answer.
 - Two reads that change with every scrobble are cached for only 10 seconds: `user.getInfo` (the scrobble count) and `user.getRecentTracks` without a `to` parameter (the feed up to now). Re-read a few seconds after a track change and you see the new scrobble. `user.getRecentTracks` with a `to` asks for history that is already settled, so it keeps the 60-second cache.
+- Rather than re-reading on a timer to catch new scrobbles, listen for the [`scrobble` event](#scrobble) (NepTunes 4.1.1+). The answers it makes stale are dropped from the cache before it fires.
 - Page through big results a few requests at a time, not all at once.
 
 **Feature detection.** `call()` needs NepTunes 4.1. Widget updates reach people on older
@@ -1352,6 +1391,7 @@ Understanding how data flows between the main app and your widget.
 | `pl.micropixels.NepTunes.widgetUpdated.{id}` | Widget files changed (reload) |
 | `pl.micropixels.NepTunes.widgetSettingsChanged.{id}` | User changed widget settings |
 | `pl.micropixels.NepTunes.widgetWindowLevelChanged` | Window level preference changed |
+| `pl.micropixels.NepTunes.scrobblesAccepted` | Last.fm accepted a scrobble; fires the `scrobble` event |
 
 ---
 

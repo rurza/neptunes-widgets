@@ -24,7 +24,11 @@
     var root    = null;
 
     var SIGNED_OUT_MSG = 'Sign in to Last.fm in NepTunes settings to see your scrobbles.';
-    var REFRESH_MS = 30000;     // periodic refresh cadence
+    // NepTunes 4.1.1+ says when Last.fm has accepted a scrobble (the `scrobble` event), so
+    // the feed refreshes then. The slow refresh catches what the event never reports:
+    // scrobbles from another device, and hosts before 4.1.1.
+    var REFRESH_MS = 5 * 60 * 1000;
+    var RETRY_MS = 30000;       // first retry after a failed load: the old polling cadence
     var TRACK_DEBOUNCE_MS = 5000; // a new scrobble lands shortly after a track change
 
     // Read in init() for the same reason as the DOM handles above.
@@ -32,8 +36,7 @@
 
     // ---- State ----
     var settings = {};
-    var inFlight = false;          // guard: never overlap Last.fm requests
-    var refreshTimer = null;       // periodic interval
+    var refresher = null;          // built in init()
     var trackDebounce = null;      // debounce for track-change-triggered refresh
     var displayedCount = 0;        // number currently shown in #count
     var countRaf = null;           // count-up animation handle
@@ -286,38 +289,74 @@
         return !!(error && error.code && error.code !== 'notSignedIn' && onScreen);
     }
 
-    // Fetch user info + recent tracks. Guarded against overlap.
-    function loadStats() {
-        if (inFlight || !window.NepTunes || !window.NepTunes.lastFm) return;
-        inFlight = true;
+    /*
+     * Runs `load` and keeps only the newest call's answer. A refresh started just before a
+     * scrobble can answer after the one the scrobble started, with the older numbers; it is
+     * dropped rather than painted over the newer feed. A failure is retried after `retryMs`,
+     * doubling with each failure in a row up to the slow refresh, unless something else
+     * refreshes first. Signed out is not retried: signing in is picked up by the refresh after
+     * a track change, a settings change or the slow refresh. Pure apart from the timers, which
+     * _dev/lastfm-refresh.test.mjs hands in.
+     */
+    function makeRefresher(opts) {
+        var timers = opts.timers || {
+            setTimeout: function (fn, ms) { return setTimeout(fn, ms); },
+            clearTimeout: function (id) { clearTimeout(id); },
+            setInterval: function (fn, ms) { return setInterval(fn, ms); }
+        };
+        var latest = 0;
+        var retry = null;
+        var failures = 0;              // failed loads in a row, for the back-off
 
+        function refresh() {
+            var seq = ++latest;
+            if (retry !== null) { timers.clearTimeout(retry); retry = null; }
+            return Promise.resolve()
+                .then(opts.load)
+                .then(function (result) {
+                    if (seq !== latest) return;
+                    opts.apply(result);
+                    failures = 0;
+                })
+                .catch(function (error) {
+                    if (seq !== latest) return;
+                    opts.fail(error);
+                    if (error && error.code === 'notSignedIn') return;
+                    var delay = Math.min(opts.retryMs * Math.pow(2, failures), REFRESH_MS);
+                    failures++;
+                    retry = timers.setTimeout(refresh, delay);
+                });
+        }
+
+        function start() {
+            timers.setInterval(refresh, REFRESH_MS);
+        }
+
+        return { refresh: refresh, start: start };
+    }
+
+    // Fetch user info + recent tracks.
+    function fetchCurrentStats() {
         var limit = parseInt(settings.count, 10) || 8;
-        var lfm = window.NepTunes.lastFm;
-
-        fetchStats(lfm, limit)
-            .then(function (res) {
-                clearError();
-                var info = res[0] || {};
-                var tracks = res[1] || [];
-                animateCount(Number(info.playcount) || 0);
-                renderFeed(tracks);
-            })
-            .catch(function (error) {
-                if (keepsFeedOnFailure(error, status.hidden && feed.childElementCount > 0)) return;
-                showError();
-            })
-            .finally(function () {
-                inFlight = false;
-            });
+        return fetchStats(window.NepTunes.lastFm, limit);
     }
 
-    // Periodic refresh on a fixed cadence.
-    function startRefreshTimer() {
-        stopRefreshTimer();
-        refreshTimer = setInterval(loadStats, REFRESH_MS);
+    function showStats(res) {
+        clearError();
+        var info = res[0] || {};
+        var tracks = res[1] || [];
+        animateCount(Number(info.playcount) || 0);
+        renderFeed(tracks);
     }
-    function stopRefreshTimer() {
-        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+
+    function showFailure(error) {
+        if (keepsFeedOnFailure(error, status.hidden && feed.childElementCount > 0)) return;
+        showError();
+    }
+
+    function loadStats() {
+        if (!refresher || !window.NepTunes || !window.NepTunes.lastFm) return;
+        refresher.refresh();
     }
 
     // ------------------------------------------------------------- Events ----
@@ -398,12 +437,16 @@
             window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
         if (!window.NepTunes) return;
+        refresher = makeRefresher({ load: fetchCurrentStats, apply: showStats, fail: showFailure, retryMs: RETRY_MS });
         NepTunes.on('statechange', onState);
         NepTunes.on('settingschange', onSettings);
         NepTunes.on('themechange', onThemeChange);
+        // A host before 4.1.1 keeps this listener and never calls it; the slow refresh
+        // below covers that host.
+        NepTunes.on('scrobble', loadStats);
         onSettings(NepTunes.settings);
         onState(NepTunes.state);
-        startRefreshTimer();
+        if (NepTunes.lastFm) refresher.start();
         if (window.SFSymbols) SFSymbols.load();
         if (NepTunes._signalReady) NepTunes._signalReady();
     }
@@ -416,5 +459,5 @@
         }
     }
 
-    return { start: start, accentKey: accentKey, adaptUserInfo: adaptUserInfo, adaptRecentTracks: adaptRecentTracks, fetchStats: fetchStats, keepsFeedOnFailure: keepsFeedOnFailure };
+    return { start: start, accentKey: accentKey, adaptUserInfo: adaptUserInfo, adaptRecentTracks: adaptRecentTracks, fetchStats: fetchStats, keepsFeedOnFailure: keepsFeedOnFailure, makeRefresher: makeRefresher };
 });

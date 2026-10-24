@@ -38,7 +38,9 @@
  *                                    neptunes-media:// URL for the album's real loop instead.
  * Controller also: setFirstWeekday(n), setHistoryUnavailable(bool), pointerMove(x, y),
  * pointerLeave(), setMotionArtwork(bool), activations (how many times the widget called
- * activatePlayer()).
+ * activatePlayer()), emitScrobble() (Last.fm accepted a scrobble: fires `scrobble` with
+ * { at }, as NepTunes 4.1.1 does — not while signed out, and only with the lastFm
+ * permission when permissions are given).
  *
  * Two different "nothing playing" states, because the host sends two:
  *   stop()       — the player is running but stopped at the end of its queue. playerState 1,
@@ -761,6 +763,13 @@
       setSettings: function (s) { NepTunes.settings = s; NepTunes._emit('settingschange', s); },
       // Force a themechange without touching the real system appearance.
       emitThemeChange: function (dark) { NepTunes._emit('themechange', { dark: !!dark }); },
+      // Last.fm accepted a scrobble this Mac sent. The app fires nothing for one it could not
+      // send, and tells only widgets that hold the lastFm permission.
+      emitScrobble: function () {
+        if (signedOut) return;
+        if (env.permissions && env.permissions.indexOf('lastFm') < 0) return;
+        NepTunes._emit('scrobble', { at: Date.now() });
+      },
       setFirstWeekday: function (n) { firstWeekday = n; refresh(); },
       setHistoryUnavailable: function (v) { historyUnavailable = !!v; },
       // The user flipping "Animated cover" in the widget's settings: the host re-pushes state.

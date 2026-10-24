@@ -41,11 +41,35 @@
         return !(state && state.track);
     }
 
+    /* ===== progress, without a frame loop =====
+
+       The underline is one linear Web Animation of its scale from where the track is to
+       its end, and the time readout is rewritten once a second, on the second, rather than
+       both being redrawn on every frame for as long as the track plays. Each statechange
+       starts them again from the host's position, as it used to rebuild the clock. */
+
+    // Where the line starts (0…1) and how long it has left to run. Nothing to run without a
+    // duration: the line has always sat at zero then, while the readout still counts.
+    function progressRun(position, duration) {
+        if (!(duration > 0)) return { from: 0, remainingMs: 0 };
+        const pos = Math.min(Math.max(Number(position) || 0, 0), duration);
+        return { from: pos / duration, remainingMs: (duration - pos) * 1000 };
+    }
+
+    // Milliseconds until the readout's whole second changes (formatTime floors). Never 0,
+    // so a timer that fires a hair early wakes again just past the boundary.
+    function msToNextSecond(position) {
+        const pos = Math.max(Number(position) || 0, 0);
+        return Math.max(1, Math.ceil((Math.floor(pos) + 1 - pos) * 1000));
+    }
+
     const PURE = {
         transportHidden: transportHidden,
         transportGlyph: transportGlyph,
         hasTimeline: hasTimeline,
-        isEmpty: isEmpty
+        isEmpty: isEmpty,
+        progressRun: progressRun,
+        msToNextSecond: msToNextSecond
     };
     if (typeof module !== 'undefined' && module.exports) module.exports = PURE;
     if (typeof window === 'undefined') return;
@@ -69,7 +93,8 @@
     let getPos = () => 0;          // NTKit.clock interpolator, rebuilt every state
     let duration = 0;
     let isPlaying = false;
-    let rafId = null;
+    let lineAnimation = null;      // the underline's run to the end of the track, while playing
+    let timeTimer = null;          // the readout's next once-a-second rewrite
 
     // ---- Accent ----------------------------------------------------------
 
@@ -123,24 +148,54 @@
         });
     }
 
-    // ---- Progress loop ---------------------------------------------------
+    // ---- Progress --------------------------------------------------------
 
-    function tick() {
-        const pos = getPos();
-        const pct = duration > 0 ? Math.min(100, (pos / duration) * 100) : 0;
-        underline.style.width = pct + '%';
-        timeEl.textContent = NTKit.formatTime(pos);
-        rafId = requestAnimationFrame(tick);
+    // The underline spans the strip and is scaled from its physical left, so its run is a
+    // compositor animation.
+    function setLine(fraction) {
+        underline.style.transform = 'scaleX(' + fraction + ')';
     }
 
+    // One still frame: the line and the readout where the clock says the track is.
+    function renderProgress() {
+        const pos = getPos();
+        setLine(progressRun(pos, duration).from);
+        timeEl.textContent = NTKit.formatTime(pos);
+    }
+
+    function tickTime() {
+        timeTimer = null;
+        const pos = getPos();
+        timeEl.textContent = NTKit.formatTime(pos);
+        // The clock stops at the duration; past it there is nothing left to count.
+        if (!(duration > 0) || pos < duration) {
+            timeTimer = setTimeout(tickTime, msToNextSecond(pos));
+        }
+    }
+
+    // Playing: paint where the track is, then let the line run on its own to the end and
+    // wake the readout once a second.
     function startLoop() {
-        if (rafId == null) rafId = requestAnimationFrame(tick);
+        stopLoop();
+        renderProgress();
+        const run = progressRun(getPos(), duration);
+        if (run.remainingMs > 0 && typeof underline.animate === 'function') {
+            lineAnimation = underline.animate(
+                [{ transform: 'scaleX(' + run.from + ')' }, { transform: 'scaleX(1)' }],
+                { duration: run.remainingMs, easing: 'linear', fill: 'forwards' }
+            );
+        }
+        tickTime();
     }
 
     function stopLoop() {
-        if (rafId != null) {
-            cancelAnimationFrame(rafId);
-            rafId = null;
+        if (lineAnimation) {
+            lineAnimation.cancel();
+            lineAnimation = null;
+        }
+        if (timeTimer != null) {
+            clearTimeout(timeTimer);
+            timeTimer = null;
         }
     }
 
@@ -174,7 +229,7 @@
             isPlaying = false;
             getPos = () => 0;
             stopLoop();
-            underline.style.width = '0%';
+            setLine(0);
             timeEl.textContent = NTKit.formatTime(0);
             refreshAccent();
             // Nothing playing must not block transport — pressing next may start playback.
@@ -227,7 +282,7 @@
         if (live) {
             stopLoop();
             timeEl.textContent = 'LIVE';
-            underline.style.width = '0%';
+            setLine(0);
             getPos = () => 0;
             refreshAccent();
             return;
@@ -243,14 +298,12 @@
 
         refreshAccent();
 
-        // Run the rAF only while playing; otherwise paint one static frame.
+        // Run the line and the readout only while playing; otherwise paint one static frame.
         if (isPlaying) {
             startLoop();
         } else {
             stopLoop();
-            const pos = getPos();
-            underline.style.width = (duration > 0 ? Math.min(100, (pos / duration) * 100) : 0) + '%';
-            timeEl.textContent = NTKit.formatTime(pos);
+            renderProgress();
         }
     }
 

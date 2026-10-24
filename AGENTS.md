@@ -346,6 +346,7 @@ window.NepTunes.on('settingschange', fn);  // user changed this widget's setting
 window.NepTunes.on('themechange', fn);     // fn({dark: true|false}) on a system light/dark flip
 window.NepTunes.on('pointermove', fn);     // fn({x, y}) viewport CSS px — only with "pointerTracking": true
 window.NepTunes.on('pointerleave', fn);    // the pointer left the widget window
+window.NepTunes.on('scrobble', fn);        // fn({at}) Last.fm accepted a scrobble — lastFm permission, NepTunes 4.1.1+
 window.NepTunes.off('statechange', fn);
 ```
 

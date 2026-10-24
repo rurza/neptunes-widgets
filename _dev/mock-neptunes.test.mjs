@@ -428,3 +428,33 @@ test('the sample loop is a small MP4 — it is published with the widgets', asyn
   assert.ok(bytes.length > 0 && bytes.length < 500 * 1024, `${bytes.length} bytes`);
   assert.equal(bytes.toString('latin1', 4, 8), 'ftyp', 'not an MP4');
 });
+
+// ---- scrobble (NepTunes 4.1.1+) --------------------------------------------------------------
+// The app fires it when Last.fm accepted a scrobble, to widgets with the lastFm permission only.
+
+test('emitScrobble fires the scrobble event with when it was heard of', () => {
+  const { N, ctl } = mock({ permissions: ['lastFm'] });
+  const seen = [];
+  N.on('scrobble', (e) => seen.push(e));
+  const before = Date.now();
+  ctl.emitScrobble();
+  assert.equal(seen.length, 1);
+  assert.deepEqual(Object.keys(seen[0]), ['at']);
+  assert.ok(seen[0].at >= before && seen[0].at <= Date.now(), 'ms since 1970, like Date.now()');
+});
+
+test('a widget without the lastFm permission never hears a scrobble', () => {
+  const { N, ctl } = mock({ permissions: ['artwork'] });
+  let heard = 0;
+  N.on('scrobble', () => heard++);
+  ctl.emitScrobble();
+  assert.equal(heard, 0);
+});
+
+test('signed out of Last.fm, nothing is scrobbled and nothing fires', () => {
+  const { N, ctl } = mock({ signedOut: true });
+  let heard = 0;
+  N.on('scrobble', () => heard++);
+  ctl.emitScrobble();
+  assert.equal(heard, 0);
+});

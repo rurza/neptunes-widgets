@@ -2,11 +2,12 @@
 """Extract the JS that `WidgetJSBridge.javascriptAPI` evaluates to, so the E2E checks run the
 exact JS that ships rather than a hand-copied version that can drift.
 
-    extract-api.py path/to/WidgetJSBridge.swift out/api.js
+    extract-api.py NepTunesKit/Sources/NepTunesWidgetHost/WidgetJSBridge.swift out/api.js
 
 The literal splices in other Swift string literals, e.g. `\\(WidgetHistoryBridge.javascriptNamespace)`.
 Each `\\(TypeName.member)` is resolved to the `static let member = \"\"\"` (or raw `#\"\"\"`)
-literal declared by `TypeName` under NepTunesKit/Sources, recursively, and every literal is
+literal declared by `TypeName` under NepTunesKit/Sources (the folder above the bridge's own
+module), recursively, and every literal is
 decoded by Swift's own rules: the closing delimiter's indentation is stripped, escapes are
 decoded (a raw literal only honours `\\#`-prefixed ones), and an interpolated value is inserted
 verbatim -- Swift does not re-indent it, so neither does this. Anything it cannot resolve
@@ -169,7 +170,9 @@ def extract(bridge_path):
     if open_i is None:
         raise ExtractError(f'{bridge_path}: javascriptAPI has no multiline string literal')
 
-    sources = os.path.join(os.path.dirname(os.path.abspath(bridge_path)), '..', 'NepTunesKit', 'Sources')
+    # The bridge lives in NepTunesKit/Sources/NepTunesWidgetHost/; the types it splices in live in
+    # its sibling modules.
+    sources = os.path.join(os.path.dirname(os.path.abspath(bridge_path)), '..')
     where = os.path.basename(bridge_path)
     text, hashes, span = literal_body(lines, open_i, where)
     js = decode(text, hashes, where, Resolver(os.path.normpath(sources)))
@@ -182,7 +185,7 @@ def extract(bridge_path):
 
 def main(argv):
     if len(argv) != 3:
-        sys.stderr.write(f'usage: {argv[0]} WidgetJSBridge.swift out.js\n')
+        sys.stderr.write(f'usage: {argv[0]} NepTunesKit/Sources/NepTunesWidgetHost/WidgetJSBridge.swift out.js\n')
         return 2
     try:
         js, (first, last) = extract(argv[1])

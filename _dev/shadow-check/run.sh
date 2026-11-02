@@ -11,7 +11,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
 widgets="${1:-$(cd "$here/../.." && pwd)}"
-bridge="$(cd "$here/../../.." && pwd)/NepTunes Widget/WidgetJSBridge.swift"
+bridge="$(cd "$here/../../.." && pwd)/NepTunesKit/Sources/NepTunesWidgetHost/WidgetJSBridge.swift"
 build="$(mktemp -d)"
 trap 'rm -rf "$build"' EXIT
 

@@ -245,7 +245,7 @@ _dev/hover-check/run.sh
 
 ## The window.NepTunes API
 
-Injected at document start into every widget by `NepTunes Widget/WidgetJSBridge.swift`.
+Injected at document start into every widget by `NepTunesKit/Sources/NepTunesWidgetHost/WidgetJSBridge.swift`.
 That file is the source of truth; this list mirrors it.
 
 ### State

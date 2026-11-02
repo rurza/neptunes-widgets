@@ -26,7 +26,7 @@ failure to a file and a line, which this cannot), and this runs the thing.
 ## What it does
 
 For each `.nepget`, loading the **real** bundle with the **real** injected API — extracted
-from `NepTunes Widget/WidgetJSBridge.swift` by `../theme-check/extract-api.py`, so it cannot
+from `NepTunesKit/Sources/NepTunesWidgetHost/WidgetJSBridge.swift` by `../theme-check/extract-api.py`, so it cannot
 drift from what ships:
 
 1. Push an Arabic state (`language: "ar"`, `locale: "ar-SA"`, `layoutDirection: "rtl"`),
